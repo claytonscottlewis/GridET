@@ -165,6 +165,8 @@
             ComboBoxes(I).Items.AddRange(ThresholdTypes)
         Next
 
+        EffectivePrecipitation.Items.AddRange([Enum].GetNames(GetType(EffectivePrecipitationType)))
+
         For Each ComboBox In ComboBoxes
             AddHandler ComboBox.TextChanged, AddressOf ComboBox_TextChanged
         Next

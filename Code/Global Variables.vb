@@ -8,7 +8,7 @@
     Public AirTemperatureCorrectionCoefficients As Double() = {1.58, 0.59, -1.53, -3.73, 1.4, 0.0551}
     Public HumidityCorrectionCoefficients As Double() = {-21.9, 0.78, 3.55, 11.6, -5.05, 0.274}
 
-    Public DAYMETStartDate As DateTime = New DateTime(1980, 1, 1)
+    Public DAYMETStartDate As DateTime = New DateTime(1980, 1, 1).AddHours(13)
     Public NLDAS_2AStartDate As DateTime = New DateTime(1979, 1, 1).AddHours(13)
     Public PRISMStartDate As DateTime = New DateTime(19, 1, 1)
 
@@ -235,7 +235,7 @@
     'Level 2
     Public ReadOnly Property OutputCalculationsDirectory As String
         Get
-            Return IO.Path.Combine("Output Calculations")
+            Return IO.Path.Combine(ProjectDirectory, "Output Calculations")
         End Get
     End Property
 

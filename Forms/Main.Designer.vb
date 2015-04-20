@@ -36,6 +36,8 @@ Partial Class Main
         Me.SettingsToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.CurveToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.CoverToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.ToolStripSeparator8 = New System.Windows.Forms.ToolStripSeparator()
+        Me.ImportToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.ProcessToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.UpdateDAYMETToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.DAYMETToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
@@ -59,8 +61,7 @@ Partial Class Main
         Me.ToolStripSeparator3 = New System.Windows.Forms.ToolStripSeparator()
         Me.AboutToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.MapViewer = New GridET.MapViewer()
-        Me.ToolStripSeparator8 = New System.Windows.Forms.ToolStripSeparator()
-        Me.ImportToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.RasterPeriodAverageToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.MenuStrip1.SuspendLayout()
         Me.SuspendLayout()
         '
@@ -136,14 +137,25 @@ Partial Class Main
         'CurveToolStripMenuItem
         '
         Me.CurveToolStripMenuItem.Name = "CurveToolStripMenuItem"
-        Me.CurveToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
+        Me.CurveToolStripMenuItem.Size = New System.Drawing.Size(110, 22)
         Me.CurveToolStripMenuItem.Text = "Curve"
         '
         'CoverToolStripMenuItem
         '
         Me.CoverToolStripMenuItem.Name = "CoverToolStripMenuItem"
-        Me.CoverToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
+        Me.CoverToolStripMenuItem.Size = New System.Drawing.Size(110, 22)
         Me.CoverToolStripMenuItem.Text = "Cover"
+        '
+        'ToolStripSeparator8
+        '
+        Me.ToolStripSeparator8.Name = "ToolStripSeparator8"
+        Me.ToolStripSeparator8.Size = New System.Drawing.Size(107, 6)
+        '
+        'ImportToolStripMenuItem
+        '
+        Me.ImportToolStripMenuItem.Name = "ImportToolStripMenuItem"
+        Me.ImportToolStripMenuItem.Size = New System.Drawing.Size(110, 22)
+        Me.ImportToolStripMenuItem.Text = "Import"
         '
         'ProcessToolStripMenuItem
         '
@@ -162,39 +174,39 @@ Partial Class Main
         'DAYMETToolStripMenuItem
         '
         Me.DAYMETToolStripMenuItem.Name = "DAYMETToolStripMenuItem"
-        Me.DAYMETToolStripMenuItem.Size = New System.Drawing.Size(126, 22)
+        Me.DAYMETToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
         Me.DAYMETToolStripMenuItem.Text = "DAYMET"
         '
         'NLDASToolStripMenuItem
         '
         Me.NLDASToolStripMenuItem.Name = "NLDASToolStripMenuItem"
-        Me.NLDASToolStripMenuItem.Size = New System.Drawing.Size(126, 22)
+        Me.NLDASToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
         Me.NLDASToolStripMenuItem.Text = "NLDAS"
         '
         'PRISMToolStripMenuItem
         '
         Me.PRISMToolStripMenuItem.Enabled = False
         Me.PRISMToolStripMenuItem.Name = "PRISMToolStripMenuItem"
-        Me.PRISMToolStripMenuItem.Size = New System.Drawing.Size(126, 22)
+        Me.PRISMToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
         Me.PRISMToolStripMenuItem.Text = "PRISM"
         '
         'ToolStripSeparator5
         '
         Me.ToolStripSeparator5.Name = "ToolStripSeparator5"
-        Me.ToolStripSeparator5.Size = New System.Drawing.Size(123, 6)
+        Me.ToolStripSeparator5.Size = New System.Drawing.Size(149, 6)
         '
         'LANDSATToolStripMenuItem
         '
         Me.LANDSATToolStripMenuItem.Enabled = False
         Me.LANDSATToolStripMenuItem.Name = "LANDSATToolStripMenuItem"
-        Me.LANDSATToolStripMenuItem.Size = New System.Drawing.Size(126, 22)
+        Me.LANDSATToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
         Me.LANDSATToolStripMenuItem.Text = "LANDSAT"
         '
         'MODISToolStripMenuItem
         '
         Me.MODISToolStripMenuItem.Enabled = False
         Me.MODISToolStripMenuItem.Name = "MODISToolStripMenuItem"
-        Me.MODISToolStripMenuItem.Size = New System.Drawing.Size(126, 22)
+        Me.MODISToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
         Me.MODISToolStripMenuItem.Text = "MODIS"
         '
         'ToolStripSeparator7
@@ -212,31 +224,31 @@ Partial Class Main
         'ReferenceToolStripMenuItem
         '
         Me.ReferenceToolStripMenuItem.Name = "ReferenceToolStripMenuItem"
-        Me.ReferenceToolStripMenuItem.Size = New System.Drawing.Size(143, 22)
+        Me.ReferenceToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
         Me.ReferenceToolStripMenuItem.Text = "Reference"
         '
         'PotentialToolStripMenuItem
         '
         Me.PotentialToolStripMenuItem.Name = "PotentialToolStripMenuItem"
-        Me.PotentialToolStripMenuItem.Size = New System.Drawing.Size(143, 22)
+        Me.PotentialToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
         Me.PotentialToolStripMenuItem.Text = "Potential"
         '
         'NetPotentialToolStripMenuItem
         '
         Me.NetPotentialToolStripMenuItem.Name = "NetPotentialToolStripMenuItem"
-        Me.NetPotentialToolStripMenuItem.Size = New System.Drawing.Size(143, 22)
+        Me.NetPotentialToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
         Me.NetPotentialToolStripMenuItem.Text = "Net Potential"
         '
         'ActualToolStripMenuItem
         '
         Me.ActualToolStripMenuItem.Enabled = False
         Me.ActualToolStripMenuItem.Name = "ActualToolStripMenuItem"
-        Me.ActualToolStripMenuItem.Size = New System.Drawing.Size(143, 22)
+        Me.ActualToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
         Me.ActualToolStripMenuItem.Text = "Actual"
         '
         'CalculateStatisticsToolStripMenuItem
         '
-        Me.CalculateStatisticsToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.ExtractByPolygonToolStripMenuItem})
+        Me.CalculateStatisticsToolStripMenuItem.DropDownItems.AddRange(New System.Windows.Forms.ToolStripItem() {Me.RasterPeriodAverageToolStripMenuItem, Me.ExtractByPolygonToolStripMenuItem})
         Me.CalculateStatisticsToolStripMenuItem.Name = "CalculateStatisticsToolStripMenuItem"
         Me.CalculateStatisticsToolStripMenuItem.Size = New System.Drawing.Size(225, 22)
         Me.CalculateStatisticsToolStripMenuItem.Text = "Calculate Statistics"
@@ -244,7 +256,7 @@ Partial Class Main
         'ExtractByPolygonToolStripMenuItem
         '
         Me.ExtractByPolygonToolStripMenuItem.Name = "ExtractByPolygonToolStripMenuItem"
-        Me.ExtractByPolygonToolStripMenuItem.Size = New System.Drawing.Size(172, 22)
+        Me.ExtractByPolygonToolStripMenuItem.Size = New System.Drawing.Size(189, 22)
         Me.ExtractByPolygonToolStripMenuItem.Text = "Extract by Polygon"
         '
         'ToolStripSeparator6
@@ -291,16 +303,11 @@ Partial Class Main
         Me.MapViewer.Size = New System.Drawing.Size(584, 388)
         Me.MapViewer.TabIndex = 1
         '
-        'ToolStripSeparator8
+        'RasterPeriodAverageToolStripMenuItem
         '
-        Me.ToolStripSeparator8.Name = "ToolStripSeparator8"
-        Me.ToolStripSeparator8.Size = New System.Drawing.Size(149, 6)
-        '
-        'ImportToolStripMenuItem
-        '
-        Me.ImportToolStripMenuItem.Name = "ImportToolStripMenuItem"
-        Me.ImportToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
-        Me.ImportToolStripMenuItem.Text = "Import"
+        Me.RasterPeriodAverageToolStripMenuItem.Name = "RasterPeriodAverageToolStripMenuItem"
+        Me.RasterPeriodAverageToolStripMenuItem.Size = New System.Drawing.Size(189, 22)
+        Me.RasterPeriodAverageToolStripMenuItem.Text = "Raster Period Average"
         '
         'Main
         '
@@ -361,5 +368,6 @@ Partial Class Main
     Friend WithEvents ExtractByPolygonToolStripMenuItem As System.Windows.Forms.ToolStripMenuItem
     Friend WithEvents ToolStripSeparator8 As System.Windows.Forms.ToolStripSeparator
     Friend WithEvents ImportToolStripMenuItem As System.Windows.Forms.ToolStripMenuItem
+    Friend WithEvents RasterPeriodAverageToolStripMenuItem As System.Windows.Forms.ToolStripMenuItem
 
 End Class

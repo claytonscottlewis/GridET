@@ -3,11 +3,6 @@
 #Region "DAYMET"
 
     Sub DownloadDAYMET(DownloadStartDate As DateTime, DownloadEndDate As DateTime, Variable As String, Connection As System.Data.SQLite.SQLiteConnection, Command As System.Data.SQLite.SQLiteCommand, BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
-        Command.CommandText = "DELETE FROM Rasters WHERE Date >= @Date1 AND Date <= @Date2"
-        Command.Parameters.Add("@Date1", DbType.DateTime).Value = DownloadStartDate
-        Command.Parameters.Add("@Date2", DbType.DateTime).Value = DownloadEndDate
-        Command.ExecuteNonQuery()
-
         'Download DAYMET Files
         Dim Year As Integer = 0
         For Year = DownloadStartDate.Year To DownloadEndDate.Year
@@ -54,7 +49,7 @@
                 End Using
 
                 'Store Raster in Database
-                Command.CommandText = "INSERT OR IGNORE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
+                Command.CommandText = "INSERT OR REPLACE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
                 Command.Parameters.Add("@Date", DbType.DateTime).Value = New DateTime(Year - 1, 12, 31).AddDays(DoY).AddHours(13)
                 Command.Parameters.Add("@Image", DbType.Object).Value = IO.File.ReadAllBytes(Path)
                 Command.ExecuteNonQuery()
@@ -62,7 +57,7 @@
                 If DoY = 365 Then
                     Dim LastDay = New DateTime(Year, 12, 31)
                     If LastDay.DayOfYear = 366 Then
-                        Command.CommandText = "INSERT OR IGNORE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
+                        Command.CommandText = "INSERT OR REPLACE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
                         Command.Parameters.Add("@Date", DbType.DateTime).Value = LastDay.AddHours(13)
                         Command.Parameters.Add("@Image", DbType.Object).Value = IO.File.ReadAllBytes(Path)
                         Command.ExecuteNonQuery()
@@ -107,11 +102,6 @@
     ''' Downloads and updates a database storing hourly NLDAS-2 Forcing File A GRIB rasters.
     ''' </summary>
     Sub DownloadNDLAS_2A(DownloadStartDate As DateTime, DownloadEndDate As DateTime, Increment As Integer, Connection As System.Data.SQLite.SQLiteConnection, Command As System.Data.SQLite.SQLiteCommand, BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
-        Command.CommandText = "DELETE FROM Rasters WHERE Date >= @Date1 AND Date <= @Date2"
-        Command.Parameters.Add("@Date1", DbType.DateTime).Value = DownloadStartDate
-        Command.Parameters.Add("@Date2", DbType.DateTime).Value = DownloadEndDate
-        Command.ExecuteNonQuery()
-
         Dim First As Integer = DownloadStartDate.Subtract(NLDAS_2AStartDate).TotalHours
         Dim Last As Integer = DownloadEndDate.Subtract(NLDAS_2AStartDate).TotalHours
         Dim Hour As Integer = First
@@ -133,7 +123,7 @@
             'Add Raster File and Associated Time Stamp into Database
             Using Transaction = Connection.BeginTransaction
                 For I = 0 To Count
-                    Command.CommandText = "INSERT OR IGNORE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
+                    Command.CommandText = "INSERT OR REPLACE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
                     Command.Parameters.Add("@Date", DbType.DateTime).Value = NLDAS_2AStartDate.AddHours(Hour + I)
                     Command.Parameters.Add("@Image", DbType.Object).Value = FileDownloads(I).Result
                     Command.ExecuteNonQuery()
@@ -465,14 +455,6 @@
         Loop Until Completed
 
         Return Response
-    End Function
-
-    Function FixDirectory(Directory As String)
-        If Not Directory.EndsWith("\") Then
-            Return Directory & "\"
-        Else
-            Return Directory
-        End If
     End Function
 
 #End Region

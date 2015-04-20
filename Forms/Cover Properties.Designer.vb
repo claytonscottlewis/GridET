@@ -25,6 +25,8 @@ Partial Class Cover_Properties
         Me.VariableGroup = New System.Windows.Forms.GroupBox()
         Me.Save = New System.Windows.Forms.Button()
         Me.TableLayoutPanel1 = New System.Windows.Forms.TableLayoutPanel()
+        Me.EffectivePrecipitation = New System.Windows.Forms.ComboBox()
+        Me.Label3 = New System.Windows.Forms.Label()
         Me.Label2 = New System.Windows.Forms.Label()
         Me.Label9 = New System.Windows.Forms.Label()
         Me.CurveName = New System.Windows.Forms.ComboBox()
@@ -74,7 +76,7 @@ Partial Class Cover_Properties
         Me.VariableGroup.Location = New System.Drawing.Point(12, 226)
         Me.VariableGroup.Name = "VariableGroup"
         Me.VariableGroup.Padding = New System.Windows.Forms.Padding(3, 6, 3, 3)
-        Me.VariableGroup.Size = New System.Drawing.Size(559, 285)
+        Me.VariableGroup.Size = New System.Drawing.Size(559, 308)
         Me.VariableGroup.TabIndex = 9
         Me.VariableGroup.TabStop = False
         Me.VariableGroup.Text = "Cover Variables"
@@ -101,6 +103,8 @@ Partial Class Cover_Properties
         Me.TableLayoutPanel1.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 200.0!))
         Me.TableLayoutPanel1.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50.0!))
         Me.TableLayoutPanel1.ColumnStyles.Add(New System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50.0!))
+        Me.TableLayoutPanel1.Controls.Add(Me.EffectivePrecipitation, 1, 8)
+        Me.TableLayoutPanel1.Controls.Add(Me.Label3, 0, 8)
         Me.TableLayoutPanel1.Controls.Add(Me.Label2, 0, 7)
         Me.TableLayoutPanel1.Controls.Add(Me.Label9, 0, 0)
         Me.TableLayoutPanel1.Controls.Add(Me.CurveName, 1, 0)
@@ -124,7 +128,7 @@ Partial Class Cover_Properties
         Me.TableLayoutPanel1.Controls.Add(Me.KillingFrost, 2, 7)
         Me.TableLayoutPanel1.Location = New System.Drawing.Point(18, 62)
         Me.TableLayoutPanel1.Name = "TableLayoutPanel1"
-        Me.TableLayoutPanel1.RowCount = 8
+        Me.TableLayoutPanel1.RowCount = 9
         Me.TableLayoutPanel1.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 21.0!))
         Me.TableLayoutPanel1.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 21.0!))
         Me.TableLayoutPanel1.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 21.0!))
@@ -134,8 +138,34 @@ Partial Class Cover_Properties
         Me.TableLayoutPanel1.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 21.0!))
         Me.TableLayoutPanel1.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 21.0!))
         Me.TableLayoutPanel1.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20.0!))
-        Me.TableLayoutPanel1.Size = New System.Drawing.Size(525, 195)
+        Me.TableLayoutPanel1.Size = New System.Drawing.Size(525, 218)
         Me.TableLayoutPanel1.TabIndex = 0
+        '
+        'EffectivePrecipitation
+        '
+        Me.EffectivePrecipitation.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
+            Or System.Windows.Forms.AnchorStyles.Left) _
+            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.EffectivePrecipitation.BackColor = System.Drawing.SystemColors.Window
+        Me.TableLayoutPanel1.SetColumnSpan(Me.EffectivePrecipitation, 2)
+        Me.EffectivePrecipitation.FormattingEnabled = True
+        Me.EffectivePrecipitation.Location = New System.Drawing.Point(206, 195)
+        Me.EffectivePrecipitation.Margin = New System.Windows.Forms.Padding(0)
+        Me.EffectivePrecipitation.Name = "EffectivePrecipitation"
+        Me.EffectivePrecipitation.Size = New System.Drawing.Size(316, 21)
+        Me.EffectivePrecipitation.TabIndex = 9
+        '
+        'Label3
+        '
+        Me.Label3.Anchor = CType((System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.Label3.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
+        Me.Label3.Location = New System.Drawing.Point(3, 195)
+        Me.Label3.Margin = New System.Windows.Forms.Padding(0)
+        Me.Label3.Name = "Label3"
+        Me.Label3.Size = New System.Drawing.Size(200, 20)
+        Me.Label3.TabIndex = 21
+        Me.Label3.Text = "Effective Precipitation"
+        Me.Label3.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
         '
         'Label2
         '
@@ -496,7 +526,7 @@ Partial Class Cover_Properties
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
-        Me.ClientSize = New System.Drawing.Size(584, 523)
+        Me.ClientSize = New System.Drawing.Size(584, 546)
         Me.Controls.Add(Me.VariableGroup)
         Me.Controls.Add(Me.NameGroup)
         Me.MinimizeBox = False
@@ -549,4 +579,6 @@ Partial Class Cover_Properties
     Friend WithEvents SpringFrost As System.Windows.Forms.NumericUpDown
     Friend WithEvents KillingFrost As System.Windows.Forms.NumericUpDown
     Friend WithEvents Rename As System.Windows.Forms.Button
+    Friend WithEvents Label3 As System.Windows.Forms.Label
+    Friend WithEvents EffectivePrecipitation As System.Windows.Forms.ComboBox
 End Class

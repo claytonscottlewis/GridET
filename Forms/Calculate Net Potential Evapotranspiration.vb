@@ -30,13 +30,14 @@
 
 #Region "Dates"
 
-    Private DateFormat As String = "MMMM, yyyy"
+    Private DateFormat As String = "MMMM yyyy"
     Private CoverStatisticsStartDate As New List(Of DateTime)
     Private CoverStatisticsEndDate As New List(Of DateTime)
     Private CoverNetStartDate As New List(Of DateTime)
     Private CoverNetEndDate As New List(Of DateTime)
     Private PrecipitationStartDate As New List(Of DateTime)
     Private PrecipitationEndDate As New List(Of DateTime)
+    Private EffectivePrecipitation As New List(Of EffectivePrecipitationType)
 
     Private Sub Calculate_Evapotranspiration_Load(sender As System.Object, e As System.EventArgs) Handles MyBase.Load
         For Each Control In Me.Controls
@@ -48,25 +49,36 @@
             PrecipitationGroup.Enabled = True
             DatesGroup.Enabled = True
 
-            RemoveHandler CoverList.ItemChecked, AddressOf CoverList_ItemChecked
-            For Each Path In IO.Directory.GetFiles(PotentialEvapotranspirationDirectory)
-                Dim CoverName = IO.Path.GetFileNameWithoutExtension(Path).Replace(" Potential Evapotranspiration", "")
+            Using Connection = CreateConnection(ProjectDetailsPath)
+                Connection.Open()
+                Using Command = Connection.CreateCommand
 
-                Dim MinDate = DateTime.MinValue
-                Dim MaxDate = DateTime.MaxValue
-                GetMaxAndMinDates({Path}, MaxDate, MinDate, PotentialEvapotranspirationTableName.Statistics)
-                CoverStatisticsStartDate.Add(MinDate)
-                CoverStatisticsEndDate.Add(MaxDate)
+                    RemoveHandler CoverList.ItemChecked, AddressOf CoverList_ItemChecked
+                    For Each Path In IO.Directory.GetFiles(PotentialEvapotranspirationDirectory, "*.db")
+                        Dim CoverName = IO.Path.GetFileNameWithoutExtension(Path).Replace(" Potential Evapotranspiration", "")
 
-                MinDate = DateTime.MinValue
-                MaxDate = DateTime.MaxValue
-                GetMaxAndMinDates({Path}, MaxDate, MinDate, PotentialEvapotranspirationTableName.Net)
-                CoverNetStartDate.Add(MinDate)
-                CoverNetEndDate.Add(MaxDate)
+                        Dim MinDate = DateTime.MinValue
+                        Dim MaxDate = DateTime.MaxValue
+                        GetMaxAndMinDates({Path}, MaxDate, MinDate, EvapotranspirationTableName.Statistics)
+                        CoverStatisticsStartDate.Add(MinDate)
+                        CoverStatisticsEndDate.Add(MaxDate)
 
-                CoverList.Items.Add(CoverName)
-            Next
-            AddHandler CoverList.ItemChecked, AddressOf CoverList_ItemChecked
+                        MinDate = DateTime.MinValue
+                        MaxDate = DateTime.MaxValue
+                        GetMaxAndMinDates({Path}, MaxDate, MinDate, EvapotranspirationTableName.Net)
+                        CoverNetStartDate.Add(MinDate)
+                        CoverNetEndDate.Add(MaxDate)
+
+                        Command.CommandText = "SELECT Properties FROM Cover WHERE Name = @Name"
+                        Command.Parameters.Add("@Name", DbType.String).Value = CoverName
+                        EffectivePrecipitation.Add([Enum].Parse(GetType(EffectivePrecipitationType), Command.ExecuteScalar.ToString.Split(";")(0)))
+
+                        CoverList.Items.Add(CoverName)
+                    Next
+                    AddHandler CoverList.ItemChecked, AddressOf CoverList_ItemChecked
+
+                End Using
+            End Using
 
             For Each Path In IO.Directory.GetFiles(InputVariablesDirectory, "Precipitation *.db")
                 Dim ClimateModelName = IO.Path.GetFileNameWithoutExtension(Path)
@@ -74,39 +86,12 @@
 
                 Dim MinDate = DateTime.MinValue
                 Dim MaxDate = DateTime.MaxValue
-                GetMaxAndMinDates({Path}, MaxDate, MinDate, PotentialEvapotranspirationTableName.Statistics)
+                GetMaxAndMinDates({Path}, MaxDate, MinDate, EvapotranspirationTableName.Statistics)
                 PrecipitationStartDate.Add(MinDate)
                 PrecipitationEndDate.Add(MaxDate)
 
                 PrecipitationDataset.Items.Add(ClimateModelName)
             Next
-
-            If CoverList.Items.Count > 0 And PrecipitationDataset.Items.Count > 0 Then
-                Dim MinDate As DateTime = CoverStatisticsStartDate.Concat(PrecipitationStartDate).Min
-                Dim MaxDate As DateTime = CoverStatisticsEndDate.Concat(PrecipitationEndDate).Max
-
-                If Not MaxDate = DateTime.MaxValue Then
-                    PotentialDatasetStartDate.Text = MinDate.ToString(DateFormat)
-                    PotentialDatasetEndDate.Text = MaxDate.ToString(DateFormat)
-
-                    CalculationStartDate.MinDate = MinDate
-                    CalculationStartDate.MaxDate = MaxDate
-                    CalculationEndDate.MinDate = MinDate
-                    CalculationEndDate.MaxDate = MaxDate
-
-                    CalculationStartDate.Value = MinDate
-                    CalculationEndDate.Value = MaxDate
-                Else
-                    CalculateButton.Enabled = False
-                    PrecipitationGroup.Enabled = False
-                    DatesGroup.Enabled = False
-                    Exit Sub
-                End If
-            Else
-                CalculateButton.Enabled = False
-                PrecipitationGroup.Enabled = False
-                DatesGroup.Enabled = False
-            End If
 
             If PrecipitationDataset.Items.Count > 0 Then PrecipitationDataset.Text = PrecipitationDataset.Items(0)
             CheckAll_Click(Nothing, Nothing)
@@ -121,8 +106,17 @@
         End If
     End Sub
 
+    Private Sub Calculate_Evapotranspiration_FormClosing(sender As Object, e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
+        e.Cancel = BackgroundWorker.IsBusy
+        Cancel_Button_Click(Nothing, Nothing)
+    End Sub
+
     Private Sub Calculate_Evapotranspiration_Resize(sender As Object, e As System.EventArgs) Handles Me.Resize
         CoverList.Columns(0).Width = CoverList.Width - SystemInformation.VerticalScrollBarWidth - 5
+    End Sub
+
+    Private Sub PrecipitationDataset_TextChanged(sender As Object, e As System.EventArgs) Handles PrecipitationDataset.TextChanged
+        CoverList_ItemChecked(Nothing, Nothing)
     End Sub
 
     Private Sub CoverList_ItemChecked(sender As Object, e As System.Windows.Forms.ItemCheckedEventArgs) Handles CoverList.ItemChecked
@@ -131,27 +125,57 @@
         CalculateButton.Enabled = CalculationExists
 
         If CalculationExists Then
-            Dim MinDate = DateTime.MinValue
-            Dim MaxDate = DateTime.MaxValue
+            Dim MinDateNet = DateTime.MinValue
+            Dim MaxDateNet = DateTime.MaxValue
+            Dim MinDateStatistics = DateTime.MinValue
+            Dim MaxDateStatistics = DateTime.MaxValue
 
             For Each Item As ListViewItem In CoverList.CheckedItems
-                If CoverNetStartDate(Item.Index) > MinDate Then MinDate = CoverNetStartDate(Item.Index)
-                If CoverNetEndDate(Item.Index) < MaxDate Then MaxDate = CoverNetEndDate(Item.Index)
-                If CoverNetEndDate(Item.Index) = DateTime.MaxValue Then CalculationExists = False
+                If CoverNetStartDate(Item.Index) > MinDateNet Then MinDateNet = CoverNetStartDate(Item.Index)
+                If CoverNetEndDate(Item.Index) < MaxDateNet Then MaxDateNet = CoverNetEndDate(Item.Index)
+                If CoverStatisticsStartDate(Item.Index) > MinDateStatistics Then MinDateStatistics = CoverStatisticsStartDate(Item.Index)
+                If CoverStatisticsEndDate(Item.Index) < MaxDateStatistics Then MaxDateStatistics = CoverStatisticsEndDate(Item.Index)
+                If CoverStatisticsEndDate(Item.Index) = DateTime.MaxValue Then CalculationExists = False
             Next
+            If PrecipitationStartDate(PrecipitationDataset.SelectedIndex) > MinDateStatistics Then MinDateStatistics = PrecipitationStartDate(PrecipitationDataset.SelectedIndex)
+            If PrecipitationEndDate(PrecipitationDataset.SelectedIndex) < MaxDateStatistics Then MaxDateStatistics = PrecipitationEndDate(PrecipitationDataset.SelectedIndex)
+            If PrecipitationEndDate(PrecipitationDataset.SelectedIndex) = DateTime.MaxValue Then CalculationExists = False
 
             If CalculationExists Then
-                PreviousCalculationStartDate.Text = MinDate.ToString(DateFormat)
-                PreviousCalculationEndDate.Text = MaxDate.ToString(DateFormat)
+                PotentialDatasetStartDate.Text = MinDateStatistics.ToString(DateFormat)
+                PotentialDatasetEndDate.Text = MaxDateStatistics.ToString(DateFormat)
 
-                CalculationStartDate.Value = MaxDate.AddDays(1)
-                CalculationEndDate.Value = CalculationEndDate.MaxDate
+                CalculationStartDate.MinDate = MinDateStatistics
+                CalculationStartDate.MaxDate = MaxDateStatistics
+                CalculationEndDate.MinDate = MinDateStatistics
+                CalculationEndDate.MaxDate = MaxDateStatistics
+
+                If MaxDateNet <> DateTime.MaxValue Then
+                    PreviousCalculationStartDate.Text = MinDateNet.ToString(DateFormat)
+                    PreviousCalculationEndDate.Text = MaxDateNet.ToString(DateFormat)
+
+                    CalculationStartDate.Value = MaxDateNet
+                    Dim Days = DateTime.DaysInMonth(MaxDateNet.Year, MaxDateNet.Month) - (MaxDateNet.Day) + 1
+                    If Days <= MaxDateStatistics.Subtract(MaxDateNet).TotalDays Then
+                        CalculationStartDate.Value = CalculationStartDate.Value.AddDays(Days)
+                    End If
+                    CalculationEndDate.Value = CalculationEndDate.MaxDate
+                Else
+                    PreviousCalculationStartDate.Text = "-"
+                    PreviousCalculationEndDate.Text = "-"
+
+                    CalculationStartDate.Value = CalculationStartDate.MinDate
+                    CalculationEndDate.Value = CalculationEndDate.MaxDate
+                End If
             Else
+                PotentialDatasetStartDate.Text = "-"
+                PotentialDatasetEndDate.Text = "-"
+
                 PreviousCalculationStartDate.Text = "-"
                 PreviousCalculationEndDate.Text = "-"
 
-                CalculationStartDate.Value = CalculationStartDate.MinDate
-                CalculationEndDate.Value = CalculationEndDate.MaxDate
+                CalculateButton.Enabled = False
+                DatesGroup.Enabled = False
             End If
         End If
     End Sub
@@ -191,12 +215,18 @@
             DatesGroup.Enabled = False
             CalculateButton.Enabled = False
 
-            ProgressText.Text = ""
+            ProgressText.Text = "Initializing calculation datasets..."
             ProgressBar.Minimum = 0
-            ProgressBar.Maximum = CalculationEndDate.Value.Year - (CalculationStartDate.Value.Year - 1)
+            ProgressBar.Maximum = Math.Ceiling(CalculationEndDate.Value.Subtract(CalculationStartDate.Value).TotalDays / 365.25 * 13)
             ProgressBar.Value = 0
             ProgressText.Visible = True
             ProgressBar.Visible = True
+
+            For Each CoverName As ListViewItem In CoverList.CheckedItems
+                CoverPaths.Add(IO.Path.Combine(PotentialEvapotranspirationDirectory, String.Format(IO.Path.GetFileName(PotentialEvapotranspirationPath), CoverName.Text)))
+                CoverEffectivePrecipitation.Add(EffectivePrecipitation(CoverName.Index))
+            Next
+            PrecipitationPath = IO.Path.Combine(InputVariablesDirectory, String.Format("Precipitation {0}.db", PrecipitationDataset.Text))
 
             Timer = New Stopwatch
             Timer.Start()
@@ -214,6 +244,7 @@
             End If
         Else
             Me.DialogResult = System.Windows.Forms.DialogResult.Cancel
+            RemoveHandler Me.FormClosing, AddressOf Calculate_Evapotranspiration_FormClosing
             Me.Close()
         End If
     End Sub
@@ -224,14 +255,21 @@
 
     WithEvents BackgroundWorker As New System.ComponentModel.BackgroundWorker
     Private Timer As Stopwatch
+    Private CoverPaths As New List(Of String)
+    Private PrecipitationPath As String
+    Private CoverEffectivePrecipitation As New List(Of EffectivePrecipitationType)
 
     Private Sub BackgroundWorker_DoWork(sender As System.Object, e As System.ComponentModel.DoWorkEventArgs) Handles BackgroundWorker.DoWork
-        'CalculatePotentialEvapotranspiration(CoverProperties, CalculationStartDate.Value, CalculationEndDate.Value, BackgroundWorker, e)
+        CalculateNetPotentialEvapotranspiration(CoverPaths.ToArray, CoverEffectivePrecipitation.ToArray, PrecipitationPath, CalculationStartDate.Value, CalculationEndDate.Value, BackgroundWorker, e)
     End Sub
 
     Private Sub BackgroundWorker_ProgressChanged(sender As Object, e As System.ComponentModel.ProgressChangedEventArgs) Handles BackgroundWorker.ProgressChanged
-        ProgressBar.Value += 1
-        ProgressText.Text = e.UserState
+        If ProgressBar.Maximum - ProgressBar.Value > 1 Then
+            Dim Timespan As TimeSpan = New TimeSpan(Timer.Elapsed.Ticks / (ProgressBar.Value + 1) * (ProgressBar.Maximum - ProgressBar.Value - 1))
+            ProgressText.Text = String.Format("Estimated time remaining...({0})", Timespan.ToString("d\.hh\:mm\:ss"))
+        End If
+
+        If ProgressBar.Value < ProgressBar.Maximum Then ProgressBar.Value += 1
     End Sub
 
     Private Sub BackgroundWorker_RunWorkerCompleted(sender As Object, e As System.ComponentModel.RunWorkerCompletedEventArgs) Handles BackgroundWorker.RunWorkerCompleted

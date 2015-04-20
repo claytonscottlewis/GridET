@@ -230,7 +230,7 @@ Partial Class Calculate_Net_Potential_Evapotranspiration
         '
         'CalculationEndDate
         '
-        Me.CalculationEndDate.CustomFormat = "MMMM, yyyy"
+        Me.CalculationEndDate.CustomFormat = "MMMM yyyy"
         Me.CalculationEndDate.Dock = System.Windows.Forms.DockStyle.Fill
         Me.CalculationEndDate.DropDownAlign = System.Windows.Forms.LeftRightAlignment.Right
         Me.CalculationEndDate.Format = System.Windows.Forms.DateTimePickerFormat.Custom
@@ -278,7 +278,7 @@ Partial Class Calculate_Net_Potential_Evapotranspiration
         '
         'CalculationStartDate
         '
-        Me.CalculationStartDate.CustomFormat = "MMMM, yyyy"
+        Me.CalculationStartDate.CustomFormat = "MMMM yyyy"
         Me.CalculationStartDate.Dock = System.Windows.Forms.DockStyle.Fill
         Me.CalculationStartDate.DropDownAlign = System.Windows.Forms.LeftRightAlignment.Right
         Me.CalculationStartDate.Format = System.Windows.Forms.DateTimePickerFormat.Custom

@@ -131,7 +131,7 @@
         Process.Dispose()
     End Function
 
-    Function Warp(InPath As String, OutPath As String, TargetSpatialReference As String, Optional CutlinePath As String = Nothing, Optional TargetExtent As Extent = Nothing, Optional TargetXResolution As Double = Nothing, Optional TargetYResolution As Double = Nothing, Optional ResamplingMethod As ResamplingMethod = ResamplingMethod.Average, Optional RasterFormat As RasterFormat = RasterFormat.GTiff, Optional Compression As Compression = GDALProcess.Compression.NONE, Optional InNoData() As String = Nothing, Optional OutNoData() As String = Nothing, Optional OverWrite As Boolean = False) As String
+    Function Warp(InPath As String, OutPath As String, TargetSpatialReference As String, Optional CutlinePath As String = Nothing, Optional TargetExtent As Extent = Nothing, Optional TargetXResolution As Double = Nothing, Optional TargetYResolution As Double = Nothing, Optional ResamplingMethod As ResamplingMethod = ResamplingMethod.Average, Optional RasterFormat As RasterFormat = RasterFormat.GTiff, Optional Compression As Compression = GDALProcess.Compression.NONE, Optional InNoData() As String = Nothing, Optional OutNoData() As String = Nothing, Optional OverWrite As Boolean = False, Optional DataType As GDAL.DataType = GDAL.DataType.GDT_Unknown) As String
         Process = New Process
         Process.StartInfo.FileName = IO.Path.Combine(GDALDirectory, "gdalwarp.exe")
 
@@ -144,6 +144,7 @@
         Command.Append(GetRasterFormatString(RasterFormat))
         Command.Append(GetCompressionString(Compression, RasterFormat))
         If CutlinePath IsNot Nothing Then Command.Append(" -cutline """ & CutlinePath & """ -crop_to_cutline")
+        If Not DataType = GDAL.DataType.GDT_Unknown Then Command.Append(" -ot " & GetDataType(DataType))
         If InNoData IsNot Nothing Then
             Command.Append(" -srcnodata """)
             For Each Value In InNoData

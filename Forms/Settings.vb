@@ -21,7 +21,7 @@
 
         If Not FolderBrowserDialog.ShowDialog = Windows.Forms.DialogResult.OK Then Exit Sub
 
-        ClimateModelDirectory.Text = FixDirectory(FolderBrowserDialog.SelectedPath)
+        ClimateModelDirectory.Text = FolderBrowserDialog.SelectedPath
     End Sub
 
     Private Sub OK_Button_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles OK_Button.Click

@@ -98,6 +98,11 @@
         End If
     End Sub
 
+    Private Sub Form_Closing(sender As Object, e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
+        e.Cancel = BackgroundWorker.IsBusy
+        Cancel_Button_Click(Nothing, Nothing)
+    End Sub
+
     Private Sub Form_FormClosed(sender As Object, e As System.Windows.Forms.FormClosedEventArgs) Handles Me.FormClosed
         If Not Command Is Nothing Then Command.Dispose()
         If Not Connection Is Nothing Then Connection.Dispose()
@@ -149,6 +154,7 @@
             End If
         Else
             Me.DialogResult = System.Windows.Forms.DialogResult.Cancel
+            RemoveHandler Me.FormClosing, AddressOf Form_Closing
             Me.Close()
         End If
     End Sub
@@ -171,7 +177,7 @@
     Private Sub BackgroundWorker_ProgressChanged(sender As Object, e As System.ComponentModel.ProgressChangedEventArgs) Handles BackgroundWorker.ProgressChanged
         If ProgressBar.Maximum - ProgressBar.Value > 1 Then
             Dim Timespan As TimeSpan = New TimeSpan(Timer.Elapsed.Ticks / (ProgressBar.Value + 1) * (ProgressBar.Maximum - ProgressBar.Value - 1))
-            ProgressText.Text = String.Format("Estimated time remaining...({0})", Timespan.ToString)
+            ProgressText.Text = String.Format("Estimated time remaining...({0})", Timespan.ToString("d\.hh\:mm\:ss"))
         Else
             ProgressBar.Text = "Checking topography..."
         End If

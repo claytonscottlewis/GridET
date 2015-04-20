@@ -39,8 +39,8 @@
             Dim OriginalResolutionElevationRaster As String = IO.Path.Combine(ElevationDirectory, "Original Resolution Elevation.tif")
             MergeRasters(ElevationTilePaths, MaskProjectionPath, OriginalResolutionElevationRaster, , , , , VerticalUnitScaling, , GDALProcess)
             Dim ProjectResolutionElevationRaster As String = IO.Path.Combine(ElevationDirectory & "Project Resolution Elevation.tif")
-            SnapToRaster(OriginalResolutionElevationRaster, MaskRasterPath, ProjectResolutionElevationRaster, False, False, , , , , , GDALProcess)
-            SnapToRaster(ProjectResolutionElevationRaster, MaskRasterPath, MaskElevationRasterPath, , , , , , , , GDALProcess)
+            SnapToRaster(OriginalResolutionElevationRaster, MaskRasterPath, ProjectResolutionElevationRaster, False, False, , , , , , GDAL.DataType.GDT_Float32, GDALProcess)
+            SnapToRaster(ProjectResolutionElevationRaster, MaskRasterPath, MaskElevationRasterPath, , , , , , , , GDAL.DataType.GDT_Float32, GDALProcess)
 
             If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub
             Else : BackgroundWorker.ReportProgress(3, "Calculating pixel slope...") : End If
@@ -49,7 +49,7 @@
             GDALProcess = New GDALProcess
             Dim IntermediateSlopeRaster As String = MaskSlopeRasterPath & ".temp"
             GDALProcess.DEM(ProjectResolutionElevationRaster, IntermediateSlopeRaster, GDALProcess.DEMDerivative.Slope)
-            SnapToRaster(IntermediateSlopeRaster, MaskRasterPath, MaskSlopeRasterPath, , , , , , , , GDALProcess)
+            SnapToRaster(IntermediateSlopeRaster, MaskRasterPath, MaskSlopeRasterPath, , , , , , , , GDAL.DataType.GDT_Float32, GDALProcess)
             GDALProcess.DeleteRaster(IntermediateSlopeRaster)
 
             If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub
@@ -58,7 +58,7 @@
             'Calculate Average Aspect of Pixels in Mask Raster
             Dim IntermediateAspectRaster As String = MaskAspectRasterPath & ".temp"
             GDALProcess.DEM(ProjectResolutionElevationRaster, IntermediateAspectRaster, GDALProcess.DEMDerivative.Aspect)
-            SnapToRaster(IntermediateAspectRaster, MaskRasterPath, MaskAspectRasterPath, , , , , , , , GDALProcess)
+            SnapToRaster(IntermediateAspectRaster, MaskRasterPath, MaskAspectRasterPath, , , , , , , , GDAL.DataType.GDT_Float32, GDALProcess)
             GDALProcess.DeleteRaster(IntermediateAspectRaster)
 
             GDALProcess.DeleteRaster(OriginalResolutionElevationRaster)
@@ -218,10 +218,6 @@
             'Create Tables and Delete Previous Calculations if Needed
             For Each Command As System.Data.SQLite.SQLiteCommand In OutputCommands
                 Command.CommandText = "CREATE TABLE IF NOT EXISTS Rasters (Date NUMERIC UNIQUE, Image BLOB)"
-                Command.ExecuteNonQuery()
-
-                Command.CommandText = "DELETE FROM Rasters WHERE Date >= @Date"
-                Command.Parameters.Add("@Date", DbType.DateTime).Value = MinDate
                 Command.ExecuteNonQuery()
             Next
 
@@ -523,12 +519,12 @@
                         ScaleRaster(OutputRasters(I).Path, ScaledRasterPath, , {"COMPRESS=DEFLATE"})
 
                         'Store Raster in Database
-                        OutputCommands(I).CommandText = "INSERT OR IGNORE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
+                        OutputCommands(I).CommandText = "INSERT OR REPLACE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
                         OutputCommands(I).Parameters.Add("@Date", DbType.DateTime).Value = DayStartDate
                         OutputCommands(I).Parameters.Add("@Image", DbType.Object).Value = IO.File.ReadAllBytes(ScaledRasterPath)
                         OutputCommands(I).ExecuteNonQuery()
 
-                        'Delete Intermediate Files
+                        'Delete Intermediate FilesS
                         IO.File.Delete(OutputRasters(I).Path)
                         IO.File.Delete(ScaledRasterPath)
                     Next
@@ -574,42 +570,57 @@
         OutputCommand.CommandText = "CREATE TABLE IF NOT EXISTS Rasters (Date NUMERIC UNIQUE, Image BLOB)"
         OutputCommand.ExecuteNonQuery()
 
-        OutputCommand.CommandText = "DELETE FROM Rasters WHERE Date >= @Date1 and Date <= @Date2"
-        OutputCommand.Parameters.Add("@Date1", DbType.DateTime).Value = MinDate
-        OutputCommand.Parameters.Add("@Date2", DbType.DateTime).Value = MaxDate
-        OutputCommand.ExecuteNonQuery()
-
         'Determine Calculation Hours
         Dim First As Integer = MinDate.Subtract(DAYMETStartDate).TotalDays
         Dim Last As Integer = MaxDate.Subtract(DAYMETStartDate).TotalDays
 
         For I As Integer = First To Last
             Dim ImageDate = DAYMETStartDate.AddDays(I)
-            Dim InMemoryPath = "/vsimem/DAYMETRaster" & ImageDate.ToString("yyyyMMdd")
-
+         
             CommandRasters.CommandText = "SELECT Image FROM Rasters WHERE Date = @Date"
             CommandRasters.Parameters.Add("@Date", DbType.DateTime).Value = ImageDate
 
-            GDAL.Gdal.FileFromMemBuffer(InMemoryPath, CommandRasters.ExecuteScalar)
+            Dim DAYMETRasterPath = IO.Path.Combine(IO.Path.GetTempPath, "DAYMET " & ImageDate.ToString("yyyy-MM-dd") & ".tif")
+            IO.File.WriteAllBytes(DAYMETRasterPath, CommandRasters.ExecuteScalar)
 
             'Currently Precipitation Only
-            Dim IntermediateRasterPath = IO.Path.Combine(IO.Path.GetTempPath, "DAYMET " & ImageDate.ToString("yyyy-MM-dd") & ".tif")
-            SnapToRaster(InMemoryPath, MaskRasterPath, IntermediateRasterPath, , , , , GDALProcess.ResamplingMethod.Bilinear)
+            Dim SnappedRasterPath = DAYMETRasterPath & ".Snapped.tif"
+            SnapToRaster(DAYMETRasterPath, MaskRasterPath, SnappedRasterPath, , , , GDALProcess.Compression.NONE, GDALProcess.ResamplingMethod.Bilinear, , , GDAL.DataType.GDT_Float32)
 
-            GDAL.Gdal.Unlink(InMemoryPath)
+            'Unit Conversion
+            Using SnappedRaster As New Raster(SnappedRasterPath)
+                SnappedRaster.Open(GDAL.Access.GA_Update)
+
+                Dim NoDataValue = SnappedRaster.BandNoDataValue(0)
+
+                Do Until SnappedRaster.BlocksProcessed
+                    Dim SnappedPixels = SnappedRaster.Read({1})
+
+                    For J = 0 To SnappedPixels.Length - 1
+                        If SnappedPixels(J) <> NoDataValue Then
+                            SnappedPixels(J) = ToInches(SnappedPixels(J))
+                        End If
+                    Next
+
+                    SnappedRaster.Write({1}, SnappedPixels)
+
+                    SnappedRaster.AdvanceBlock()
+                Loop
+            End Using
 
             'Scale Intermediate Rasters to 16-bit Integers to Conserve Space
-            Dim ScaledRasterPath = IntermediateRasterPath & ".Scaled.tif"
-            ScaleRaster(IntermediateRasterPath, ScaledRasterPath, , {"COMPRESS=DEFLATE"})
+            Dim ScaledRasterPath = DAYMETRasterPath & ".Scaled.tif"
+            ScaleRaster(SnappedRasterPath, ScaledRasterPath, , {"COMPRESS=DEFLATE"})
 
             'Store Raster in Database
-            OutputCommand.CommandText = "INSERT OR IGNORE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
+            OutputCommand.CommandText = "INSERT OR REPLACE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
             OutputCommand.Parameters.Add("@Date", DbType.DateTime).Value = ImageDate
             OutputCommand.Parameters.Add("@Image", DbType.Object).Value = IO.File.ReadAllBytes(ScaledRasterPath)
             OutputCommand.ExecuteNonQuery()
 
             'Delete Intermediate Files
-            IO.File.Delete(IntermediateRasterPath)
+            IO.File.Delete(DAYMETRasterPath)
+            IO.File.Delete(SnappedRasterPath)
             IO.File.Delete(ScaledRasterPath)
 
             If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
@@ -621,6 +632,9 @@
         OutputConnection.Dispose()
         CommandRasters.Dispose()
         ConnectionRasters.Dispose()
+
+        'Calculate Monthly and Annual Sums and Averages
+        CalculateMonthlyAndAnnualStatistics(DAYMETPrecipitationPath, StatisticType.Sum, , MinDate, MaxDate)
     End Sub
 
     Sub CalculatePotentialEvapotranspiration(CoverProperties() As CoverProperties, MinDate As DateTime, MaxDate As DateTime, BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
@@ -640,15 +654,7 @@
                     Command.CommandText = "CREATE TABLE IF NOT EXISTS Dates (Year INTEGER UNIQUE, Initiation BLOB, Intermediate BLOB, Termination BLOB, SpringFrost BLOB, KillingFrost BLOB)"
                     Command.ExecuteNonQuery()
 
-                    Command.CommandText = "DELETE FROM Dates WHERE Year >= @Year"
-                    Command.Parameters.Add("@Year", DbType.Int32).Value = MinDate.Year
-                    Command.ExecuteNonQuery()
-
                     Command.CommandText = "CREATE TABLE IF NOT EXISTS Rasters (Date NUMERIC UNIQUE, Image BLOB)"
-                    Command.ExecuteNonQuery()
-
-                    Command.CommandText = "DELETE FROM Rasters WHERE Date >= @Date"
-                    Command.Parameters.Add("@Date", DbType.DateTime).Value = MinDate
                     Command.ExecuteNonQuery()
 
                     'Find Start and End Years
@@ -661,7 +667,7 @@
 
                     'Loop Through Each Year
                     For Year As Integer = StartYear To EndYear
-                        Command.CommandText = String.Format("INSERT OR IGNORE INTO Dates (Year) VALUES ('{0}')", Year)
+                        Command.CommandText = String.Format("INSERT OR REPLACE INTO Dates (Year) VALUES ('{0}')", Year)
                         Command.ExecuteNonQuery()
 
                         Dim TemporaryPath = IO.Path.Combine(IO.Path.GetTempPath, IO.Path.GetFileNameWithoutExtension(OutputDatabasePath) & "-" & Year & "_{0}.tif")
@@ -670,176 +676,169 @@
                         Dim YearDayCount As Integer = EndDate.DayOfYear
 
                         'Spring Frost Calculation
-                        Command.CommandText = "SELECT SpringFrost FROM Dates WHERE Year = " & Year
-                        If Command.IsExecuteScalarDBNull Then
-                            Using TemperatureConnection = CreateConnection(NLDAS_2AMinimumAirTemperaturePath)
-                                TemperatureConnection.Open()
+                        Using TemperatureConnection = CreateConnection(NLDAS_2AMinimumAirTemperaturePath)
+                            TemperatureConnection.Open()
 
-                                Using TemperatureCommand = TemperatureConnection.CreateCommand
-                                    TemperatureCommand.CommandText = "SELECT Image FROM Rasters WHERE Date >= @StartDate and Date <= @EndDate ORDER BY Date"
-                                    TemperatureCommand.Parameters.Add("@StartDate", DbType.DateTime).Value = StartDate
-                                    TemperatureCommand.Parameters.Add("@EndDate", DbType.DateTime).Value = StartDate.AddDays(199)
+                            Using TemperatureCommand = TemperatureConnection.CreateCommand
+                                TemperatureCommand.CommandText = "SELECT Image FROM Rasters WHERE Date >= @StartDate and Date <= @EndDate ORDER BY Date"
+                                TemperatureCommand.Parameters.Add("@StartDate", DbType.DateTime).Value = StartDate
+                                TemperatureCommand.Parameters.Add("@EndDate", DbType.DateTime).Value = StartDate.AddDays(199)
 
-                                    Dim SpringFrostPath = String.Format(TemporaryPath, "Spring Frost")
-                                    Dim SpringFrostRaster = CreateNewRaster(SpringFrostPath, MaskRaster.XCount, MaskRaster.YCount, MaskRaster.Projection, MaskRaster.GeoTransform, {Int16.MinValue}, GDAL.DataType.GDT_Int16)
+                                Dim SpringFrostPath = String.Format(TemporaryPath, "Spring Frost")
+                                Dim SpringFrostRaster = CreateNewRaster(SpringFrostPath, MaskRaster.XCount, MaskRaster.YCount, MaskRaster.Projection, MaskRaster.GeoTransform, {Int16.MinValue}, GDAL.DataType.GDT_Int16)
 
-                                    Using Reader = TemperatureCommand.ExecuteReader
-                                        Dim DayOfYear As Integer = 1
+                                Using Reader = TemperatureCommand.ExecuteReader
+                                    Dim DayOfYear As Integer = 1
 
-                                        Do While Reader.Read
-                                            Dim DailyPath = String.Format(TemporaryPath, "Daily")
-                                            IO.File.WriteAllBytes(DailyPath, Reader(0))
-                                            Dim DailyRaster As New Raster(DailyPath)
+                                    Do While Reader.Read
+                                        Dim DailyPath = String.Format(TemporaryPath, "Daily")
+                                        IO.File.WriteAllBytes(DailyPath, Reader(0))
+                                        Dim DailyRaster As New Raster(DailyPath)
 
-                                            DailyRaster.Open(GDAL.Access.GA_ReadOnly)
-                                            SpringFrostRaster.Open(GDAL.Access.GA_Update)
+                                        DailyRaster.Open(GDAL.Access.GA_ReadOnly)
+                                        SpringFrostRaster.Open(GDAL.Access.GA_Update)
 
-                                            Do Until DailyRaster.BlocksProcessed
-                                                Dim DailyPixels = DailyRaster.Read({1})
-                                                Dim SpringFrostPixels = SpringFrostRaster.Read({1})
+                                        Do Until DailyRaster.BlocksProcessed
+                                            Dim DailyPixels = DailyRaster.Read({1})
+                                            Dim SpringFrostPixels = SpringFrostRaster.Read({1})
 
-                                                Dim NoDataValue = DailyRaster.BandNoDataValue(0)
+                                            Dim NoDataValue = DailyRaster.BandNoDataValue(0)
 
-                                                For I = 0 To DailyPixels.Length - 1
-                                                    If DailyPixels(I) = NoDataValue Then
-                                                        SpringFrostPixels(I) = Int16.MinValue
-                                                    Else
-                                                        'Set Spring Frost Date if Temperature Reached
-                                                        If DailyPixels(I) <= Cover.SpringFrostTemperature Then
-                                                            SpringFrostPixels(I) = DayOfYear
-                                                        End If
+                                            For I = 0 To DailyPixels.Length - 1
+                                                If DailyPixels(I) = NoDataValue Then
+                                                    SpringFrostPixels(I) = Int16.MinValue
+                                                Else
+                                                    'Set Spring Frost Date if Temperature Reached
+                                                    If DailyPixels(I) <= Cover.SpringFrostTemperature Then
+                                                        SpringFrostPixels(I) = DayOfYear
                                                     End If
-                                                Next
+                                                End If
+                                            Next
 
-                                                SpringFrostRaster.Write({1}, SpringFrostPixels)
+                                            SpringFrostRaster.Write({1}, SpringFrostPixels)
 
-                                                SpringFrostRaster.AdvanceBlock()
-                                                DailyRaster.AdvanceBlock()
-                                            Loop
-
-                                            DailyRaster.Close()
-                                            IO.File.Delete(DailyRaster.Path)
-
-                                            DayOfYear += 1
-
-                                            If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
+                                            SpringFrostRaster.AdvanceBlock()
+                                            DailyRaster.AdvanceBlock()
                                         Loop
-                                    End Using
 
-                                    SpringFrostRaster.Close()
+                                        DailyRaster.Close()
+                                        IO.File.Delete(DailyRaster.Path)
 
-                                    'Compress SpringFrost Date Raster and Store in Database
-                                    Dim CompressedRasterPath As String = SpringFrostPath & ".Compressed.tif"
-                                    Dim Process As New GDALProcess
-                                    Process.Translate({SpringFrostRaster.Path}, CompressedRasterPath, , GDALProcess.Compression.DEFLATE)
+                                        DayOfYear += 1
 
-                                    Command.CommandText = String.Format("UPDATE Dates SET SpringFrost = @File WHERE Year = '{0}'", Year)
-                                    Command.Parameters.Add("@File", DbType.Object).Value = IO.File.ReadAllBytes(CompressedRasterPath)
-                                    Command.ExecuteNonQuery()
-
-                                    IO.File.Delete(CompressedRasterPath)
-                                    IO.File.Delete(SpringFrostRaster.Path)
+                                        If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
+                                    Loop
                                 End Using
+
+                                SpringFrostRaster.Close()
+
+                                'Compress SpringFrost Date Raster and Store in Database
+                                Dim CompressedRasterPath As String = SpringFrostPath & ".Compressed.tif"
+                                Dim Process As New GDALProcess
+                                Process.Translate({SpringFrostRaster.Path}, CompressedRasterPath, , GDALProcess.Compression.DEFLATE)
+
+                                Command.CommandText = String.Format("UPDATE Dates SET SpringFrost = @File WHERE Year = '{0}'", Year)
+                                Command.Parameters.Add("@File", DbType.Object).Value = IO.File.ReadAllBytes(CompressedRasterPath)
+                                Command.ExecuteNonQuery()
+
+                                IO.File.Delete(CompressedRasterPath)
+                                IO.File.Delete(SpringFrostRaster.Path)
                             End Using
-                        End If
+                        End Using
 
                         'Killing Frost Calculation
-                        Command.CommandText = "SELECT KillingFrost FROM Dates WHERE Year = " & Year
-                        If Command.IsExecuteScalarDBNull Then
-                            Using TemperatureConnection = CreateConnection(NLDAS_2AMinimumAirTemperaturePath)
-                                TemperatureConnection.Open()
+                        Using TemperatureConnection = CreateConnection(NLDAS_2AMinimumAirTemperaturePath)
+                            TemperatureConnection.Open()
 
-                                Using TemperatureCommand = TemperatureConnection.CreateCommand
-                                    TemperatureCommand.CommandText = "SELECT Image FROM Rasters WHERE Date >= @StartDate and Date <= @EndDate ORDER BY Date"
-                                    TemperatureCommand.Parameters.Add("@StartDate", DbType.DateTime).Value = StartDate.AddDays(200)
-                                    TemperatureCommand.Parameters.Add("@EndDate", DbType.DateTime).Value = EndDate
+                            Using TemperatureCommand = TemperatureConnection.CreateCommand
+                                TemperatureCommand.CommandText = "SELECT Image FROM Rasters WHERE Date >= @StartDate and Date <= @EndDate ORDER BY Date"
+                                TemperatureCommand.Parameters.Add("@StartDate", DbType.DateTime).Value = StartDate.AddDays(200)
+                                TemperatureCommand.Parameters.Add("@EndDate", DbType.DateTime).Value = EndDate
 
-                                    Dim KillingFrostPath = String.Format(TemporaryPath, "Killing Frost")
-                                    Dim KillingFrostRaster = CreateNewRaster(KillingFrostPath, MaskRaster.XCount, MaskRaster.YCount, MaskRaster.Projection, MaskRaster.GeoTransform, {Int16.MinValue}, GDAL.DataType.GDT_Int16)
+                                Dim KillingFrostPath = String.Format(TemporaryPath, "Killing Frost")
+                                Dim KillingFrostRaster = CreateNewRaster(KillingFrostPath, MaskRaster.XCount, MaskRaster.YCount, MaskRaster.Projection, MaskRaster.GeoTransform, {Int16.MinValue}, GDAL.DataType.GDT_Int16)
 
-                                    Using Reader = TemperatureCommand.ExecuteReader
-                                        Dim DayOfYear As Integer = 201
+                                Using Reader = TemperatureCommand.ExecuteReader
+                                    Dim DayOfYear As Integer = 201
 
-                                        Do While Reader.Read
-                                            Dim DailyPath = String.Format(TemporaryPath, "Daily")
-                                            IO.File.WriteAllBytes(DailyPath, Reader(0))
-                                            Dim DailyRaster As New Raster(DailyPath)
+                                    Do While Reader.Read
+                                        Dim DailyPath = String.Format(TemporaryPath, "Daily")
+                                        IO.File.WriteAllBytes(DailyPath, Reader(0))
+                                        Dim DailyRaster As New Raster(DailyPath)
 
-                                            DailyRaster.Open(GDAL.Access.GA_ReadOnly)
-                                            KillingFrostRaster.Open(GDAL.Access.GA_Update)
+                                        DailyRaster.Open(GDAL.Access.GA_ReadOnly)
+                                        KillingFrostRaster.Open(GDAL.Access.GA_Update)
 
-                                            Dim CountRemaining As Integer = 0
+                                        Dim CountRemaining As Integer = 0
 
-                                            Do Until DailyRaster.BlocksProcessed
-                                                Dim DailyPixels = DailyRaster.Read({1})
-                                                Dim KillingFrostPixels = KillingFrostRaster.Read({1})
+                                        Do Until DailyRaster.BlocksProcessed
+                                            Dim DailyPixels = DailyRaster.Read({1})
+                                            Dim KillingFrostPixels = KillingFrostRaster.Read({1})
 
-                                                Dim NoDataValue = DailyRaster.BandNoDataValue(0)
+                                            Dim NoDataValue = DailyRaster.BandNoDataValue(0)
 
+                                            For I = 0 To DailyPixels.Length - 1
+                                                If DailyPixels(I) = NoDataValue Then
+                                                    KillingFrostPixels(I) = Int16.MinValue
+                                                Else
+                                                    'Set Killing Frost Date if Temperature Reached
+                                                    If KillingFrostPixels(I) = 0 Then
+                                                        If DailyPixels(I) <= Cover.KillingFrostTemperature Then
+                                                            KillingFrostPixels(I) = DayOfYear
+                                                        Else
+                                                            CountRemaining += 1
+                                                        End If
+                                                    End If
+                                                End If
+                                            Next
+
+                                            'Set Killing Frost Date to the Last Period Date if Threshold was never Surpassed
+                                            If DayOfYear = YearDayCount Then
                                                 For I = 0 To DailyPixels.Length - 1
-                                                    If DailyPixels(I) = NoDataValue Then
-                                                        KillingFrostPixels(I) = Int16.MinValue
-                                                    Else
-                                                        'Set Killing Frost Date if Temperature Reached
+                                                    If DailyPixels(I) <> NoDataValue Then
                                                         If KillingFrostPixels(I) = 0 Then
-                                                            If DailyPixels(I) <= Cover.KillingFrostTemperature Then
-                                                                KillingFrostPixels(I) = DayOfYear
-                                                            Else
-                                                                CountRemaining += 1
-                                                            End If
+                                                            KillingFrostPixels(I) = DayOfYear
                                                         End If
                                                     End If
                                                 Next
 
-                                                'Set Killing Frost Date to the Last Period Date if Threshold was never Surpassed
-                                                If DayOfYear = YearDayCount Then
-                                                    For I = 0 To DailyPixels.Length - 1
-                                                        If DailyPixels(I) <> NoDataValue Then
-                                                            If KillingFrostPixels(I) = 0 Then
-                                                                KillingFrostPixels(I) = DayOfYear
-                                                            End If
-                                                        End If
-                                                    Next
+                                                CountRemaining = 0
+                                            End If
 
-                                                    CountRemaining = 0
-                                                End If
+                                            KillingFrostRaster.Write({1}, KillingFrostPixels)
 
-                                                KillingFrostRaster.Write({1}, KillingFrostPixels)
-
-                                                KillingFrostRaster.AdvanceBlock()
-                                                DailyRaster.AdvanceBlock()
-                                            Loop
-
-                                            DailyRaster.Close()
-                                            IO.File.Delete(DailyRaster.Path)
-
-                                            If CountRemaining = 0 Then Exit Do
-                                            DayOfYear += 1
-
-                                            If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
+                                            KillingFrostRaster.AdvanceBlock()
+                                            DailyRaster.AdvanceBlock()
                                         Loop
-                                    End Using
 
-                                    KillingFrostRaster.Close()
+                                        DailyRaster.Close()
+                                        IO.File.Delete(DailyRaster.Path)
 
-                                    'Compress KillingFrost Date Raster and Store in Database
-                                    Dim CompressedRasterPath As String = KillingFrostPath & ".Compressed.tif"
-                                    Dim Process As New GDALProcess
-                                    Process.Translate({KillingFrostRaster.Path}, CompressedRasterPath, , GDALProcess.Compression.DEFLATE)
+                                        If CountRemaining = 0 Then Exit Do
+                                        DayOfYear += 1
 
-                                    Command.CommandText = String.Format("UPDATE Dates SET KillingFrost = @File WHERE Year = '{0}'", Year)
-                                    Command.Parameters.Add("@File", DbType.Object).Value = IO.File.ReadAllBytes(CompressedRasterPath)
-                                    Command.ExecuteNonQuery()
-
-                                    IO.File.Delete(CompressedRasterPath)
-                                    IO.File.Delete(KillingFrostRaster.Path)
+                                        If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
+                                    Loop
                                 End Using
+
+                                KillingFrostRaster.Close()
+
+                                'Compress KillingFrost Date Raster and Store in Database
+                                Dim CompressedRasterPath As String = KillingFrostPath & ".Compressed.tif"
+                                Dim Process As New GDALProcess
+                                Process.Translate({KillingFrostRaster.Path}, CompressedRasterPath, , GDALProcess.Compression.DEFLATE)
+
+                                Command.CommandText = String.Format("UPDATE Dates SET KillingFrost = @File WHERE Year = '{0}'", Year)
+                                Command.Parameters.Add("@File", DbType.Object).Value = IO.File.ReadAllBytes(CompressedRasterPath)
+                                Command.ExecuteNonQuery()
+
+                                IO.File.Delete(CompressedRasterPath)
+                                IO.File.Delete(KillingFrostRaster.Path)
                             End Using
-                        End If
+                        End Using
 
                         'Initial Date Selection
-                        Command.CommandText = "SELECT Initiation FROM Dates WHERE Year = " & Year
-                        If Command.IsExecuteScalarDBNull Then
+                        For X = 1 To 1
                             Dim InitiationPath = String.Format(TemporaryPath, "Initiation Date")
                             Dim InitiationRaster = CreateNewRaster(InitiationPath, MaskRaster.XCount, MaskRaster.YCount, MaskRaster.Projection, MaskRaster.GeoTransform, {Int16.MinValue}, GDAL.DataType.GDT_Int16)
 
@@ -1007,11 +1006,10 @@
 
                             IO.File.Delete(CompressedRasterPath)
                             IO.File.Delete(InitiationRaster.Path)
-                        End If
+                        Next
 
                         'Intermediate Date Selection
-                        Command.CommandText = "SELECT Intermediate FROM Dates WHERE Year = " & Year
-                        If Command.IsExecuteScalarDBNull Then
+                        For X = 1 To 1
                             Dim IntermediatePath = String.Format(TemporaryPath, "Intermediate Date")
                             Dim IntermediateRaster = CreateNewRaster(IntermediatePath, MaskRaster.XCount, MaskRaster.YCount, MaskRaster.Projection, MaskRaster.GeoTransform, {Int16.MinValue}, GDAL.DataType.GDT_Int16)
 
@@ -1184,11 +1182,10 @@
 
                             IO.File.Delete(CompressedRasterPath)
                             IO.File.Delete(IntermediateRaster.Path)
-                        End If
+                        Next
 
                         'Termination Date Selection
-                        Command.CommandText = "SELECT Termination FROM Dates WHERE Year = " & Year
-                        If Command.IsExecuteScalarDBNull Then
+                        For X = 1 To 1
                             Dim TerminationPath = String.Format(TemporaryPath, "Termination Date")
                             Dim TerminationRaster = CreateNewRaster(TerminationPath, MaskRaster.XCount, MaskRaster.YCount, MaskRaster.Projection, MaskRaster.GeoTransform, {Int16.MinValue}, GDAL.DataType.GDT_Int16)
 
@@ -1361,10 +1358,9 @@
 
                             IO.File.Delete(CompressedRasterPath)
                             IO.File.Delete(TerminationRaster.Path)
-                        End If
+                        Next
 
                         'Evapotranspiration Calculation
-
                         Using ReferenceConnection = CreateConnection(IO.Directory.GetFiles(IntermediateCalculationsDirectory, "*" & Cover.Variable & ".db", IO.SearchOption.AllDirectories)(0))
                             ReferenceConnection.Open()
 
@@ -1505,7 +1501,7 @@
                                         ScaleRaster(CoverRaster.Path, ScaledRasterPath, , {"COMPRESS=DEFLATE"})
 
                                         'Store Raster in Database
-                                        Command.CommandText = "INSERT OR IGNORE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
+                                        Command.CommandText = "INSERT OR REPLACE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
                                         Command.Parameters.Add("@Date", DbType.DateTime).Value = StartDate.AddDays(DayOfYear - 1)
                                         Command.Parameters.Add("@Image", DbType.Object).Value = IO.File.ReadAllBytes(ScaledRasterPath)
                                         Command.ExecuteNonQuery()
@@ -1545,14 +1541,14 @@
         End Sub)
     End Sub
 
-    Sub CalculateNetPotentialEvapotranspiration(CoverPaths() As String, PrecipitationPath As String, MinDate As DateTime, MaxDate As DateTime, BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
-        'Open Sqlite Connection and Commands
+    Sub CalculateNetPotentialEvapotranspiration(CoverPaths() As String, CoverEffectivePrecipitation() As EffectivePrecipitationType, PrecipitationPath As String, MinDate As DateTime, MaxDate As DateTime, BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
+        'Open Database Connections
         Dim Count = CoverPaths.Length - 1
         Dim ConnectionCover(Count) As Data.SQLite.SQLiteConnection
         For I = 0 To Count
-            ConnectionCover(I) = CreateConnection(CoverPaths(I))
+            ConnectionCover(I) = CreateConnection(CoverPaths(I), False)
         Next
-        Dim ConnectionPrecipitation = CreateConnection(PrecipitationPath, False)
+        Dim ConnectionPrecipitation = CreateConnection(PrecipitationPath)
         For Each Connection In ConnectionCover.Concat({ConnectionPrecipitation})
             Connection.Open()
         Next
@@ -1564,69 +1560,203 @@
         Next
         Dim CommandPrecipitation = ConnectionPrecipitation.CreateCommand
 
+        'Retrieve Selected Years from Statistic Tables
         Dim CommandText = String.Format("SELECT * FROM Statistics WHERE Year >= '{0}' and Year <= '{1}'", MinDate.Year, MaxDate.Year)
-        Dim ReaderCover(Count) As Data.SQLite.SQLiteDataReader
         For I = 0 To Count
             CommandCover(I).CommandText = CommandText
-            ReaderCover(I) = CommandCover(I).ExecuteReader
         Next
         CommandPrecipitation.CommandText = CommandText
         Dim ReaderPrecipitation As Data.SQLite.SQLiteDataReader = CommandPrecipitation.ExecuteReader
 
-        Dim VariableFileName = "{0} Net Potential Evapotranspiration.tif"
+        'Prepare Output Paths
+        Dim VariableFileName = "{0} Net Potential Evapotranspiration {1}.tif"
         Dim RasterPath As String = IO.Path.Combine(IO.Path.GetTempPath, VariableFileName)
         While ReaderPrecipitation.Read
             Dim Year As Integer = ReaderPrecipitation(0)
             Dim CoverRasterPaths(Count) As String
+            Dim ScaledCoverRasterPaths(Count) As String
             For I = 0 To Count
                 CoverRasterPaths(I) = String.Format(RasterPath, IO.Path.GetFileNameWithoutExtension(CoverPaths(I)).Replace(" Potential Evapotranspiration", ""), Year)
+                ScaledCoverRasterPaths(I) = CoverRasterPaths(I) & ".Scaled.tif"
+
+                CommandCover(I).CommandText = String.Format("INSERT OR REPLACE INTO Net (Year) VALUES ('{0}')", Year)
+                CommandCover(I).ExecuteNonQuery()
             Next
             Dim PrecipitationRasterPath = String.Format(RasterPath, "Precipitation", Year) & " - .tif"
 
+            'Select Start and End Months in Year
             Dim StartMonth As Integer = 1 : If Year = MinDate.Year Then StartMonth = MinDate.Month
             Dim EndMonth As Integer = 12 : If Year = MaxDate.Year Then EndMonth = MaxDate.Month
 
+            'Check if Annual Calculation will be Executed
+            Dim DoAnnualCalculation As Boolean = True
+            If StartMonth > 1 And EndMonth < 12 Then
+                For Month As Integer = 1 To StartMonth - 1
+                    If ReaderPrecipitation.IsDBNull(Month) Then
+                        DoAnnualCalculation = False
+                        Exit For
+                    End If
+                Next
+                For Month As Integer = 12 To EndMonth + 1 Step -1
+                    If ReaderPrecipitation.IsDBNull(Month) Then
+                        DoAnnualCalculation = False
+                        Exit For
+                    End If
+                Next
+            End If
+
+            'For Each Selected Month
             For Month As Integer = StartMonth To EndMonth
+                'Write Out Temporary Files for Each Potential Esvapotranspiration and Precipitation Monthly Raster
                 For I = 0 To Count
-                    IO.File.WriteAllBytes(CoverRasterPaths(I), ReaderCover(I)(Month))
+                    CommandCover(I).CommandText = String.Format("SELECT Month{0} FROM Statistics WHERE Year = {1}", Month, Year)
+                    IO.File.WriteAllBytes(CoverRasterPaths(I), CommandCover(I).ExecuteScalar)
                 Next
                 IO.File.WriteAllBytes(PrecipitationRasterPath, ReaderPrecipitation(Month))
 
                 Dim CoverRasters(Count) As Raster
+                Dim MonthlyRasterPaths(Count) As String
+                Dim MonthlyRasters(Count) As Raster
                 For I = 0 To Count
                     CoverRasters(I) = New Raster(CoverRasterPaths(I))
-                    CoverRasters(I).Open(GDAL.Access.GA_Update)
+                    CoverRasters(I).Open(GDAL.Access.GA_ReadOnly)
+                    MonthlyRasterPaths(I) = CoverRasterPaths(I) & ".Monthly.tif"
+                    MonthlyRasters(I) = CreateNewRaster(MonthlyRasterPaths(I), CoverRasters(I).XCount, CoverRasters(I).YCount, CoverRasters(I).Projection, CoverRasters(I).GeoTransform, {Single.MinValue})
+                    MonthlyRasters(I).Open(GDAL.Access.GA_Update)
                 Next
                 Dim PrecipitationRaster As New Raster(PrecipitationRasterPath)
                 PrecipitationRaster.Open(GDAL.Access.GA_ReadOnly)
 
-                Dim NoDataValue = PrecipitationRaster.BandNoDataValue(0)
-
+                'Calculate Net of Potential Evapotranspiration and Effective Precipitation
                 Do Until PrecipitationRaster.BlocksProcessed
                     Dim CoverPixels(Count) As Array
+                    Dim MonthlyPixels(Count) As Array
                     For I = 0 To Count
                         CoverPixels(I) = CoverRasters(I).Read({1})
+                        MonthlyPixels(I) = MonthlyRasters(I).GetValuesArray({1})
                     Next
                     Dim PrecipitationPixels = PrecipitationRaster.Read({1})
 
-                    For J = 0 To PrecipitationPixels.Length - 1
-                        If Not PrecipitationPixels(J) = NoDataValue Then
-                            For I = 0 To Count
-                                CoverPixels(I)(J) = PrecipitationPixels(J)
-                            Next
-                        End If
+                    Dim NoDataValue = PrecipitationRaster.BandNoDataValue(0)
+
+                    Threading.Tasks.Parallel.For(0, Count + 1, _
+                    Sub(I)
+                        'For I = 0 To Count
+                        For J = 0 To PrecipitationPixels.Length - 1
+                            If PrecipitationPixels(J) = NoDataValue Then
+                                MonthlyPixels(I)(J) = Single.MinValue
+                            Else
+                                Dim EffectivePrecipitation As Single = 0
+                                Select Case CoverEffectivePrecipitation(I)
+                                    Case EffectivePrecipitationType.Eighty_Percent
+                                        EffectivePrecipitation = 0.8 * PrecipitationPixels(J)
+                                    Case EffectivePrecipitationType.One_Hundred_Percent
+                                        EffectivePrecipitation = PrecipitationPixels(J)
+                                    Case EffectivePrecipitationType.USDA_1970
+                                        EffectivePrecipitation = CalculateUSDAEffectivePrecipitation(PrecipitationPixels(J), CoverPixels(I)(J))
+                                End Select
+
+                                MonthlyPixels(I)(J) = CoverPixels(I)(J) - EffectivePrecipitation
+                                If MonthlyPixels(I)(J) < 0 Then MonthlyPixels(I)(J) = 0
+                            End If
+                        Next
+                        'Next
+                    End Sub)
+
+                    For I = 0 To Count
+                        MonthlyRasters(I).Write({1}, MonthlyPixels(I))
                     Next
 
                     PrecipitationRaster.AdvanceBlock()
                     For I = 0 To Count
                         CoverRasters(I).AdvanceBlock()
+                        MonthlyRasters(I).AdvanceBlock()
                     Next
                 Loop
 
+                For I = 0 To Count
+                    CoverRasters(I).Dispose()
+                    MonthlyRasters(I).Dispose()
+                Next
+                PrecipitationRaster.Dispose()
+
+                'Scale Net Cover Rasters
+                For I = 0 To Count
+                    ScaleRaster(MonthlyRasterPaths(I), ScaledCoverRasterPaths(I), , {"COMPRESS=DEFLATE"})
+
+                    CommandCover(I).CommandText = String.Format("UPDATE Net SET Month{0} = @Month{0} WHERE Year = '{1}'", Month, Year)
+                    CommandCover(I).Parameters.Add("@Month" & Month, DbType.Object).Value = IO.File.ReadAllBytes(ScaledCoverRasterPaths(I))
+                    CommandCover(I).ExecuteNonQuery()
+
+                    IO.File.Delete(MonthlyRasterPaths(I))
+                Next
+
+                If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
+                BackgroundWorker.ReportProgress(0)
             Next
 
-            ' 
+            'Annual Summation
+            If DoAnnualCalculation Then
+                Threading.Tasks.Parallel.For(0, Count + 1, _
+                Sub(I)
+                    'For I = 0 To Count
+                    Dim MaskRaster As New Raster(MaskRasterPath)
+                    Dim AnnualRasterPath As String = CoverRasterPaths(I) & ".Annual.tif"
+                    Dim AnnualRaster = CreateNewRaster(AnnualRasterPath, MaskRaster.XCount, MaskRaster.YCount, MaskRaster.Projection, MaskRaster.GeoTransform, {Single.MinValue}, GDAL.DataType.GDT_Float32)
+                    MaskRaster.Dispose()
 
+                    For Month As Integer = 1 To 12
+                        CommandCover(I).CommandText = String.Format("SELECT Month{0} FROM Net WHERE Year = '{1}'", Month, Year)
+                        IO.File.WriteAllBytes(CoverRasterPaths(I), CommandCover(I).ExecuteScalar)
+                        Dim MonthlyRaster As New Raster(CoverRasterPaths(I))
+                        MonthlyRaster.Open(GDAL.Access.GA_ReadOnly)
+                        AnnualRaster.Open(GDAL.Access.GA_Update)
+
+                        Do Until MonthlyRaster.BlocksProcessed
+                            Dim MonthlyPixels = MonthlyRaster.Read({1})
+                            Dim AnnualPixels = AnnualRaster.Read({1})
+
+                            Dim NoDataValue = MonthlyRaster.BandNoDataValue(0)
+
+                            For J = 0 To MonthlyPixels.Length - 1
+                                If MonthlyPixels(J) = NoDataValue Then
+                                    AnnualPixels(J) = Single.MinValue
+                                Else
+                                    AnnualPixels(J) += MonthlyPixels(J)
+                                End If
+                            Next
+
+                            AnnualRaster.Write({1}, AnnualPixels)
+
+                            AnnualRaster.AdvanceBlock()
+                            MonthlyRaster.AdvanceBlock()
+                        Loop
+
+                        MonthlyRaster.Dispose()
+                    Next
+                    AnnualRaster.Dispose()
+
+                    'Scale Annual Raster and Store in Database
+                    ScaleRaster(AnnualRasterPath, ScaledCoverRasterPaths(I), , {"COMPRESS=DEFLATE"})
+
+                    CommandCover(I).CommandText = String.Format("UPDATE Net SET Annual = @Annual WHERE Year = '{0}'", Year)
+                    CommandCover(I).Parameters.Add("@Annual", DbType.Object).Value = IO.File.ReadAllBytes(ScaledCoverRasterPaths(I))
+                    CommandCover(I).ExecuteNonQuery()
+
+                    IO.File.Delete(AnnualRasterPath)
+                    'Next
+                End Sub)
+            End If
+
+            'Delete Temporary Files
+            For I = 0 To Count
+                IO.File.Delete(CoverRasterPaths(I))
+                IO.File.Delete(ScaledCoverRasterPaths(I))
+            Next
+            IO.File.Delete(PrecipitationRasterPath)
+
+            If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
+            BackgroundWorker.ReportProgress(0)
         End While
 
         'Dispose of Database Objects
@@ -1638,111 +1768,125 @@
         Next
     End Sub
 
-    Sub CalculatePeriodAverages(DatabasePath As String, OutputDirectory As String, AnnualStatisticType As StatisticType, MinYear As Integer, MaxYear As Integer, BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
+    Sub CalculatePeriodAverages(CoverPaths() As String, TableName As EvapotranspirationTableName, OutputDirectory As String, MinYear As Integer, MaxYear As Integer, BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
+        If Not IO.Directory.Exists(OutputDirectory) Then IO.Directory.CreateDirectory(OutputDirectory)
+
         'Open Database Containing Rasters
-        Using Connection = CreateConnection(DatabasePath, False)
-            Connection.Open()
+        Threading.Tasks.Parallel.For(0, CoverPaths.Length, _
+        Sub(J)
+            Using Connection = CreateConnection(CoverPaths(J), False)
+                Connection.Open()
 
-            Using Command = Connection.CreateCommand
-                'Open Mask Raster
-                Dim TemplateRaster As New Raster(MaskRasterPath)
+                Using Command = Connection.CreateCommand
+                    'Open Mask Raster
+                    Dim TemplateRaster As New Raster(MaskRasterPath)
 
-                'Determine Period
-                Command.CommandText = "SELECT MIN(Year) FROM Statistics WHERE Annual IS NOT NULL"
-                Dim StartYear As Integer = Command.ExecuteScalar
+                    'Determine Period
+                    Command.CommandText = String.Format("SELECT MIN(Year) FROM {0} WHERE Annual IS NOT NULL", TableName.ToString)
+                    Dim StartYear As Integer = Command.ExecuteScalar
 
-                Command.CommandText = "SELECT MAX(Year) FROM Statistics WHERE Annual IS NOT NULL"
-                Dim EndYear As Integer = Command.ExecuteScalar
+                    Command.CommandText = String.Format("SELECT MAX(Year) FROM {0} WHERE Annual IS NOT NULL", TableName.ToString)
+                    Dim EndYear As Integer = Command.ExecuteScalar
 
-                StartYear = Limit(MinYear, StartYear, EndYear)
-                EndYear = Limit(MaxYear, StartYear, EndYear)
+                    StartYear = Limit(MinYear, StartYear, EndYear)
+                    EndYear = Limit(MaxYear, StartYear, EndYear)
 
-                Command.CommandText = String.Format("SELECT COUNT(Year) FROM Statistics WHERE Year >= '{0}' AND Year <= '{1}' AND Annual IS NOT NULL", StartYear, EndYear)
-                Dim YearCount As Integer = Command.ExecuteScalar
+                    Command.CommandText = String.Format("SELECT COUNT(Year) FROM {0} WHERE Year >= '{1}' AND Year <= '{2}' AND Annual IS NOT NULL", TableName.ToString, StartYear, EndYear)
+                    Dim YearCount As Integer = Command.ExecuteScalar
 
-                'Prepare Output Raster
-                Dim VariableFileName = IO.Path.GetFileNameWithoutExtension(DatabasePath) & " (" & YearCount & " Year Average, " & StartYear & "-" & EndYear & ").tif"
-                Dim OutputRasterPath = IO.Path.Combine(OutputDirectory, VariableFileName)
-                Dim OutputRaster = CreateNewRaster(OutputRasterPath, TemplateRaster.XCount, TemplateRaster.YCount, TemplateRaster.Projection, TemplateRaster.GeoTransform, {Single.MinValue}, , {"TILED=YES"}, 13)
+                    'Prepare Output Raster
+                    Dim VariableFileName = IO.Path.GetFileNameWithoutExtension(CoverPaths(J))
+                    If TableName = EvapotranspirationTableName.Net Then VariableFileName = VariableFileName.Insert(VariableFileName.Length - 30, " Net")
+                    VariableFileName &= " (" & YearCount & " Year Average, " & StartYear & "-" & EndYear & ").tif"
+                    Dim OutputRasterPath = IO.Path.Combine(OutputDirectory, VariableFileName)
+                    Dim OutputRaster = CreateNewRaster(OutputRasterPath, TemplateRaster.XCount, TemplateRaster.YCount, TemplateRaster.Projection, TemplateRaster.GeoTransform, {Single.MinValue}, , {"TILED=YES"}, 13)
 
-                Dim RasterPath As String = IO.Path.Combine(IO.Path.GetTempPath, VariableFileName)
-                Dim ColumnNames = {"Month1", "Month2", "Month3", "Month4", "Month5", "Month6", "Month7", "Month8", "Month9", "Month10", "Month11", "Month12", "Annual"}
-                For C = 0 To ColumnNames.Length - 1
-                    'Prepare Output Datasets for Period Average Calculation
-                    Dim YearlyRasterPath = RasterPath & " - Yearly"
-                    Dim PeriodRasterPath = RasterPath & ColumnNames(C)
-                    Dim PeriodRaster = CreateNewRaster(PeriodRasterPath, TemplateRaster.XCount, TemplateRaster.YCount, TemplateRaster.Projection, TemplateRaster.GeoTransform, {Single.MinValue})
+                    Dim RasterPath As String = IO.Path.Combine(IO.Path.GetTempPath, VariableFileName)
+                    Dim ColumnNames = {"Month1", "Month2", "Month3", "Month4", "Month5", "Month6", "Month7", "Month8", "Month9", "Month10", "Month11", "Month12", "Annual"}
+                    For C = 0 To ColumnNames.Length - 1
+                        'Prepare Output Datasets for Period Average Calculation
+                        Dim YearlyRasterPath = RasterPath & " - Yearly"
+                        Dim PeriodRasterPath = RasterPath & ColumnNames(C)
+                        Dim PeriodRaster = CreateNewRaster(PeriodRasterPath, TemplateRaster.XCount, TemplateRaster.YCount, TemplateRaster.Projection, TemplateRaster.GeoTransform, {Single.MinValue})
 
-                    'Extract Yearly Rasters and Sum in Period Dataset
-                    Command.CommandText = String.Format("SELECT {0} FROM Statistics WHERE Year >= '{1}' AND Year <= '{2}' AND Annual IS NOT NULL", ColumnNames(C), StartYear, EndYear)
-                    Using Reader = Command.ExecuteReader
-                        Do Until Not Reader.Read
-                            IO.File.WriteAllBytes(YearlyRasterPath, Reader(0))
+                        'Extract Yearly Rasters and Sum in Period Dataset
+                        Command.CommandText = String.Format("SELECT {0} FROM {1} WHERE Year >= '{2}' AND Year <= '{3}' AND Annual IS NOT NULL", ColumnNames(C), TableName.ToString, StartYear, EndYear)
+                        Using Reader = Command.ExecuteReader
+                            Do Until Not Reader.Read
+                                IO.File.WriteAllBytes(YearlyRasterPath, Reader(0))
 
-                            Dim YearlyRaster As New Raster(YearlyRasterPath)
-                            YearlyRaster.Open(GDAL.Access.GA_ReadOnly)
-                            PeriodRaster.Open(GDAL.Access.GA_Update)
+                                Dim YearlyRaster As New Raster(YearlyRasterPath)
+                                YearlyRaster.Open(GDAL.Access.GA_ReadOnly)
+                                PeriodRaster.Open(GDAL.Access.GA_Update)
+                                TemplateRaster.Open(GDAL.Access.GA_ReadOnly)
 
-                            Do Until PeriodRaster.BlocksProcessed
-                                Dim PeriodPixels = PeriodRaster.Read({1})
-                                Dim YearlyPixels = YearlyRaster.Read({1})
+                                Do Until PeriodRaster.BlocksProcessed
+                                    Dim PeriodPixels = PeriodRaster.Read({1})
+                                    Dim YearlyPixels = YearlyRaster.Read({1})
+                                    Dim TemplatePixels = TemplateRaster.Read({1})
 
-                                Dim NoDataValue = YearlyRaster.BandNoDataValue(0)
+                                    Dim NoDataValue = TemplateRaster.BandNoDataValue(0)
 
-                                For I = 0 To PeriodPixels.Length - 1
-                                    If YearlyPixels(I) = NoDataValue Then
-                                        PeriodPixels(I) = Single.MinValue
-                                    Else
-                                        PeriodPixels(I) += YearlyPixels(I)
-                                    End If
-                                Next
+                                    For I = 0 To PeriodPixels.Length - 1
+                                        If TemplatePixels(I) = NoDataValue Then
+                                            PeriodPixels(I) = Single.MinValue
+                                        Else
+                                            PeriodPixels(I) += YearlyPixels(I)
+                                        End If
+                                    Next
 
-                                PeriodRaster.Write({1}, PeriodPixels)
+                                    PeriodRaster.Write({1}, PeriodPixels)
 
-                                PeriodRaster.AdvanceBlock()
-                                YearlyRaster.AdvanceBlock()
-                                If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
+                                    PeriodRaster.AdvanceBlock()
+                                    YearlyRaster.AdvanceBlock()
+                                    'If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
+                                Loop
+
+                                YearlyRaster.Close()
                             Loop
+                        End Using
 
-                            YearlyRaster.Close()
+                        'Divide by Number of Represented Years and Store in Output Dataset
+                        PeriodRaster.Open(GDAL.Access.GA_ReadOnly)
+                        OutputRaster.Open(GDAL.Access.GA_Update)
+                        Do Until PeriodRaster.BlocksProcessed
+                            Dim PeriodPixels = PeriodRaster.Read({1})
+
+                            For I = 0 To PeriodPixels.Length - 1
+                                If PeriodPixels(I) <> Single.MinValue Then PeriodPixels(I) /= YearCount
+                            Next
+
+                            OutputRaster.Write({C + 1}, PeriodPixels)
+
+                            OutputRaster.AdvanceBlock()
+                            PeriodRaster.AdvanceBlock()
+                            'If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
                         Loop
-                    End Using
+                        PeriodRaster.Close()
 
-                    'Divide by Number of Represented Years and Store in Output Dataset
-                    PeriodRaster.Open(GDAL.Access.GA_ReadOnly)
+                        IO.File.Delete(PeriodRasterPath)
+                        IO.File.Delete(YearlyRasterPath)
+                    Next
+
+                    OutputRaster.AddStatistics()
+
+                    'Set Band Descriptions
                     OutputRaster.Open(GDAL.Access.GA_Update)
-                    Do Until PeriodRaster.BlocksProcessed
-                        Dim PeriodPixels = PeriodRaster.Read({1})
+                    For I = 1 To 13
+                        Using Band = OutputRaster.Dataset.GetRasterBand(I)
+                            Dim Description As String = ColumnNames(I - 1)
 
-                        For I = 0 To PeriodPixels.Length - 1
-                            If PeriodPixels(I) <> Single.MinValue Then PeriodPixels(I) /= YearCount
-                        Next
+                            Band.SetDescription(Description)
+                            Band.SetCategoryNames({})
+                        End Using
+                    Next
+                    OutputRaster.Close()
 
-                        OutputRaster.Write({C + 1}, PeriodPixels)
-
-                        OutputRaster.AdvanceBlock()
-                        PeriodRaster.AdvanceBlock()
-                        If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
-                    Loop
-                    PeriodRaster.Close()
-                Next
-
-                'Set Band Descriptions
-                OutputRaster.Open(GDAL.Access.GA_Update)
-                For I = 1 To 13
-                    Using Band = OutputRaster.Dataset.GetRasterBand(I)
-                        If I <= 12 Then
-                            Band.SetDescription(MonthName(I))
-                        Else
-                            Band.SetDescription(ColumnNames(I - 1))
-                        End If
-                    End Using
-                Next
-                OutputRaster.Close()
-
-                BackgroundWorker.ReportProgress(0)
+                    TemplateRaster.Dispose()
+                    'BackgroundWorker.ReportProgress(0)
+                End Using
             End Using
-        End Using
+        End Sub)
     End Sub
 
 #End Region
@@ -2018,7 +2162,7 @@
         End Using
     End Sub
 
-    Public Sub GetMaxAndMinDates(Files() As String, ByRef MaxDate As DateTime, ByRef MinDate As DateTime, Optional TableName As PotentialEvapotranspirationTableName = PotentialEvapotranspirationTableName.Rasters)
+    Public Sub GetMaxAndMinDates(Files() As String, ByRef MaxDate As DateTime, ByRef MinDate As DateTime, Optional TableName As EvapotranspirationTableName = EvapotranspirationTableName.Rasters)
         For Each File In Files
             Try
                 Using Connection = CreateConnection(File, False)
@@ -2026,7 +2170,7 @@
 
                     Using Command = Connection.CreateCommand
                         Select Case TableName
-                            Case PotentialEvapotranspirationTableName.Rasters
+                            Case EvapotranspirationTableName.Rasters
                                 Command.CommandText = "SELECT MAX(Date) FROM " & TableName.ToString
                                 Dim Value = Command.ExecuteScalar
                                 If Not IsDBNull(Value) Then
@@ -2232,7 +2376,7 @@
 
                 Dim YearCount As Integer = EndYear - StartYear + 1
                 Dim VariableFileName = IO.Path.GetFileNameWithoutExtension(DatabasePath) & "_{0} (" & YearCount & " Year Average, " & StartYear & "-" & EndYear & ").tif"
-                Dim RasterPath As String = OutputCalculationsDirectory & VariableFileName
+                Dim RasterPath As String = IO.Path.Combine(IO.Path.GetTempPath, VariableFileName)
                 For Each Temperature In SpringFrostTemperatures
                     'Prepare Output Datasets for Period Average Calculation
                     Dim YearlyRasterPath = String.Format(RasterPath, Temperature & ".Yearly")
@@ -3122,6 +3266,20 @@
     End Function
 
     ''' <summary>
+    ''' Calculates monthly effective precipitation according to USDA (1970) methodology.
+    ''' </summary>
+    ''' <param name="Precipitation">Monthly Precipitation (Inches)</param>
+    ''' <param name="Evapotranspiration">Monthly Evapotranspiration (Inches)</param>
+    ''' <returns>Estimated Effective Precipitation (Inches)</returns>
+    ''' <remarks>Source: Bos et al. (2008). Water Requirements for Irrigation and the Environment. Springer Science.</remarks>
+    Function CalculateUSDAEffectivePrecipitation(Precipitation As Single, Evapotranspiration As Single)
+        Dim Value = (18.010843538315541 * Precipitation ^ 0.824 - 2.935) * 10 ^ (0.0254 * Evapotranspiration)
+        If Value > Precipitation Then Value = Precipitation
+        If Value > Evapotranspiration Then Value = Evapotranspiration
+        Return Value
+    End Function
+
+    ''' <summary>
     ''' Container for geocentric sun angles and distance at a given instant in time.
     ''' </summary>
     Class SolarPosition
@@ -3311,6 +3469,8 @@
         Public Property InitiationToIntermediateCurveType As CurveType
         Public Property IntermediateToTerminationCurveType As CurveType
 
+        Public Property EffectivePrecipitationType As EffectivePrecipitationType
+
         Public Property Variable As String = ""
 
         Function ToThresholdType(Name As String, CGDDType As String) As ThresholdType
@@ -3418,10 +3578,18 @@
         Has_Cuttings
     End Enum
 
-    Enum PotentialEvapotranspirationTableName
+    Enum EffectivePrecipitationType
+        None
+        USDA_1970
+        Eighty_Percent
+        One_Hundred_Percent
+    End Enum
+
+    Enum EvapotranspirationTableName
         Rasters
         Statistics
         Net
+        Dates
     End Enum
 
 #End Region

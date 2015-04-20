@@ -85,7 +85,7 @@
     ''' <param name="ResamplingMethod">Resampling Method Type</param>
     ''' <param name="InNoDataValue">Input Mask or No Data Value for All Bands</param>
     ''' <param name="OutNoDataValue">Output Mask or No Data Value for All Bands</param>
-    Sub SnapToRaster(InputRasterPath As String, SnapRasterPath As String, OutputRasterPath As String, Optional UseSnapRasterExtent As Boolean = True, Optional MaskNoData As Boolean = True, Optional OutputRasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff, Optional OutputCompression As GDALProcess.Compression = GDALProcess.Compression.DEFLATE, Optional ResamplingMethod As GDALProcess.ResamplingMethod = GDALProcess.ResamplingMethod.Average, Optional InNoDataValue As String = "-9999", Optional OutNoDataValue As String = "-9999", Optional ByRef GDALProcess As GDALProcess = Nothing)
+    Sub SnapToRaster(InputRasterPath As String, SnapRasterPath As String, OutputRasterPath As String, Optional UseSnapRasterExtent As Boolean = True, Optional MaskNoData As Boolean = True, Optional OutputRasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff, Optional OutputCompression As GDALProcess.Compression = GDALProcess.Compression.DEFLATE, Optional ResamplingMethod As GDALProcess.ResamplingMethod = GDALProcess.ResamplingMethod.Average, Optional InNoDataValue As String = "-9999", Optional OutNoDataValue As String = "-9999", Optional OutputDataType As GDAL.DataType = GDAL.DataType.GDT_Unknown, Optional ByRef GDALProcess As GDALProcess = Nothing)
         Try
             'Get Raster Properties of Input and Snap Rasters
             Dim InputRaster As New Raster(InputRasterPath)
@@ -94,14 +94,14 @@
             'Prepare Intermediate Calculation Files
             Dim ProjectionRasterPath As String = IO.Path.GetTempFileName
             IO.File.WriteAllText(ProjectionRasterPath, SnapRaster.Projection)
-            Dim IntermediateRasterPath As String = FixDirectory(IO.Path.GetDirectoryName(OutputRasterPath)) & IO.Path.GetFileNameWithoutExtension(OutputRasterPath) & "-Intermediate" & IO.Path.GetExtension(OutputRasterPath)
+            Dim IntermediateRasterPath As String = IO.Path.Combine(IO.Path.GetDirectoryName(OutputRasterPath), IO.Path.GetFileNameWithoutExtension(OutputRasterPath) & "-Intermediate" & IO.Path.GetExtension(OutputRasterPath))
 
             'Warp Input Image to Match Extent and Resolution of Snap Raster
             GDALProcess = New GDALProcess
             Dim Extent = SnapRaster.Extent
             If Not UseSnapRasterExtent Then Extent = GetMaskedExtent(InputRaster.Extent, SnapRaster)
 
-            GDALProcess.Warp(InputRasterPath, IntermediateRasterPath, ProjectionRasterPath, , Extent, SnapRaster.XResolution, SnapRaster.YResolution, ResamplingMethod, OutputRasterFormat, GridET.GDALProcess.Compression.DEFLATE, {InNoDataValue}, {OutNoDataValue}, True)
+            GDALProcess.Warp(InputRasterPath, IntermediateRasterPath, ProjectionRasterPath, , Extent, SnapRaster.XResolution, SnapRaster.YResolution, ResamplingMethod, OutputRasterFormat, OutputCompression, {InNoDataValue}, {OutNoDataValue}, True, OutputDataType)
 
             'Mask Snap Raster No Data Regions in Output if Option Selected
             If MaskNoData And UseSnapRasterExtent Then
@@ -424,12 +424,13 @@
 
     Function CreateNewRaster(Path As String, XCount As Integer, YCount As Integer, Projection As String, GeoTransform() As Double, NoDataValue As Object(), Optional DataType As GDAL.DataType = GDAL.DataType.GDT_Float32, Optional Options() As String = Nothing, Optional BandCount As Integer = 1, Optional RasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff) As Raster
         Using Driver = GDAL.Gdal.GetDriverByName(RasterFormat.ToString)
-            Using Dataset = Driver.Create(Path, XCount, YCount, 1, DataType, Options)
+            Using Dataset = Driver.Create(Path, XCount, YCount, BandCount, DataType, Options)
                 Dataset.SetProjection(Projection)
                 Dataset.SetGeoTransform(GeoTransform)
 
                 For B = 1 To BandCount
                     Using Band = Dataset.GetRasterBand(B)
+                        Dim f = NoDataValue(Limit(B - 1, 0, NoDataValue.Length - 1))
                         Band.SetNoDataValue(NoDataValue(Limit(B - 1, 0, NoDataValue.Length - 1)))
                     End Using
                 Next
@@ -737,6 +738,24 @@
 
         Sub SetBlockLength(BlockLength As Integer)
             Me.BlockLength = BlockLength
+        End Sub
+
+        Sub AddStatistics()
+            If Dataset Is Nothing Then Dataset = GDAL.Gdal.OpenShared(Path, GDAL.Access.GA_Update)
+
+            For B = 1 To BandCount
+                Using Band = Dataset.GetRasterBand(B)
+                    Dim Min As Double = 0, Max As Double = 0, Mean As Double = 0, StDev As Double = 0, Buckets As Integer = 256, Histogram(Buckets - 1) As Integer
+
+                    Band.ComputeStatistics(False, Min, Max, Mean, StDev, Nothing, Nothing)
+                    Band.SetStatistics(Min, Max, Mean, StDev)
+
+                    Band.GetHistogram(Min, Max, Buckets, Histogram, True, False, Nothing, Nothing)
+                    Band.SetDefaultHistogram(Min, Max, Buckets, Histogram)
+                End Using
+            Next
+
+            Dataset.Dispose()
         End Sub
 
 #End Region

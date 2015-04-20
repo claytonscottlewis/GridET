@@ -20,11 +20,12 @@
 
         SetFormLabel()
 
-        ProjectDirectory = "F:\Temporary Project\Test\"
+        ProjectDirectory = "F:\Temporary Project\Test\" '"F:\UtahET 2.0\Utah-Third Mile"
         ClimateModelDirectory = "F:\UtahET 2.0\Data Sources\"
         SetFormLabel()
 
-        NetPotentialToolStripMenuItem_Click(Nothing, Nothing)
+        Dim File = IO.Directory.GetFiles(PotentialEvapotranspirationDirectory, "*.db")(0)
+        CalculatePeriodAverages({File}, EvapotranspirationTableName.Statistics, IO.Path.Combine(OutputCalculationsDirectory, "1980-2013"), 1980, 2013, Nothing, Nothing)
 
         'Dim SpatialReferenceSystem As OSR.SpatialReference
         'Using Raster As New Raster("C:\Users\Clayton Lewis\Desktop\Images\Mask.tif")
@@ -54,7 +55,7 @@
 
         If Not FolderBrowserDialog.ShowDialog = Windows.Forms.DialogResult.OK Then Exit Sub
 
-        ProjectDirectory = FixDirectory(FolderBrowserDialog.SelectedPath)
+        ProjectDirectory = FolderBrowserDialog.SelectedPath
 
         If Not IO.File.Exists(ProjectDetailsPath) Then
             MsgBox("Not a valid project directory.")
@@ -210,6 +211,10 @@
 
     End Sub
 
+    Private Sub RasterPeriodAverageToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles RasterPeriodAverageToolStripMenuItem.Click
+
+    End Sub
+
     Private Sub ExtractByPolygonToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles ExtractByPolygonToolStripMenuItem.Click
 
     End Sub
@@ -221,6 +226,41 @@
 #End Region
 
 #End Region
+
+    Sub GetRaster()
+        Using Connection = CreateConnection(DAYMETPrecipitationPath)
+            Connection.Open()
+
+            Using Command = Connection.CreateCommand
+                Dim OutputPath = IO.Path.Combine(FileIO.SpecialDirectories.Desktop, "DAYMET")
+                Command.CommandText = "SELECT Annual FROM Statistics WHERE YEAR = '1985'"
+                IO.File.WriteAllBytes(OutputPath, Command.ExecuteScalar)
+
+                Dim OutputRaster As New Raster(OutputPath)
+                OutputRaster.Open(GDAL.Access.GA_ReadOnly)
+                Dim RealOutputRaster = CreateNewRaster(OutputPath & ".tif", OutputRaster.XCount, OutputRaster.YCount, OutputRaster.Projection, OutputRaster.GeoTransform, {Single.MinValue})
+                RealOutputRaster.Open(GDAL.Access.GA_Update)
+
+                Dim NoDataValue = OutputRaster.BandNoDataValue(0)
+
+                Do Until OutputRaster.BlocksProcessed
+                    Dim OPixels = OutputRaster.Read({1})
+
+                    For I = 0 To OPixels.Length - 1
+                        If OPixels(I) = NoDataValue Then OPixels(I) = Single.MinValue
+                    Next
+
+                    RealOutputRaster.Write({1}, OPixels)
+
+                    RealOutputRaster.AdvanceBlock()
+                    OutputRaster.AdvanceBlock()
+                Loop
+
+                OutputRaster.Dispose()
+                RealOutputRaster.Dispose()
+            End Using
+        End Using
+    End Sub
 
 End Class
 

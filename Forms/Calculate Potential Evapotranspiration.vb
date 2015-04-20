@@ -145,6 +145,11 @@
         End If
     End Sub
 
+    Private Sub Calculate_Evapotranspiration_FormClosing(sender As Object, e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
+        e.Cancel = BackgroundWorker.IsBusy
+        Cancel_Button_Click(Nothing, Nothing)
+    End Sub
+
     Private Sub Cover_Properties_FormClosed(sender As Object, e As System.Windows.Forms.FormClosedEventArgs) Handles Me.FormClosed
         If Not Command Is Nothing Then Command.Dispose()
         If Not Connection Is Nothing Then Connection.Dispose()
@@ -228,26 +233,29 @@
                 If CoverList.FindItemWithText(Cover.Name).Checked Then
                     Dim Properties = Reader.GetString(1).Split(";")
 
-                    Cover.InitiationThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(1))
-                    Cover.InitiationThreshold = Properties(2)
+                    Cover.EffectivePrecipitationType = [Enum].Parse(GetType(EffectivePrecipitationType), Properties(0))
 
-                    Cover.IntermediateThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(3))
-                    Cover.IntermediateThreshold = Properties(4)
+                    Cover.CurveName = Properties(1)
 
-                    Cover.TerminationThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(5))
-                    Cover.TerminationThreshold = Properties(6)
+                    Cover.InitiationThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(2))
+                    Cover.InitiationThreshold = Properties(3)
 
-                    Cover.CuttingIntermediateThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(7))
-                    Cover.CuttingIntermediateThreshold = Properties(9)
+                    Cover.IntermediateThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(4))
+                    Cover.IntermediateThreshold = Properties(5)
 
-                    Cover.CuttingTerminationThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(8))
-                    Cover.CuttingTerminationThreshold = Properties(10)
+                    Cover.TerminationThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(6))
+                    Cover.TerminationThreshold = Properties(7)
 
-                    Cover.SpringFrostTemperature = Properties(11)
-                    Cover.KillingFrostTemperature = Properties(12)
+                    Cover.CuttingIntermediateThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(8))
+                    Cover.CuttingIntermediateThreshold = Properties(10)
 
-                    Cover.CurveName = Properties(0)
-                    Properties = CurveProperties(CurveNames.IndexOf(Properties(0))).Split(";")
+                    Cover.CuttingTerminationThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(9))
+                    Cover.CuttingTerminationThreshold = Properties(11)
+
+                    Cover.SpringFrostTemperature = Properties(12)
+                    Cover.KillingFrostTemperature = Properties(13)
+
+                    Properties = CurveProperties(CurveNames.IndexOf(Cover.CurveName)).Split(";")
 
                     Cover.Variable = Properties(0)
 
@@ -302,7 +310,7 @@
             DatesGroup.Enabled = False
             CalculateButton.Enabled = False
 
-            ProgressText.Text = ""
+            ProgressText.Text = "Initializing calculation datasets..."
             ProgressBar.Minimum = 0
             ProgressBar.Maximum = CoverProperties.Length
             ProgressBar.Value = 0
@@ -325,6 +333,7 @@
             End If
         Else
             Me.DialogResult = System.Windows.Forms.DialogResult.Cancel
+            RemoveHandler Me.FormClosing, AddressOf Calculate_Evapotranspiration_FormClosing
             Me.Close()
         End If
     End Sub
@@ -342,8 +351,12 @@
     End Sub
 
     Private Sub BackgroundWorker_ProgressChanged(sender As Object, e As System.ComponentModel.ProgressChangedEventArgs) Handles BackgroundWorker.ProgressChanged
-        ProgressBar.Value += 1
-        ProgressText.Text = e.UserState
+        If ProgressBar.Maximum - ProgressBar.Value > 1 Then
+            Dim Timespan As TimeSpan = New TimeSpan(Timer.Elapsed.Ticks / (ProgressBar.Value + 1) * (ProgressBar.Maximum - ProgressBar.Value - 1))
+            ProgressText.Text = String.Format("Estimated time remaining...({0})", Timespan.ToString("d\.hh\:mm\:ss"))
+        End If
+
+        If ProgressBar.Value < ProgressBar.Maximum Then ProgressBar.Value += 1
     End Sub
 
     Private Sub BackgroundWorker_RunWorkerCompleted(sender As Object, e As System.ComponentModel.RunWorkerCompletedEventArgs) Handles BackgroundWorker.RunWorkerCompleted

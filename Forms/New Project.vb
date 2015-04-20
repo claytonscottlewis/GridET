@@ -8,13 +8,18 @@
         Next
     End Sub
 
+    Private Sub Form_Closing(sender As Object, e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
+        e.Cancel = BackgroundWorker.IsBusy
+        Cancel_Button_Click(Nothing, Nothing)
+    End Sub
+
     Private Sub ProjectSet_Click(sender As System.Object, e As System.EventArgs) Handles ProjectSet.Click
         Dim FolderBrowserDialog As New FolderBrowserDialog
         FolderBrowserDialog.Description = "Set project location as..."
 
         If Not FolderBrowserDialog.ShowDialog = Windows.Forms.DialogResult.OK Then Exit Sub
 
-        ProjectDirectory.Text = FixDirectory(FolderBrowserDialog.SelectedPath)
+        ProjectDirectory.Text = FolderBrowserDialog.SelectedPath
     End Sub
 
     Private Sub ClimateModelSet_Click(sender As System.Object, e As System.EventArgs) Handles ClimateModelSet.Click
@@ -23,7 +28,7 @@
 
         If Not FolderBrowserDialog.ShowDialog = Windows.Forms.DialogResult.OK Then Exit Sub
 
-        ClimateModelDirectory.Text = FixDirectory(FolderBrowserDialog.SelectedPath)
+        ClimateModelDirectory.Text = FolderBrowserDialog.SelectedPath
     End Sub
 
     Private Sub MaskAdd_Click(sender As System.Object, e As System.EventArgs) Handles MaskAdd.Click
@@ -114,6 +119,7 @@
             End If
         Else
             Me.DialogResult = System.Windows.Forms.DialogResult.Cancel
+            RemoveHandler Me.FormClosing, AddressOf Form_Closing
             Me.Close()
         End If
     End Sub

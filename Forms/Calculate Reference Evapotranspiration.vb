@@ -108,6 +108,11 @@
         End If
     End Sub
 
+    Private Sub Calculate_Evapotranspiration_FormClosing(sender As Object, e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
+        e.Cancel = BackgroundWorker.IsBusy
+        Cancel_Button_Click(Nothing, Nothing)
+    End Sub
+
     Private Sub Calculate_Evapotranspiration_FormClosed(sender As Object, e As System.Windows.Forms.FormClosedEventArgs) Handles Me.FormClosed
         If Not Command Is Nothing Then Command.Dispose()
         If Not Connection Is Nothing Then Connection.Dispose()
@@ -122,23 +127,34 @@
         DatesGroup.Enabled = CalculationExists
         CalculateButton.Enabled = CalculationExists
 
-        If DatesGroup.Enabled = True Then
-            Dim MinDate = DateTime.MinValue
-            Dim MaxDate = DateTime.MaxValue
-            Dim NoCalculation As Boolean = False
+        If CalculationExists Then
+            Dim MinDateCalculation = DateTime.MinValue
+            Dim MaxDateCalculation = DateTime.MaxValue
+            Dim MinDateDataset = DateTime.MinValue
+            Dim MaxDateDataset = DateTime.MaxValue
 
             For Each Item As ListViewItem In DatasetList.CheckedItems
-                If CalculationMinDate(Item.Index) > MinDate Then MinDate = CalculationMinDate(Item.Index)
-                If CalculationMaxDate(Item.Index) < MaxDate Then MaxDate = CalculationMaxDate(Item.Index)
-                If CalculationMaxDate(Item.Index) = DateTime.MaxValue Then NoCalculation = True
+                If CalculationMinDate(Item.Index) > MinDateCalculation Then MinDateCalculation = CalculationMinDate(Item.Index)
+                If CalculationMaxDate(Item.Index) < MaxDateCalculation Then MaxDateCalculation = CalculationMaxDate(Item.Index)
+                If CalculationMaxDate(Item.Index) = DateTime.MaxValue Then CalculationExists = False
+                If DatasetMinDate(Item.Index) > MinDateDataset Then MinDateDataset = DatasetMinDate(Item.Index)
+                If DatasetMaxDate(Item.Index) < MaxDateDataset Then MaxDateDataset = DatasetMaxDate(Item.Index)
             Next
-            If NoCalculation Then MaxDate = DateTime.MaxValue
 
-            If Not MaxDate = DateTime.MaxValue Then
-                PreviousCalculationStartDate.Text = MinDate.ToString(DateFormat)
-                PreviousCalculationEndDate.Text = MaxDate.ToString(DateFormat)
+            ClimateDatasetStartDate.Text = MinDateDataset.ToString(DateFormat)
+            ClimateDatasetEndDate.Text = MaxDateDataset.ToString(DateFormat)
 
-                CalculationStartDate.Value = MaxDate.AddDays(1)
+            CalculationStartDate.MinDate = MinDateDataset
+            CalculationStartDate.MaxDate = MaxDateDataset
+            CalculationEndDate.MinDate = MinDateDataset
+            CalculationEndDate.MaxDate = MaxDateDataset
+
+            If CalculationExists Then
+                PreviousCalculationStartDate.Text = MinDateCalculation.ToString(DateFormat)
+                PreviousCalculationEndDate.Text = MaxDateCalculation.ToString(DateFormat)
+
+                CalculationStartDate.Value = MaxDateCalculation
+                If Not CalculationStartDate.Value = CalculationStartDate.MaxDate Then CalculationStartDate.Value = CalculationStartDate.Value.AddDays(1)
                 CalculationEndDate.Value = CalculationEndDate.MaxDate
             Else
                 PreviousCalculationStartDate.Text = "-"
@@ -157,8 +173,8 @@
             Exit Sub
         End If
 
-        For I = 0 To DatasetMaxDate.Count - 1
-            If CalculationStartDate.Value <= CalculationMaxDate(I) And CalculationMaxDate(I) <> DateTime.MaxValue Then
+        For Each Item As ListViewItem In DatasetList.CheckedItems
+            If CalculationStartDate.Value <= CalculationMaxDate(Item.Index) And CalculationMaxDate(Item.Index) <> DateTime.MaxValue Then
                 If MsgBox("The selected time period will overwrite previous calculations.  Continue with action anyway?", MsgBoxStyle.YesNo) = MsgBoxResult.No Then
                     Exit Sub
                 End If
@@ -177,7 +193,7 @@
 
             ProgressText.Text = "Initializing calculation datasets..."
             ProgressBar.Minimum = 0
-            ProgressBar.Maximum = CalculationEndDate.Value.Subtract(CalculationStartDate.Value).TotalDays + 1
+            ProgressBar.Maximum = (CalculationEndDate.Value.Subtract(CalculationStartDate.Value).TotalDays + 1) * DatasetList.CheckedItems.Count
             ProgressBar.Value = 0
             ProgressText.Visible = True
             ProgressBar.Visible = True
@@ -202,6 +218,7 @@
             End If
         Else
             Me.DialogResult = System.Windows.Forms.DialogResult.Cancel
+            RemoveHandler Me.FormClosing, AddressOf Calculate_Evapotranspiration_FormClosing
             Me.Close()
         End If
     End Sub
@@ -216,19 +233,16 @@
 
     Private Sub BackgroundWorker_DoWork(sender As System.Object, e As System.ComponentModel.DoWorkEventArgs) Handles BackgroundWorker.DoWork
         Dim StartDate = New DateTime(CalculationStartDate.Value.Year, CalculationStartDate.Value.Month, CalculationStartDate.Value.Day).AddHours(13)
-        Dim EndDate = New DateTime(CalculationEndDate.Value.Year, CalculationEndDate.Value.Month, CalculationEndDate.Value.Day).AddDays(1).AddHours(12)
+        Dim EndDate = New DateTime(CalculationEndDate.Value.Year, CalculationEndDate.Value.Month, CalculationEndDate.Value.Day).AddHours(12)
 
-        If StartDate < EndDate Then
-            If SelectedClimateDatasets.Contains("NLDAS_2A") Then
-                CalculateReferenceEvapotranspirationNLDAS_2A(StartDate, EndDate, BackgroundWorker, e)
-            End If
-        End If
+        If SelectedClimateDatasets.Contains("NLDAS_2A") Then CalculateReferenceEvapotranspirationNLDAS_2A(StartDate, EndDate.AddDays(1), BackgroundWorker, e)
+        If SelectedClimateDatasets.Contains("DAYMET") Then CalculateReferenceEvapotranspirationDAYMET(StartDate, EndDate, BackgroundWorker, e)
     End Sub
 
     Private Sub BackgroundWorker_ProgressChanged(sender As Object, e As System.ComponentModel.ProgressChangedEventArgs) Handles BackgroundWorker.ProgressChanged
         If ProgressBar.Maximum - ProgressBar.Value > 1 Then
             Dim Timespan As TimeSpan = New TimeSpan(Timer.Elapsed.Ticks / (ProgressBar.Value + 1) * (ProgressBar.Maximum - ProgressBar.Value - 1))
-            ProgressText.Text = String.Format("Estimated time remaining...({0})", Timespan.ToString)
+            ProgressText.Text = String.Format("Estimated time remaining...({0})", Timespan.ToString("d\.hh\:mm\:ss"))
         End If
 
         If ProgressBar.Value < ProgressBar.Maximum Then ProgressBar.Value += 1
