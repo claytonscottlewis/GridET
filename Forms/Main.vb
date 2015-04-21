@@ -24,8 +24,8 @@
         ClimateModelDirectory = "F:\UtahET 2.0\Data Sources\"
         SetFormLabel()
 
-        Dim File = IO.Directory.GetFiles(PotentialEvapotranspirationDirectory, "*.db")(0)
-        CalculatePeriodAverages({File}, EvapotranspirationTableName.Statistics, IO.Path.Combine(OutputCalculationsDirectory, "1980-2013"), 1980, 2013, Nothing, Nothing)
+        'Dim File = IO.Directory.GetFiles(PotentialEvapotranspirationDirectory, "*.db")
+        'CalculatePeriodAverages(File, EvapotranspirationTableName.Net, IO.Path.Combine(OutputCalculationsDirectory, "1980-2013"), 1980, 2013, Nothing, Nothing)
 
         'Dim SpatialReferenceSystem As OSR.SpatialReference
         'Using Raster As New Raster("C:\Users\Clayton Lewis\Desktop\Images\Mask.tif")
@@ -188,10 +188,6 @@
         Form.ShowDialog()
     End Sub
 
-    Private Sub PRISMToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles PRISMToolStripMenuItem.Click
-
-    End Sub
-
     Private Sub ReferenceToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles ReferenceToolStripMenuItem.Click
         Dim Form As New Calculate_Reference_Evapotranspiration
         Form.ShowDialog()
@@ -207,12 +203,9 @@
         Form.ShowDialog()
     End Sub
 
-    Private Sub ActualToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles ActualToolStripMenuItem.Click
-
-    End Sub
-
     Private Sub RasterPeriodAverageToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles RasterPeriodAverageToolStripMenuItem.Click
-
+        Dim Form As New Calculate_Raster_Period_Average
+        Form.ShowDialog()
     End Sub
 
     Private Sub ExtractByPolygonToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles ExtractByPolygonToolStripMenuItem.Click

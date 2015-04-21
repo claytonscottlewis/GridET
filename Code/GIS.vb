@@ -754,8 +754,6 @@
                     Band.SetDefaultHistogram(Min, Max, Buckets, Histogram)
                 End Using
             Next
-
-            Dataset.Dispose()
         End Sub
 
 #End Region

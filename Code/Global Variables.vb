@@ -57,6 +57,12 @@
         End Get
     End Property
 
+    Public ReadOnly Property MaskSlopeAreaRasterPath As String
+        Get
+            Return IO.Path.Combine(ElevationDirectory, "Slope Area.tif")
+        End Get
+    End Property
+
     'Level 3
     Public ReadOnly Property CoordinateDirectory As String
         Get

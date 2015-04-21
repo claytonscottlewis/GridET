@@ -59,13 +59,13 @@
 
                         Dim MinDate = DateTime.MinValue
                         Dim MaxDate = DateTime.MaxValue
-                        GetMaxAndMinDates({Path}, MaxDate, MinDate, EvapotranspirationTableName.Statistics)
+                        GetMaxAndMinDates({Path}, MaxDate, MinDate, DatabaseTableName.Statistics)
                         CoverStatisticsStartDate.Add(MinDate)
                         CoverStatisticsEndDate.Add(MaxDate)
 
                         MinDate = DateTime.MinValue
                         MaxDate = DateTime.MaxValue
-                        GetMaxAndMinDates({Path}, MaxDate, MinDate, EvapotranspirationTableName.Net)
+                        GetMaxAndMinDates({Path}, MaxDate, MinDate, DatabaseTableName.Net)
                         CoverNetStartDate.Add(MinDate)
                         CoverNetEndDate.Add(MaxDate)
 
@@ -86,7 +86,7 @@
 
                 Dim MinDate = DateTime.MinValue
                 Dim MaxDate = DateTime.MaxValue
-                GetMaxAndMinDates({Path}, MaxDate, MinDate, EvapotranspirationTableName.Statistics)
+                GetMaxAndMinDates({Path}, MaxDate, MinDate, DatabaseTableName.Statistics)
                 PrecipitationStartDate.Add(MinDate)
                 PrecipitationEndDate.Add(MaxDate)
 
@@ -113,6 +113,18 @@
 
     Private Sub Calculate_Evapotranspiration_Resize(sender As Object, e As System.EventArgs) Handles Me.Resize
         CoverList.Columns(0).Width = CoverList.Width - SystemInformation.VerticalScrollBarWidth - 5
+    End Sub
+
+    Private Sub DateTimePicker_PreviewKeyDown(sender As DateTimePicker, e As System.Windows.Forms.PreviewKeyDownEventArgs) Handles CalculationStartDate.PreviewKeyDown, CalculationEndDate.PreviewKeyDown
+        sender.Value = New DateTime(sender.Value.Year, sender.Value.Month, 1)
+    End Sub
+
+    Private Sub DateTimePicker_ValueChanged(sender As Object, e As System.EventArgs) Handles CalculationStartDate.ValueChanged, CalculationEndDate.ValueChanged
+        If sender Is CalculationStartDate Then
+            sender.Value = New DateTime(sender.Value.Year, sender.Value.Month, 1)
+        Else
+            sender.Value = New DateTime(sender.Value.Year, sender.Value.Month, DateTime.DaysInMonth(sender.Value.Year, sender.Value.Month))
+        End If
     End Sub
 
     Private Sub PrecipitationDataset_TextChanged(sender As Object, e As System.EventArgs) Handles PrecipitationDataset.TextChanged
@@ -217,7 +229,7 @@
 
             ProgressText.Text = "Initializing calculation datasets..."
             ProgressBar.Minimum = 0
-            ProgressBar.Maximum = Math.Ceiling(CalculationEndDate.Value.Subtract(CalculationStartDate.Value).TotalDays / 365.25 * 13)
+            ProgressBar.Maximum = Math.Ceiling(CalculationEndDate.Value.Subtract(CalculationStartDate.Value).TotalDays / 365.25 * 15)
             ProgressBar.Value = 0
             ProgressText.Visible = True
             ProgressBar.Visible = True
@@ -290,4 +302,5 @@
 
 #End Region
 
+ 
 End Class

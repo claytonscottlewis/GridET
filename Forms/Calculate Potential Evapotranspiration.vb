@@ -91,39 +91,39 @@
                     CalculationEndDate.Value = MaxDate
                     CalculationStartDate.Value = MinDate
 
-                    Dim ImageWidth As Integer = 200
-                    Dim ImageHeight As Integer = CoverList.GetItemRect(0).Height
-                    Dim ImageBuffer As Integer = 10
-                    Dim ImageList As New ImageList
-                    CoverList.SmallImageList = ImageList
-                    CoverList.SmallImageList.ImageSize = New Size(ImageWidth, ImageHeight)
+                    'Dim ImageWidth As Integer = 200
+                    'Dim ImageHeight As Integer = CoverList.GetItemRect(0).Height
+                    'Dim ImageBuffer As Integer = 10
+                    'Dim ImageList As New ImageList
+                    'CoverList.SmallImageList = ImageList
+                    'CoverList.SmallImageList.ImageSize = New Size(ImageWidth, ImageHeight)
 
-                    For I = 0 To CoverList.Items.Count - 1
-                        Dim StartDate = CoverStartDate(I)
-                        If StartDate = DateTime.MinValue Then StartDate = MinDate
-                        Dim EndDate = CoverEndDate(I)
-                        If EndDate = DateTime.MaxValue Then EndDate = MaxDate
+                    'For I = 0 To CoverList.Items.Count - 1
+                    '    Dim StartDate = CoverStartDate(I)
+                    '    If StartDate = DateTime.MinValue Then StartDate = MinDate
+                    '    Dim EndDate = CoverEndDate(I)
+                    '    If EndDate = DateTime.MaxValue Then EndDate = MaxDate
 
-                        Dim Image As New Bitmap(ImageWidth, ImageHeight)
-                        Dim Graphic = Graphics.FromImage(Image)
-                        Graphic.FillRectangle(Brushes.Transparent, 0, 0, Image.Width, Image.Height)
+                    '    Dim Image As New Bitmap(ImageWidth, ImageHeight)
+                    '    Dim Graphic = Graphics.FromImage(Image)
+                    '    Graphic.FillRectangle(Brushes.Transparent, 0, 0, Image.Width, Image.Height)
 
-                        Dim Margin As Single = ImageHeight / 4
-                        Graphic.FillRectangle(SystemBrushes.ControlDarkDark, ImageBuffer, Margin, Image.Width - ImageBuffer * 2, Image.Height - Margin * 2)
+                    '    Dim Margin As Single = ImageHeight / 4
+                    '    Graphic.FillRectangle(SystemBrushes.ControlDarkDark, ImageBuffer, Margin, Image.Width - ImageBuffer * 2, Image.Height - Margin * 2)
 
-                        If EndDate.Subtract(StartDate).TotalDays > 0 And Not CoverEndDate(I) = DateTime.MaxValue Then
-                            Dim Period As Double = (ImageWidth - ImageBuffer * 2) / EndDate.Subtract(StartDate).TotalDays
-                            Dim StartDay As Single = StartDate.Subtract(MinDate).TotalDays * Period + ImageBuffer
-                            Dim EndDay As Single = EndDate.Subtract(MinDate).TotalDays * Period + ImageBuffer
-                            Dim Offset As Single = 1
-                            Dim Mid As Single = ImageHeight / 2 - Offset
+                    '    If EndDate.Subtract(StartDate).TotalDays > 0 And Not CoverEndDate(I) = DateTime.MaxValue Then
+                    '        Dim Period As Double = (ImageWidth - ImageBuffer * 2) / EndDate.Subtract(StartDate).TotalDays
+                    '        Dim StartDay As Single = StartDate.Subtract(MinDate).TotalDays * Period + ImageBuffer
+                    '        Dim EndDay As Single = EndDate.Subtract(MinDate).TotalDays * Period + ImageBuffer
+                    '        Dim Offset As Single = 1
+                    '        Dim Mid As Single = ImageHeight / 2 - Offset
 
-                            Graphic.DrawLine(New Pen(New SolidBrush(Color.FromArgb(96, 169, 115)), ImageHeight - Margin * 2 - Offset), StartDay, Mid, EndDay, Mid)
-                        End If
+                    '        Graphic.DrawLine(New Pen(New SolidBrush(Color.FromArgb(96, 169, 115)), ImageHeight - Margin * 2 - Offset), StartDay, Mid, EndDay, Mid)
+                    '    End If
 
-                        ImageList.Images.Add(Image)
-                        CoverList.Items(I).ImageIndex = I
-                    Next
+                    '    ImageList.Images.Add(Image)
+                    '    CoverList.Items(I).ImageIndex = I
+                    'Next
                 Else
                     CalculateButton.Enabled = False
                     DatesGroup.Enabled = False
