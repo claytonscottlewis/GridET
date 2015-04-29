@@ -33,8 +33,12 @@
     Private Connection As System.Data.SQLite.SQLiteConnection
     Private Command As System.Data.SQLite.SQLiteCommand
     Private DateFormat As String = "MMMM dd, yyyy"
-    Private CoverStartDate As New List(Of DateTime)
-    Private CoverEndDate As New List(Of DateTime)
+    Private CoverProperties() As CoverProperties
+    Private CoverStartDate() As DateTime
+    Private CoverEndDate() As DateTime
+    Private ReferenceVariable As New List(Of String)
+    Private ReferenceStartDate As New List(Of DateTime)
+    Private ReferenceEndDate As New List(Of DateTime)
 
     Private Sub Calculate_Evapotranspiration_Load(sender As System.Object, e As System.EventArgs) Handles MyBase.Load
         For Each Control In Me.Controls
@@ -52,79 +56,44 @@
             Command.CommandText = "CREATE TABLE IF NOT EXISTS Cover (Name TEXT UNIQUE, Properties TEXT)"
             Command.ExecuteNonQuery()
 
-            Command.CommandText = "SELECT Name FROM Cover ORDER BY ROWID"
-            Using Reader = Command.ExecuteReader
-                RemoveHandler CoverList.ItemChecked, AddressOf CoverList_ItemChecked
+            CoverProperties = GetCoverProperties()
+            ReDim CoverStartDate(CoverProperties.Length - 1)
+            ReDim CoverEndDate(CoverProperties.Length - 1)
 
-                Do While Reader.Read
-                    Dim CoverName = Reader.GetString(0)
+            RemoveHandler CoverList.ItemChecked, AddressOf CoverList_ItemChecked
+            For I = 0 To CoverProperties.Length - 1
+                Dim MinDate = DateTime.MinValue
+                Dim MaxDate = DateTime.MaxValue
 
-                    Dim MinDate = DateTime.MinValue
-                    Dim MaxDate = DateTime.MaxValue
+                Dim Path As String = IO.Path.Combine(PotentialEvapotranspirationDirectory, String.Format(IO.Path.GetFileName(PotentialEvapotranspirationPath), CoverProperties(I).Name))
+                If IO.File.Exists(Path) Then GetMaxAndMinDates({Path}, MaxDate, MinDate)
 
-                    Dim Path As String = IO.Path.Combine(PotentialEvapotranspirationDirectory, String.Format(IO.Path.GetFileName(PotentialEvapotranspirationPath), CoverName))
-                    If IO.File.Exists(Path) Then GetMaxAndMinDates({Path}, MaxDate, MinDate)
+                CoverStartDate(I) = MinDate
+                CoverEndDate(I) = MaxDate
 
-                    CoverStartDate.Add(MinDate)
-                    CoverEndDate.Add(MaxDate)
+                CoverList.Items.Add(CoverProperties(I).Name)
 
-                    CoverList.Items.Add(CoverName)
-                Loop
+                ReferenceVariable.Add(CoverProperties(I).Variable)
+            Next
+            AddHandler CoverList.ItemChecked, AddressOf CoverList_ItemChecked
 
-                AddHandler CoverList.ItemChecked, AddressOf CoverList_ItemChecked
-            End Using
+            ReferenceVariable = ReferenceVariable.Distinct.ToList()
+            For I = 0 To ReferenceVariable.Count - 1
+                Dim MinDate = DateTime.MinValue
+                Dim MaxDate = DateTime.MaxValue
+
+                Dim Path As String = IO.Directory.GetFiles(IntermediateCalculationsDirectory, "*" & ReferenceVariable(I) & ".db", IO.SearchOption.AllDirectories)(0)
+                If IO.File.Exists(Path) Then GetMaxAndMinDates({Path}, MaxDate, MinDate)
+
+                ReferenceStartDate.Add(MinDate)
+                ReferenceEndDate.Add(MaxDate)
+            Next
 
             If CoverList.Items.Count > 0 Then
-                Dim MinDate As DateTime = DateTime.MinValue
-                Dim MaxDate As DateTime = DateTime.MaxValue
-                GetMaxAndMinDates({IO.Directory.GetFiles(InputVariablesDirectory, "*.db")(0)}, MaxDate, MinDate)
+                Dim MinDate As DateTime = ReferenceStartDate.Min
+                Dim MaxDate As DateTime = ReferenceEndDate.Max
 
-                If Not MaxDate = DateTime.MaxValue Then
-                    ReferenceDatasetEndDate.Text = MaxDate.ToString(DateFormat)
-                    ReferenceDatasetStartDate.Text = MinDate.ToString(DateFormat)
-
-                    CalculationStartDate.MaxDate = MaxDate
-                    CalculationStartDate.MinDate = MinDate
-                    CalculationEndDate.MaxDate = MaxDate
-                    CalculationEndDate.MinDate = MinDate
-
-                    CalculationEndDate.Value = MaxDate
-                    CalculationStartDate.Value = MinDate
-
-                    'Dim ImageWidth As Integer = 200
-                    'Dim ImageHeight As Integer = CoverList.GetItemRect(0).Height
-                    'Dim ImageBuffer As Integer = 10
-                    'Dim ImageList As New ImageList
-                    'CoverList.SmallImageList = ImageList
-                    'CoverList.SmallImageList.ImageSize = New Size(ImageWidth, ImageHeight)
-
-                    'For I = 0 To CoverList.Items.Count - 1
-                    '    Dim StartDate = CoverStartDate(I)
-                    '    If StartDate = DateTime.MinValue Then StartDate = MinDate
-                    '    Dim EndDate = CoverEndDate(I)
-                    '    If EndDate = DateTime.MaxValue Then EndDate = MaxDate
-
-                    '    Dim Image As New Bitmap(ImageWidth, ImageHeight)
-                    '    Dim Graphic = Graphics.FromImage(Image)
-                    '    Graphic.FillRectangle(Brushes.Transparent, 0, 0, Image.Width, Image.Height)
-
-                    '    Dim Margin As Single = ImageHeight / 4
-                    '    Graphic.FillRectangle(SystemBrushes.ControlDarkDark, ImageBuffer, Margin, Image.Width - ImageBuffer * 2, Image.Height - Margin * 2)
-
-                    '    If EndDate.Subtract(StartDate).TotalDays > 0 And Not CoverEndDate(I) = DateTime.MaxValue Then
-                    '        Dim Period As Double = (ImageWidth - ImageBuffer * 2) / EndDate.Subtract(StartDate).TotalDays
-                    '        Dim StartDay As Single = StartDate.Subtract(MinDate).TotalDays * Period + ImageBuffer
-                    '        Dim EndDay As Single = EndDate.Subtract(MinDate).TotalDays * Period + ImageBuffer
-                    '        Dim Offset As Single = 1
-                    '        Dim Mid As Single = ImageHeight / 2 - Offset
-
-                    '        Graphic.DrawLine(New Pen(New SolidBrush(Color.FromArgb(96, 169, 115)), ImageHeight - Margin * 2 - Offset), StartDay, Mid, EndDay, Mid)
-                    '    End If
-
-                    '    ImageList.Images.Add(Image)
-                    '    CoverList.Items(I).ImageIndex = I
-                    'Next
-                Else
+                If MaxDate = DateTime.MaxValue Then
                     CalculateButton.Enabled = False
                     DatesGroup.Enabled = False
                     Exit Sub
@@ -136,8 +105,6 @@
 
             CheckAll_Click(Nothing, Nothing)
             Calculate_Evapotranspiration_Resize(Nothing, Nothing)
-
-            'Calculate_Click(Nothing, Nothing)
         Else
             CoverSelectionGroup.Enabled = False
             DatesGroup.Enabled = False
@@ -163,30 +130,50 @@
         Dim CalculationExists = CoverList.CheckedItems.Count > 0
         DatesGroup.Enabled = CalculationExists
         CalculateButton.Enabled = CalculationExists
+        ProgressText.Visible = False
 
-        If DatesGroup.Enabled = True Then
-            Dim MinDate = DateTime.MinValue
-            Dim MaxDate = DateTime.MaxValue
+        If CalculationExists Then
+            Dim MinDateReference = DateTime.MinValue
+            Dim MaxDateReference = DateTime.MaxValue
+            Dim MinDateCover = DateTime.MinValue
+            Dim MaxDateCover = DateTime.MaxValue
             Dim NoCalculation As Boolean = False
 
             For Each Item As ListViewItem In CoverList.CheckedItems
-                If CoverStartDate(Item.Index) > MinDate Then MinDate = CoverStartDate(Item.Index)
-                If CoverEndDate(Item.Index) < MaxDate Then MaxDate = CoverEndDate(Item.Index)
+                Dim ReferenceIndex = ReferenceVariable.IndexOf(CoverProperties(Item.Index).Variable)
+                If ReferenceStartDate(ReferenceIndex) > MinDateReference Then MinDateReference = ReferenceStartDate(ReferenceIndex)
+                If ReferenceEndDate(ReferenceIndex) < MaxDateReference Then MaxDateReference = ReferenceEndDate(ReferenceIndex)
+                If CoverStartDate(Item.Index) > MinDateCover Then MinDateCover = CoverStartDate(Item.Index)
+                If CoverEndDate(Item.Index) < MaxDateCover Then MaxDateCover = CoverEndDate(Item.Index)
                 If CoverEndDate(Item.Index) = DateTime.MaxValue Then NoCalculation = True
             Next
-            If NoCalculation Then MaxDate = DateTime.MaxValue
+            If NoCalculation Then MaxDateCover = DateTime.MaxValue
 
-            If Not MaxDate = DateTime.MaxValue Then
-                PreviousCalculationStartDate.Text = MinDate.ToString(DateFormat)
-                PreviousCalculationEndDate.Text = MaxDate.ToString(DateFormat)
+            ReferenceDatasetStartDate.Text = MinDateReference.ToString(DateFormat)
+            ReferenceDatasetEndDate.Text = MaxDateReference.ToString(DateFormat)
 
-                CalculationStartDate.Value = MaxDate.AddDays(1)
-                CalculationEndDate.Value = CalculationEndDate.MaxDate
-            Else
+            CalculationStartDate.MinDate = MinDateReference
+            CalculationStartDate.MaxDate = MaxDateReference
+            CalculationEndDate.MinDate = MinDateReference
+            CalculationEndDate.MaxDate = MaxDateReference
+
+            If NoCalculation Then
                 PreviousCalculationStartDate.Text = "-"
                 PreviousCalculationEndDate.Text = "-"
 
                 CalculationStartDate.Value = CalculationStartDate.MinDate
+                CalculationEndDate.Value = CalculationEndDate.MaxDate
+            Else
+                PreviousCalculationStartDate.Text = MinDateCover.ToString(DateFormat)
+                PreviousCalculationEndDate.Text = MaxDateCover.ToString(DateFormat)
+
+                CalculationStartDate.Value = MaxDateCover
+                If Not CalculationStartDate.Value = CalculationStartDate.MaxDate Then
+                    CalculationStartDate.Value = CalculationStartDate.Value.AddDays(1)
+                Else
+                    ProgressText.Text = "Dataset is up-to-date."
+                    ProgressText.Visible = True
+                End If
                 CalculationEndDate.Value = CalculationEndDate.MaxDate
             End If
         End If
@@ -213,91 +200,11 @@
             End If
         End If
 
-        Dim CurveNames As New List(Of String)
-        Dim CurveProperties As New List(Of String)
-        Command.CommandText = "SELECT * FROM Curve"
-        Using Reader = Command.ExecuteReader
-            Do Until Not Reader.Read
-                CurveNames.Add(Reader.GetString(0))
-                CurveProperties.Add(Reader.GetString(1))
-            Loop
-        End Using
+        For I = 0 To CoverProperties.Length - 1
+            If CoverList.Items(I).Checked Then CoverPropertiesList.Add(CoverProperties(I))
+        Next
 
-        Dim CoverPropertiesList As New List(Of CoverProperties)
-        Command.CommandText = "SELECT * FROM Cover"
-        Using Reader = Command.ExecuteReader
-            Do Until Not Reader.Read
-                Dim Cover As New CoverProperties
-                Cover.Name = Reader.GetString(0)
-
-                If CoverList.FindItemWithText(Cover.Name).Checked Then
-                    Dim Properties = Reader.GetString(1).Split(";")
-
-                    Cover.EffectivePrecipitationType = [Enum].Parse(GetType(EffectivePrecipitationType), Properties(0))
-
-                    Cover.CurveName = Properties(1)
-
-                    Cover.InitiationThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(2))
-                    Cover.InitiationThreshold = Properties(3)
-
-                    Cover.IntermediateThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(4))
-                    Cover.IntermediateThreshold = Properties(5)
-
-                    Cover.TerminationThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(6))
-                    Cover.TerminationThreshold = Properties(7)
-
-                    Cover.CuttingIntermediateThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(8))
-                    Cover.CuttingIntermediateThreshold = Properties(10)
-
-                    Cover.CuttingTerminationThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(9))
-                    Cover.CuttingTerminationThreshold = Properties(11)
-
-                    Cover.SpringFrostTemperature = Properties(12)
-                    Cover.KillingFrostTemperature = Properties(13)
-
-                    Properties = CurveProperties(CurveNames.IndexOf(Cover.CurveName)).Split(";")
-
-                    Cover.Variable = Properties(0)
-
-                    Cover.SeasonalCurveType = [Enum].Parse(GetType(SeasonalCurveType), Properties(1))
-
-                    Cover.InitiationToIntermediateCurveType = [Enum].Parse(GetType(CurveType), Properties(2))
-
-                    Dim Values = Properties(3).Split(",")
-                    Dim Length = CInt(Values.Length / 3 - 1)
-                    ReDim Cover.InitialCurve(2, Length)
-                    For Row = 0 To Length
-                        For Col = 0 To 2
-                            Dim Value = Values(Row * 3 + Col)
-                            If IsNumeric(Value) Then Cover.InitialCurve(Col, Row) = Value
-                        Next
-                    Next
-
-                    Cover.IntermediateToTerminationCurveType = [Enum].Parse(GetType(CurveType), Properties(4))
-
-                    If Properties.Length > 5 Then
-                        Values = Properties(5).Split(",")
-                        Length = CInt(Values.Length / 3)
-                        ReDim Cover.FinalCurve(2, Length)
-                        For Col = 0 To 2
-                            Cover.FinalCurve(Col, 0) = Cover.InitialCurve(Col, 10)
-                        Next
-                        For Row = 0 To Length - 1
-                            For Col = 0 To 2
-                                Dim Value = Values(Row * 3 + Col)
-                                If IsNumeric(Value) Then Cover.FinalCurve(Col, Row + 1) = Value
-                            Next
-                        Next
-                    End If
-
-                    CoverPropertiesList.Add(Cover)
-                End If
-            Loop
-        End Using
-
-        CoverProperties = CoverPropertiesList.ToArray
-
-        If CoverProperties.Length = 0 Then
+        If CoverPropertiesList.Count = 0 Then
             MsgBox("Use must select at least one cover for which to calculate potential evapotranspiration.")
             Exit Sub
         End If
@@ -312,7 +219,7 @@
 
             ProgressText.Text = "Initializing calculation datasets..."
             ProgressBar.Minimum = 0
-            ProgressBar.Maximum = CoverProperties.Length
+            ProgressBar.Maximum = CoverPropertiesList.Count
             ProgressBar.Value = 0
             ProgressText.Visible = True
             ProgressBar.Visible = True
@@ -344,10 +251,10 @@
 
     WithEvents BackgroundWorker As New System.ComponentModel.BackgroundWorker
     Private Timer As Stopwatch
-    Private CoverProperties() As CoverProperties
+    Private CoverPropertiesList As New List(Of CoverProperties)
 
     Private Sub BackgroundWorker_DoWork(sender As System.Object, e As System.ComponentModel.DoWorkEventArgs) Handles BackgroundWorker.DoWork
-        CalculatePotentialEvapotranspiration(CoverProperties, CalculationStartDate.Value, CalculationEndDate.Value, BackgroundWorker, e)
+        CalculatePotentialEvapotranspiration(CoverPropertiesList.ToArray, CalculationStartDate.Value, CalculationEndDate.Value, BackgroundWorker, e)
     End Sub
 
     Private Sub BackgroundWorker_ProgressChanged(sender As Object, e As System.ComponentModel.ProgressChangedEventArgs) Handles BackgroundWorker.ProgressChanged

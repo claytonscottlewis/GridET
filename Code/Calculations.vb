@@ -1833,18 +1833,17 @@
                     If TableName(J) = DatabaseTableName.Net Then VariableFileName = VariableFileName.Insert(VariableFileName.Length - 29, " Net")
                     VariableFileName &= " (" & YearCount & " Year Average, " & StartYear & "-" & EndYear & ").tif"
                     Dim OutputRasterPath = IO.Path.Combine(OutputDirectory, VariableFileName)
-                    Dim OutputRaster = CreateNewRaster(OutputRasterPath, TemplateRaster.XCount, TemplateRaster.YCount, TemplateRaster.Projection, TemplateRaster.GeoTransform, {Single.MinValue}, , {"TILED=YES", "COMPRESS=YES"}, 13)
+                    Dim OutputRaster = CreateNewRaster(OutputRasterPath, TemplateRaster.XCount, TemplateRaster.YCount, TemplateRaster.Projection, TemplateRaster.GeoTransform, {Single.MinValue}, , {"TILED=YES", "COMPRESS=DEFLATE"}, 13)
 
                     Dim RasterPath As String = IO.Path.Combine(IO.Path.GetTempPath, VariableFileName)
-                    Dim ColumnNames = {"Month1", "Month2", "Month3", "Month4", "Month5", "Month6", "Month7", "Month8", "Month9", "Month10", "Month11", "Month12", "Annual"}
-                    For C = 0 To ColumnNames.Length - 1
+                    For C = 0 To MonthAndAnnualNames.Length - 1
                         'Prepare Output Datasets for Period Average Calculation
                         Dim YearlyRasterPath = RasterPath & " - Yearly"
-                        Dim PeriodRasterPath = RasterPath & ColumnNames(C)
+                        Dim PeriodRasterPath = RasterPath & MonthAndAnnualNames(C)
                         Dim PeriodRaster = CreateNewRaster(PeriodRasterPath, TemplateRaster.XCount, TemplateRaster.YCount, TemplateRaster.Projection, TemplateRaster.GeoTransform, {Single.MinValue})
 
                         'Extract Yearly Rasters and Sum in Period Dataset
-                        Command.CommandText = String.Format("SELECT {0} FROM {1} WHERE Year >= '{2}' AND Year <= '{3}' AND Annual IS NOT NULL", ColumnNames(C), TableName(J).ToString, StartYear, EndYear)
+                        Command.CommandText = String.Format("SELECT {0} FROM {1} WHERE Year >= '{2}' AND Year <= '{3}' AND Annual IS NOT NULL", MonthAndAnnualNames(C), TableName(J).ToString, StartYear, EndYear)
                         Using Reader = Command.ExecuteReader
                             Do Until Not Reader.Read
                                 IO.File.WriteAllBytes(YearlyRasterPath, Reader(0))
@@ -1910,7 +1909,7 @@
                     OutputRaster.Open(GDAL.Access.GA_Update)
                     For I = 1 To 13
                         Using Band = OutputRaster.Dataset.GetRasterBand(I)
-                            Band.SetDescription(ColumnNames(I - 1))
+                            Band.SetDescription(MonthAndAnnualNames(I - 1))
                         End Using
                     Next
                     OutputRaster.Close()
@@ -1920,6 +1919,163 @@
                 End Using
             End Using
         End Sub)
+    End Sub
+
+    Sub CalculateAverageRasterValueInPolygon(RasterPaths() As String, RasterVectorRelations() As List(Of String), VectorDatabasePath As String, VectorTableName As String, RelationField As String, OutputVectorPath As String, VectorFormat As GDALProcess.VectorFormat, BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
+        'Open Intermediate Vector Database and Add Monthly Calculation Columns
+        Dim CalculationColumns(MonthAndAnnualNames.Length) As String
+        For I = 0 To CalculationColumns.Length - 2
+            CalculationColumns(I) = "___" & MonthAndAnnualNames(I) & "___"
+        Next
+        CalculationColumns(MonthAndAnnualNames.Length) = "___Count___"
+
+        Dim MaskRaster As New Raster(MaskRasterPath)
+        Dim SpatialReferenceSystem = New OSR.SpatialReference(MaskRaster.Projection)
+
+        Using ConnectionWrite = CreateConnection(VectorDatabasePath, False)
+            ConnectionWrite.Open()
+
+            Using CommandWrite = ConnectionWrite.CreateCommand
+                Using Transaction = ConnectionWrite.BeginTransaction
+                    For I = 0 To CalculationColumns.Length - 1
+                        CommandWrite.CommandText = String.Format("ALTER TABLE ""{0}"" ADD COLUMN ""{1}"" FLOAT DEFAULT '0'", VectorTableName, CalculationColumns(I))
+                        CommandWrite.ExecuteNonQuery()
+                    Next
+
+                    Transaction.Commit()
+                End Using
+
+                Dim CalculationColumnString = "(""" & String.Join(""",""", CalculationColumns) & ")"""
+                Dim CalculationBands() = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}
+
+                'For Each Calculation
+                For I = 0 To RasterPaths.Length - 1
+                    If RasterVectorRelations(I).Count > 0 Then
+                        'Rasterize Polygon FID's for Related Variables to Mask Raster Template
+                        Dim RasterizedFIDPath = IO.Path.Combine(IO.Path.GetTempPath, String.Format("Extract by Polygon {0} Rasterized FID {1}.tif", VectorTableName, I))
+
+                        Dim WhereExpression As New System.Text.StringBuilder()
+                        For J = 0 To RasterVectorRelations(I).Count - 1
+                            If J > 0 Then WhereExpression.Append(" OR")
+                            WhereExpression.Append(String.Format(" ""{0}"" = '{1}'", RelationField, RasterVectorRelations(I)(J)))
+                        Next
+
+                        Dim Process As New GDALProcess
+                        Process.Rasterize(VectorDatabasePath, RasterizedFIDPath, VectorTableName, "FID", MaskRaster.Extent, MaskRaster.XCount, MaskRaster.YCount, WhereExpression.ToString, , , Integer.MinValue)
+
+                        'Open Rasterized FID and Calculation Rasters
+                        Dim RasterizedFIDRaster As New Raster(RasterizedFIDPath)
+                        RasterizedFIDRaster.Open(GDAL.Access.GA_ReadOnly)
+                        Dim CalculationRaster As New Raster(RasterPaths(I))
+                        CalculationRaster.Open(GDAL.Access.GA_ReadOnly)
+
+                        'Add Rasterized Pixel Values to Polygon Database
+                        Using Transaction = ConnectionWrite.BeginTransaction
+                            Do Until RasterizedFIDRaster.BlocksProcessed
+                                Dim RasterizedFIDPixels = RasterizedFIDRaster.Read({1})
+                                Dim CalculationPixels = CalculationRaster.Read(CalculationBands)
+
+                                Dim NoDataValue = RasterizedFIDRaster.BandNoDataValue(0)
+                                Dim BandOffset = CalculationRaster.BlockYSize * CalculationRaster.XCount
+
+                                For J = 0 To RasterizedFIDPixels.Length - 1
+                                    If RasterizedFIDPixels(J) <> NoDataValue Then
+                                        Dim CommandText As New System.Text.StringBuilder(String.Format("UPDATE ""{0}"" SET", VectorTableName))
+                                        For K = 0 To CalculationBands.Length - 1
+                                            CommandText.Append(String.Format(" ""{0}"" = ""{0}"" + '{1}',", CalculationColumns(K), CalculationPixels(BandOffset * K + J)))
+                                        Next
+                                        CommandText.Append(String.Format(" ""{0}"" = ""{0}"" + '1' WHERE ""ogc_fid"" = '{1}'", CalculationColumns(MonthAndAnnualNames.Length), RasterizedFIDPixels(J)))
+
+                                        CommandWrite.CommandText = CommandText.ToString
+                                        CommandWrite.ExecuteNonQuery()
+                                    End If
+                                Next
+
+                                If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
+                            Loop
+
+                            Transaction.Commit()
+                        End Using
+
+                        'Add Interpolated Pixel Values for Polygons not Containing a Raster Pixel
+                        Using Transaction = ConnectionWrite.BeginTransaction
+                            Using ConnectionRead = CreateConnection(VectorDatabasePath)
+                                ConnectionRead.Open()
+
+                                Using CommandRead = ConnectionRead.CreateCommand
+                                    CommandRead.CommandText = String.Format("SELECT ""ogc_fid"", ""GEOMETRY"" FROM ""{0}"" WHERE {1} AND ""{2}"" = '0'", VectorTableName, WhereExpression.ToString, CalculationColumns(MonthAndAnnualNames.Length))
+
+                                    Using Reader = CommandRead.ExecuteReader
+                                        While Reader.Read
+                                            Dim FID = Reader.GetInt64(0)
+
+                                            Using Geometry = OGR.Geometry.CreateFromWkb(Reader.GetValue(1)).Centroid
+                                                Dim CentroidLocation = MaskRaster.CoordinateToPixelLocation(New Point64(Geometry.GetX(0), Geometry.GetY(0)))
+                                                Dim X = Math.Floor(CentroidLocation.X)
+                                                Dim Y = Math.Floor(CentroidLocation.Y)
+
+                                                Dim Values(4 * CalculationRaster.BandCount - 1) As Single
+                                                CalculationRaster.Dataset.ReadRaster(X, Y, 2, 2, Values, 2, 2, CalculationBands.Length, CalculationBands, Nothing, Nothing, Nothing)
+
+                                                Dim CommandText As New System.Text.StringBuilder(String.Format("UPDATE ""{0}"" SET", VectorTableName))
+                                                For J = 0 To CalculationBands.Length - 1
+                                                    Dim Offset As Integer = 4 * J
+                                                    Dim Value = BilinearInterpolation(New QuadValues(Values(Offset), Values(Offset + 1), Values(Offset + 2), Values(Offset + 3)), CentroidLocation.X - X, CentroidLocation.Y - Y)
+                                                    CommandText.Append(String.Format(" ""{0}"" = ""{0}"" + '{1}',", CalculationColumns(J), Value))
+                                                Next
+                                                CommandText.Append(String.Format(" ""{0}"" = ""{0}"" + '1' WHERE ""ogc_fid"" = '{1}'", CalculationColumns(MonthAndAnnualNames.Length), FID))
+
+                                                CommandWrite.CommandText = CommandText.ToString
+                                                CommandWrite.ExecuteNonQuery()
+                                            End Using
+
+                                        End While
+                                    End Using
+                                End Using
+                            End Using
+
+                            Transaction.Commit()
+                        End Using
+
+                        'Release Memory
+                        CalculationRaster.Close()
+                        RasterizedFIDRaster.Close()
+                        MaskRaster.Close()
+
+                        IO.File.Delete(RasterizedFIDPath)
+
+                        If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
+                        BackgroundWorker.ReportProgress(0)
+                    End If
+                Next
+
+                'Compute Polygon Average
+                Dim ComputeCommandText As New System.Text.StringBuilder(String.Format("UPDATE ""{0}"" SET", VectorTableName))
+                For J = 0 To CalculationColumns.Length - 2
+                    If J > 0 Then ComputeCommandText.Append(",")
+                    ComputeCommandText.Append(String.Format(" ""{0}"" = ""{0}"" / ""{1}""", CalculationColumns(J), CalculationColumns(MonthAndAnnualNames.Length)))
+                Next
+                ComputeCommandText.Append(String.Format(" WHERE ""{0}"" > '0'", CalculationColumns(MonthAndAnnualNames.Length)))
+
+                CommandWrite.CommandText = ComputeCommandText.ToString
+                CommandWrite.ExecuteNonQuery()
+
+                If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
+            End Using
+        End Using
+
+        'Extract Calculation Columns to Output Vector Dataset
+        Dim ExtractCommandText As New System.Text.StringBuilder("SELECT ""ogc_fid"" AS ""INPUT_FID"", ""GEOMETRY"",")
+        For I = 0 To CalculationColumns.Length - 1
+            If I > 0 Then ExtractCommandText.Append(",")
+            ExtractCommandText.Append(String.Format(" ""{0}"" AS ""{1}""", CalculationColumns(I), CalculationColumns(I).Replace("_", "")))
+        Next
+        ExtractCommandText.Append(String.Format(" FROM ""{0}""", VectorTableName))
+
+        Dim ExtractProcess As New GDALProcess
+        ExtractProcess.Ogr2Ogr(VectorDatabasePath, OutputVectorPath, VectorFormat, SpatialReferenceSystem, , True, ExtractCommandText.ToString)
+
+        BackgroundWorker.ReportProgress(0)
     End Sub
 
 #End Region
@@ -2513,6 +2669,96 @@
         Dim Fraction As Double = Position - I
 
         Return Curve(CurveNumber, I) * (1 - Fraction) + Curve(CurveNumber, I + 1) * Fraction
+    End Function
+
+    Function GetCoverProperties() As CoverProperties()
+        Using Connection = CreateConnection(ProjectDetailsPath)
+            Connection.Open()
+
+            Using Command = Connection.CreateCommand
+                Dim CurveNames As New List(Of String)
+                Dim CurveProperties As New List(Of String)
+                Command.CommandText = "SELECT * FROM Curve"
+                Using Reader = Command.ExecuteReader
+                    Do Until Not Reader.Read
+                        CurveNames.Add(Reader.GetString(0))
+                        CurveProperties.Add(Reader.GetString(1))
+                    Loop
+                End Using
+
+                Dim CoverProperties As New List(Of CoverProperties)
+                Command.CommandText = "SELECT * FROM Cover"
+                Using Reader = Command.ExecuteReader
+                    Do Until Not Reader.Read
+                        Dim Cover As New CoverProperties
+                        Cover.Name = Reader.GetString(0)
+
+                        Dim Properties = Reader.GetString(1).Split(";")
+
+                        Cover.EffectivePrecipitationType = [Enum].Parse(GetType(EffectivePrecipitationType), Properties(0))
+
+                        Cover.CurveName = Properties(1)
+
+                        Cover.InitiationThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(2))
+                        Cover.InitiationThreshold = Properties(3)
+
+                        Cover.IntermediateThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(4))
+                        Cover.IntermediateThreshold = Properties(5)
+
+                        Cover.TerminationThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(6))
+                        Cover.TerminationThreshold = Properties(7)
+
+                        Cover.CuttingIntermediateThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(8))
+                        Cover.CuttingIntermediateThreshold = Properties(10)
+
+                        Cover.CuttingTerminationThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(9))
+                        Cover.CuttingTerminationThreshold = Properties(11)
+
+                        Cover.SpringFrostTemperature = Properties(12)
+                        Cover.KillingFrostTemperature = Properties(13)
+
+                        Properties = CurveProperties(CurveNames.IndexOf(Cover.CurveName)).Split(";")
+
+                        Cover.Variable = Properties(0)
+
+                        Cover.SeasonalCurveType = [Enum].Parse(GetType(SeasonalCurveType), Properties(1))
+
+                        Cover.InitiationToIntermediateCurveType = [Enum].Parse(GetType(CurveType), Properties(2))
+
+                        Dim Values = Properties(3).Split(",")
+                        Dim Length = CInt(Values.Length / 3 - 1)
+                        ReDim Cover.InitialCurve(2, Length)
+                        For Row = 0 To Length
+                            For Col = 0 To 2
+                                Dim Value = Values(Row * 3 + Col)
+                                If IsNumeric(Value) Then Cover.InitialCurve(Col, Row) = Value
+                            Next
+                        Next
+
+                        Cover.IntermediateToTerminationCurveType = [Enum].Parse(GetType(CurveType), Properties(4))
+
+                        If Properties.Length > 5 Then
+                            Values = Properties(5).Split(",")
+                            Length = CInt(Values.Length / 3)
+                            ReDim Cover.FinalCurve(2, Length)
+                            For Col = 0 To 2
+                                Cover.FinalCurve(Col, 0) = Cover.InitialCurve(Col, 10)
+                            Next
+                            For Row = 0 To Length - 1
+                                For Col = 0 To 2
+                                    Dim Value = Values(Row * 3 + Col)
+                                    If IsNumeric(Value) Then Cover.FinalCurve(Col, Row + 1) = Value
+                                Next
+                            Next
+                        End If
+
+                        CoverProperties.Add(Cover)
+                    Loop
+                End Using
+
+                Return CoverProperties.ToArray
+            End Using
+        End Using
     End Function
 
 #End Region
@@ -3356,6 +3602,26 @@
             Return Upper
         Else
             Return Value
+        End If
+    End Function
+
+#End Region
+
+#Region "General"
+
+    Function RoundToSignificantDigits(Number As Double, SignificantDigits As Integer, Optional RoundUp As Boolean = True) As Double
+        If Number = 0 Then
+            Return 0
+        Else
+            Dim Scale As Double = Math.Pow(10, Math.Floor(Math.Log10(Math.Abs(Number))) + 1)
+            Dim Power As Double = 10 ^ SignificantDigits
+            Dim Value As Double = 0
+            If RoundUp Then
+                Value = Math.Ceiling(Number / Scale * Power)
+            Else
+                Value = Math.Floor(Number / Scale * Power)
+            End If
+            Return Scale * Value / Power
         End If
     End Function
 

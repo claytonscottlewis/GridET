@@ -38,7 +38,7 @@
             Next
 
             Me.Variables = Variables.ToArray
-            Dim ModelEndDate = New DateTime(MaxYear, 12, 31)
+            Dim ModelEndDate = New DateTime(MaxYear, 12, 31).AddHours(13)
 
             WebsiteStartDate.Text = DAYMETStartDate.ToString(DateFormat)
             WebsiteEndDate.Text = ModelEndDate.ToString(DateFormat)

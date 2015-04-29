@@ -79,7 +79,7 @@ Partial Class Calculate_Potential_Evapotranspiration
         Me.CoverList.Location = New System.Drawing.Point(18, 32)
         Me.CoverList.MultiSelect = False
         Me.CoverList.Name = "CoverList"
-        Me.CoverList.Size = New System.Drawing.Size(443, 215)
+        Me.CoverList.Size = New System.Drawing.Size(444, 215)
         Me.CoverList.TabIndex = 8
         Me.CoverList.UseCompatibleStateImageBehavior = False
         Me.CoverList.View = System.Windows.Forms.View.Details
@@ -91,9 +91,9 @@ Partial Class Calculate_Potential_Evapotranspiration
         'UncheckAll
         '
         Me.UncheckAll.Anchor = CType((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.UncheckAll.Location = New System.Drawing.Point(467, 61)
+        Me.UncheckAll.Location = New System.Drawing.Point(468, 61)
         Me.UncheckAll.Name = "UncheckAll"
-        Me.UncheckAll.Size = New System.Drawing.Size(76, 23)
+        Me.UncheckAll.Size = New System.Drawing.Size(75, 23)
         Me.UncheckAll.TabIndex = 3
         Me.UncheckAll.Text = "Uncheck All"
         Me.UncheckAll.UseVisualStyleBackColor = True
@@ -101,9 +101,9 @@ Partial Class Calculate_Potential_Evapotranspiration
         'CheckAll
         '
         Me.CheckAll.Anchor = CType((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.CheckAll.Location = New System.Drawing.Point(467, 32)
+        Me.CheckAll.Location = New System.Drawing.Point(468, 32)
         Me.CheckAll.Name = "CheckAll"
-        Me.CheckAll.Size = New System.Drawing.Size(76, 23)
+        Me.CheckAll.Size = New System.Drawing.Size(75, 23)
         Me.CheckAll.TabIndex = 2
         Me.CheckAll.Text = "Check All"
         Me.CheckAll.UseVisualStyleBackColor = True
@@ -111,10 +111,10 @@ Partial Class Calculate_Potential_Evapotranspiration
         'CalculateButton
         '
         Me.CalculateButton.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.CalculateButton.Location = New System.Drawing.Point(397, 482)
+        Me.CalculateButton.Location = New System.Drawing.Point(399, 482)
         Me.CalculateButton.Margin = New System.Windows.Forms.Padding(3, 9, 3, 9)
         Me.CalculateButton.Name = "CalculateButton"
-        Me.CalculateButton.Size = New System.Drawing.Size(76, 23)
+        Me.CalculateButton.Size = New System.Drawing.Size(75, 23)
         Me.CalculateButton.TabIndex = 7
         Me.CalculateButton.Text = "Calculate"
         Me.CalculateButton.UseVisualStyleBackColor = True
@@ -315,7 +315,7 @@ Partial Class Calculate_Potential_Evapotranspiration
         Me.ProgressText.Location = New System.Drawing.Point(30, 466)
         Me.ProgressText.Margin = New System.Windows.Forms.Padding(3, 21, 3, 0)
         Me.ProgressText.Name = "ProgressText"
-        Me.ProgressText.Size = New System.Drawing.Size(522, 13)
+        Me.ProgressText.Size = New System.Drawing.Size(525, 13)
         Me.ProgressText.TabIndex = 33
         Me.ProgressText.Text = "Progress Update Text"
         Me.ProgressText.Visible = False
@@ -327,7 +327,7 @@ Partial Class Calculate_Potential_Evapotranspiration
         Me.ProgressBar.Location = New System.Drawing.Point(30, 482)
         Me.ProgressBar.Maximum = 5
         Me.ProgressBar.Name = "ProgressBar"
-        Me.ProgressBar.Size = New System.Drawing.Size(361, 23)
+        Me.ProgressBar.Size = New System.Drawing.Size(363, 23)
         Me.ProgressBar.Style = System.Windows.Forms.ProgressBarStyle.Continuous
         Me.ProgressBar.TabIndex = 32
         Me.ProgressBar.Visible = False
@@ -335,10 +335,10 @@ Partial Class Calculate_Potential_Evapotranspiration
         'Cancel_Button
         '
         Me.Cancel_Button.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.Cancel_Button.Location = New System.Drawing.Point(479, 482)
+        Me.Cancel_Button.Location = New System.Drawing.Point(480, 482)
         Me.Cancel_Button.Margin = New System.Windows.Forms.Padding(3, 9, 3, 9)
         Me.Cancel_Button.Name = "Cancel_Button"
-        Me.Cancel_Button.Size = New System.Drawing.Size(76, 23)
+        Me.Cancel_Button.Size = New System.Drawing.Size(75, 23)
         Me.Cancel_Button.TabIndex = 34
         Me.Cancel_Button.Text = "Cancel"
         Me.Cancel_Button.UseVisualStyleBackColor = True

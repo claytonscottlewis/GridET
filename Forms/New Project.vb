@@ -38,7 +38,7 @@
 
         If Not OpenFileDialog.ShowDialog = Windows.Forms.DialogResult.OK Then Exit Sub
 
-        Using Datasource = OGR.Ogr.OpenShared(OpenFileDialog.FileName, 0)
+        Using Datasource = OGR.Ogr.OpenShared(OpenFileDialog.FileName, False)
             If Datasource Is Nothing Then
                 MsgBox(String.Format("'{0}' not recognized as a supported file format.", OpenFileDialog.FileName))
                 MaskDatasetPath.Text = ""

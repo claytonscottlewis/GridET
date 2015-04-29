@@ -60,8 +60,8 @@
         Process.StartInfo.Arguments = Arguments
 
         Start(Process)
-        Return Log.ToString
         Process.Dispose()
+        Return Log.ToString
     End Function
 
     Function BuildVRT(InPath() As String, OutPath As String, Optional NoData() As String = Nothing, Optional VirtualNoData() As String = Nothing, Optional Band() As String = Nothing) As String
@@ -101,9 +101,9 @@
 
         Start(Process)
 
-        IO.File.Delete(TempPath)
-        Return Log.ToString
+        Start(Process)
         Process.Dispose()
+        Return Log.ToString
     End Function
 
     Function Translate(InPath() As String, OutPath As String, Optional RasterFormat As RasterFormat = RasterFormat.GTiff, Optional Compression As Compression = GDALProcess.Compression.NONE, Optional Extent As Extent = Nothing, Optional NoData As String = Nothing, Optional BigTiff As Boolean = False, Optional Unscale As Boolean = False, Optional DataType As GDAL.DataType = GDAL.DataType.GDT_Unknown, Optional Projection As String = Nothing, Optional DatabaseOptions As String = Nothing) As String
@@ -127,8 +127,8 @@
         Process.StartInfo.Arguments = Command.ToString
 
         Start(Process)
-        Return Log.ToString
         Process.Dispose()
+        Return Log.ToString
     End Function
 
     Function Warp(InPath As String, OutPath As String, TargetSpatialReference As String, Optional CutlinePath As String = Nothing, Optional TargetExtent As Extent = Nothing, Optional TargetXResolution As Double = Nothing, Optional TargetYResolution As Double = Nothing, Optional ResamplingMethod As ResamplingMethod = ResamplingMethod.Average, Optional RasterFormat As RasterFormat = RasterFormat.GTiff, Optional Compression As Compression = GDALProcess.Compression.NONE, Optional InNoData() As String = Nothing, Optional OutNoData() As String = Nothing, Optional OverWrite As Boolean = False, Optional DataType As GDAL.DataType = GDAL.DataType.GDT_Unknown) As String
@@ -165,8 +165,8 @@
         Process.StartInfo.Arguments = Command.ToString
 
         Start(Process)
-        Return Log.ToString
         Process.Dispose()
+        Return Log.ToString
     End Function
 
     Function DeleteRaster(InPath As String) As String
@@ -178,8 +178,8 @@
         Process.StartInfo.Arguments = Command.ToString
 
         Start(Process)
-        Return Log.ToString
         Process.Dispose()
+        Return Log.ToString
     End Function
 
     Function TileIndex(InPath() As String, OutPath As String, Optional VectorFormat As VectorFormat = VectorFormat.ESRI_Shapefile) As String
@@ -208,9 +208,9 @@
 
         Process.WaitForExit()
 
-        IO.File.Delete(OptRasterPath)
-        Return Log.ToString
+        Start(Process)
         Process.Dispose()
+        Return Log.ToString
     End Function
 
     Function DEM(InPath As String, OutPath As String, DEMOutput As DEMDerivative, Optional RasterFormat As RasterFormat = RasterFormat.GTiff, Optional Compression As Compression = GDALProcess.Compression.NONE) As String
@@ -227,8 +227,8 @@
         Process.StartInfo.Arguments = Command.ToString
 
         Start(Process)
-        Return Log.ToString
         Process.Dispose()
+        Return Log.ToString
     End Function
 
     Function Rasterize(InPath As String, OutPath As String, Resolution As String, Optional RasterFormat As RasterFormat = RasterFormat.GTiff, Optional Compression As Compression = GDALProcess.Compression.DEFLATE, Optional BurnValue As String = Nothing, Optional NoData As String = Nothing, Optional DataType As GDAL.DataType = GDAL.DataType.GDT_Byte) As String
@@ -247,8 +247,35 @@
         Process.StartInfo.Arguments = Command.ToString
 
         Start(Process)
-        Return Log.ToString
         Process.Dispose()
+        Return Log.ToString
+    End Function
+
+    Function Rasterize(InPath As String, OutPath As String, TableName As String, AttributeField As String, Extent As Extent, XCount As Integer, YCount As Integer, Optional WhereExpression As String = Nothing, Optional RasterFormat As RasterFormat = RasterFormat.GTiff, Optional Compression As Compression = GDALProcess.Compression.NONE, Optional NoData As String = Nothing, Optional DataType As GDAL.DataType = GDAL.DataType.GDT_Int32) As String
+        Process = New Process
+        Process.StartInfo.FileName = IO.Path.Combine(GDALDirectory, "gdal_rasterize.exe")
+
+        Dim Command As New System.Text.StringBuilder()
+        Command.Append(String.Format(" -a ""{0}""", AttributeField))
+        Command.Append(String.Format(" -sql ""SELECT ogc_fid as FID, * FROM ""{0}""", TableName))
+        If WhereExpression <> Nothing And WhereExpression <> "" Then
+            Command.Append(String.Format(" WHERE {0}""", WhereExpression))
+        Else
+            Command.Append("""")
+        End If
+        Command.Append(GetRasterFormatString(RasterFormat))
+        If Not NoData Is Nothing Then Command.Append(" -a_nodata " & NoData & " -init " & NoData)
+        Command.Append(" -te " & Extent.Xmin & " " & Extent.Ymin & " " & Extent.Xmax & " " & Extent.Ymax)
+        Command.Append(String.Format(" -ts {0} {1}", XCount, YCount))
+        Command.Append(GetCompressionString(Compression, RasterFormat))
+        If Not DataType = GDAL.DataType.GDT_Unknown Then Command.Append(" -ot " & GetDataType(DataType))
+        Command.Append(" """ & InPath & """")
+        Command.Append(" """ & OutPath & """")
+        Process.StartInfo.Arguments = Command.ToString
+
+        Start(Process)
+        Process.Dispose()
+        Return Log.ToString
     End Function
 
     Function Info(InPath As String, Optional SubDatasetName As String = Nothing, Optional Brief As Boolean = False, Optional GetMinMax As Boolean = False, Optional GetStatistics As Boolean = False) As String
@@ -264,28 +291,29 @@
         Process.StartInfo.Arguments = Command.ToString
 
         Start(Process)
-        Return Log.ToString
         Process.Dispose()
+        Return Log.ToString
     End Function
 
-    Function Ogr2Ogr(InPath As String, OutPath As String, Optional VectorFormat As VectorFormat = VectorFormat.SQLite, Optional Reprojection As OSR.SpatialReference = Nothing, Optional Overwrite As Boolean = True)
+    Function Ogr2Ogr(InPath As String, OutPath As String, Optional VectorFormat As VectorFormat = VectorFormat.SQLite, Optional AssignProjection As OSR.SpatialReference = Nothing, Optional Reprojection As OSR.SpatialReference = Nothing, Optional Overwrite As Boolean = True, Optional SQL As String = Nothing)
         Process = New Process
         Process.StartInfo.FileName = IO.Path.Combine(GDALDirectory, "ogr2ogr.exe")
 
         Dim TemporaryPaths As New List(Of String)
 
         Dim Command As New System.Text.StringBuilder()
-        If Reprojection IsNot Nothing Then
-            Dim ReprojectionPath As String = IO.Path.GetTempFileName
-            Dim WKT As String = ""
-            Reprojection.ExportToWkt(WKT)
-            IO.File.WriteAllText(ReprojectionPath, WKT)
-            TemporaryPaths.Add(ReprojectionPath)
-
-            Command.Append(String.Format(" -t_srs ""{0}""", ReprojectionPath))
+        If AssignProjection IsNot Nothing Then
+            Dim Path = GetProjectionFile(AssignProjection)
+            TemporaryPaths.Add(Path)
+            Command.Append(String.Format(" -a_srs ""{0}""", Path))
+        ElseIf Reprojection IsNot Nothing Then
+            Dim Path = GetProjectionFile(Reprojection)
+            TemporaryPaths.Add(Path)
+            Command.Append(String.Format(" -t_srs ""{0}""", Path))
         End If
         Command.Append(GetVectorFormatString(VectorFormat))
         If Overwrite Then Command.Append(" -overwrite")
+        If SQL <> Nothing Then Command.Append(String.Format(" -sql ""{0}""", SQL))
         If VectorFormat = GDALProcess.VectorFormat.SQLite Then
             Command.Append(" -gt ""65536""")
             If IO.File.Exists(OutPath) Then IO.File.Delete(OutPath)
@@ -295,11 +323,11 @@
         Process.StartInfo.Arguments = Command.ToString
 
         Start(Process)
+        Process.Dispose()
         For Each Path In TemporaryPaths
             IO.File.Delete(Path)
         Next
         Return Log.ToString
-        Process.Dispose()
     End Function
 
     'Sub Calc(InPath() As String, OutPath As String, Equation As String, Optional RasterFormat As RasterFormat = RasterFormat.GTiff, Optional Compression As Compression = GDALProcess.Compression.DEFLATE, Optional NoData As String = Nothing)
@@ -362,6 +390,18 @@
 
     Private Function GetDataType(DataType As GDAL.DataType)
         Return GetEnumName(DataType).Replace("GDT ", "")
+    End Function
+
+    Private Function GetProjectionFile(Projection As OSR.SpatialReference) As String
+        Dim ReprojectionPath As String = IO.Path.GetTempFileName
+
+        If Projection IsNot Nothing Then
+            Dim WKT As String = ""
+            Projection.ExportToWkt(WKT)
+            IO.File.WriteAllText(ReprojectionPath, WKT)
+        End If
+
+        Return ReprojectionPath
     End Function
 
 #End Region

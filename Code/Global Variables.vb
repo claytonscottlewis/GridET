@@ -12,6 +12,8 @@
     Public NLDAS_2AStartDate As DateTime = New DateTime(1979, 1, 1).AddHours(13)
     Public PRISMStartDate As DateTime = New DateTime(19, 1, 1)
 
+    Public MonthAndAnnualNames() As String = {"Month1", "Month2", "Month3", "Month4", "Month5", "Month6", "Month7", "Month8", "Month9", "Month10", "Month11", "Month12", "Annual"}
+
 #End Region
 
 #Region "Project Paths"
@@ -22,6 +24,24 @@
     Public ReadOnly Property ProjectDetailsPath As String
         Get
             Return IO.Path.Combine(ProjectDirectory, "Project Details.db")
+        End Get
+    End Property
+
+    Public ReadOnly Property MapServerMapFilePath As String
+        Get
+            Return IO.Path.Combine(ProjectDirectory, "MapServer Map File Path.map")
+        End Get
+    End Property
+
+    Public ReadOnly Property MapServerRasterPath As String
+        Get
+            Return IO.Path.Combine(ProjectDirectory, "MapServer Raster Path.tif")
+        End Get
+    End Property
+
+    Public ReadOnly Property MapServerTemporaryRasterPath As String
+        Get
+            Return IO.Path.Combine(ProjectDirectory, "MapServer Temporary Raster Path.tif")
         End Get
     End Property
 

@@ -135,6 +135,7 @@
         Dim CalculationExists = CoverList.CheckedItems.Count > 0 And PrecipitationDataset.Text <> ""
         DatesGroup.Enabled = CalculationExists
         CalculateButton.Enabled = CalculationExists
+        ProgressText.Visible = False
 
         If CalculationExists Then
             Dim MinDateNet = DateTime.MinValue
@@ -169,7 +170,10 @@
                     CalculationStartDate.Value = MaxDateNet
                     Dim Days = DateTime.DaysInMonth(MaxDateNet.Year, MaxDateNet.Month) - (MaxDateNet.Day) + 1
                     If Days <= MaxDateStatistics.Subtract(MaxDateNet).TotalDays Then
-                        CalculationStartDate.Value = CalculationStartDate.Value.AddDays(Days)
+                        CalculationStartDate.Value = MaxDateNet.AddDays(Days)
+                    Else
+                        ProgressText.Text = "Dataset is up-to-date."
+                        ProgressText.Visible = True
                     End If
                     CalculationEndDate.Value = CalculationEndDate.MaxDate
                 Else
@@ -302,5 +306,4 @@
 
 #End Region
 
- 
 End Class

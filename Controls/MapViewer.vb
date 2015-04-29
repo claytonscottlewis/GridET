@@ -2,7 +2,6 @@
 
 #Region "Variables"
 
-    Private MapRasterPath As String
     Private MapObject As MapServer.mapObj
     Private FullExtent As MapServer.rectObj
     Private DragOperation As Boolean = False
@@ -10,7 +9,9 @@
     Private DragStartPoint As Point
     Private DragEndPoint As Point
     Private MapPoint As Point
-    Private StatusString As String = "[ Scale = 1 : {0} ] [ X = {1} ] [ Y = {2} ]"
+    Private StatusString As String = "[ X = {0} ] [ Y = {1} ] [ Scale = 1 : {2} ]"
+    Private ColorPalette As Color()
+    Private MapServerRaster As Raster
 
 #End Region
 
@@ -20,24 +21,195 @@
         For Each Control In Me.Controls
             GetType(Control).InvokeMember("DoubleBuffered", Reflection.BindingFlags.NonPublic Or Reflection.BindingFlags.Instance Or Reflection.BindingFlags.SetProperty, Nothing, Control, New Object() {True})
         Next
+
+        For I = 0 To LegendPalette.Name.Length - 1
+            ColorRampBox.Items.Add(LegendPalette.Name(I))
+        Next
+        ColorRampBox.SelectedIndex = ColorRampBox.Items.Count - 1
     End Sub
 
-    Public Sub CreateETMap(VectorPaths() As String, RasterPaths() As String)
-        Using Raster As New Raster(RasterPaths(0))
-            Raster.Open(GDAL.Access.GA_Update)
+    Public Sub LoadProjectDirectories()
+        ProjectDirectoryBox.Items.Clear()
 
-            Dim Data(Raster.XCount * Raster.YCount - 1) As Single
-            Raster.Dataset.ReadRaster(0, 0, Raster.XCount, Raster.YCount, Data, Raster.XCount, Raster.YCount, 1, {1}, 0, 0, 0)
+        If IO.Directory.Exists(ProjectDirectory) Then
+            RemoveHandler ProjectDirectoryBox.selectedvaluechanged, AddressOf LoadSubDirectories
 
-            For I = 0 To Data.Length - 1
-                If Data(I) = 0 Then Data(I) = Single.MinValue
+            For Each Directory In {AreaFeaturesDirectory, IntermediateCalculationsDirectory, OutputCalculationsDirectory}
+                ProjectDirectoryBox.Items.Add(IO.Path.GetFileName(Directory))
             Next
 
-            Raster.Dataset.WriteRaster(0, 0, Raster.XCount, Raster.YCount, Data, Raster.XCount, Raster.YCount, 1, {1}, 0, 0, 0)
-        End Using
+            AddHandler ProjectDirectoryBox.selectedvaluechanged, AddressOf LoadSubDirectories
 
-        Dim MapRasterPath = IO.Path.GetTempFileName
-        Using Writer As New IO.StreamWriter(MapRasterPath)
+            If ProjectDirectoryBox.Items.Count > 0 Then ProjectDirectoryBox.Text = ProjectDirectoryBox.Items(ProjectDirectoryBox.Items.Count - 1)
+        Else
+            LoadSubDirectories(Nothing, Nothing)
+        End If
+    End Sub
+
+    Private Sub LoadSubDirectories(sender As Object, e As System.EventArgs) Handles ProjectDirectoryBox.SelectedValueChanged
+        SubDirectoryBox.Items.Clear()
+
+        If ProjectDirectoryBox.Text <> "" Then
+            RemoveHandler SubDirectoryBox.selectedvaluechanged, AddressOf LoadFiles
+
+            For Each Directory In IO.Directory.GetDirectories(IO.Path.Combine(ProjectDirectory, ProjectDirectoryBox.Text), "*", IO.SearchOption.TopDirectoryOnly)
+                SubDirectoryBox.Items.Add(IO.Path.GetFileName(Directory))
+            Next
+
+            AddHandler SubDirectoryBox.selectedvaluechanged, AddressOf LoadFiles
+
+            If SubDirectoryBox.Items.Count > 0 Then SubDirectoryBox.Text = SubDirectoryBox.Items(0)
+        Else
+            LoadFiles(Nothing, Nothing)
+        End If
+    End Sub
+
+    Private Sub LoadFiles(sender As Object, e As System.EventArgs) Handles SubDirectoryBox.SelectedValueChanged
+        FileBox.Items.Clear()
+
+        If SubDirectoryBox.Text <> "" Then
+            RemoveHandler FileBox.selectedvaluechanged, AddressOf LoadRasters
+
+            For Each File In IO.Directory.GetFiles(IO.Path.Combine(ProjectDirectory, ProjectDirectoryBox.Text, SubDirectoryBox.Text), "*", IO.SearchOption.TopDirectoryOnly).Where(Function(F) F.EndsWith(".tif") Or F.EndsWith(".db")).ToArray
+                FileBox.Items.Add(IO.Path.GetFileName(File))
+            Next
+
+            AddHandler FileBox.selectedvaluechanged, AddressOf LoadRasters
+
+            If FileBox.Items.Count > 0 Then FileBox.Text = FileBox.Items(0)
+        Else
+            LoadRasters(Nothing, Nothing)
+        End If
+    End Sub
+
+    Private Sub LoadRasters(sender As Object, e As System.EventArgs) Handles FileBox.SelectedValueChanged
+        RasterBox.Items.Clear()
+
+        If FileBox.Text <> "" Then
+            RemoveHandler RasterBox.selectedvaluechanged, AddressOf LoadRasterBand
+
+            Dim FilePath = IO.Path.Combine(ProjectDirectory, ProjectDirectoryBox.Text, SubDirectoryBox.Text, FileBox.Text)
+            Select Case IO.Path.GetExtension(FilePath)
+                Case ".db"
+                    Using Connection = CreateConnection(FilePath)
+                        Connection.Open()
+
+                        Using Command = Connection.CreateCommand
+                            Command.CommandText = "SELECT Date FROM Rasters"
+
+                            Using Reader = Command.ExecuteReader
+                                While Reader.Read
+                                    RasterBox.Items.Add(Reader.GetDateTime(0).ToString)
+                                End While
+                            End Using
+                        End Using
+                    End Using
+                Case ".tif"
+                    Using Raster As New Raster(FilePath)
+                        Raster.Open(GDAL.Access.GA_ReadOnly)
+
+                        For I = 1 To Raster.BandCount
+                            Using Band = Raster.Dataset.GetRasterBand(I)
+                                Dim BandDescription = Band.GetDescription
+                                If BandDescription = "" Then BandDescription = "Band " & I
+                                RasterBox.Items.Add(BandDescription)
+                            End Using
+                        Next
+                    End Using
+            End Select
+
+            AddHandler RasterBox.selectedvaluechanged, AddressOf LoadRasterBand
+
+            If RasterBox.Items.Count > 0 Then RasterBox.Text = RasterBox.Items(RasterBox.Items.Count - 1)
+        Else
+            LoadRasterBand(Nothing, Nothing)
+        End If
+    End Sub
+
+    Private Sub LoadRasterBand(sender As Object, e As System.EventArgs) Handles RasterBox.SelectedValueChanged
+        If RasterBox.Text <> "" Then
+            Dim FilePath = IO.Path.Combine(ProjectDirectory, ProjectDirectoryBox.Text, SubDirectoryBox.Text, FileBox.Text)
+
+            Select Case IO.Path.GetExtension(FilePath)
+                Case ".db"
+                    Using Connection = CreateConnection(FilePath)
+                        Connection.Open()
+
+                        Using Command = Connection.CreateCommand
+                            Command.CommandText = "SELECT Image FROM Rasters WHERE Date = @Date"
+                            Command.Parameters.Add("@Date", DbType.DateTime).Value = DateTime.Parse(RasterBox.Text)
+
+                            IO.File.WriteAllBytes(MapServerTemporaryRasterPath, Command.ExecuteScalar)
+                        End Using
+                    End Using
+
+                    CreateETMap(MapServerTemporaryRasterPath, 1)
+                Case ".tif"
+                    CreateETMap(FilePath, RasterBox.SelectedIndex + 1)
+            End Select
+        Else
+            MapObject = Nothing
+            Map.Image = Nothing
+
+            LegendImage.Image = Nothing
+            LegendMaxValue.Text = ""
+            LegendMinValue.Text = ""
+
+            TopLeft.Text = ""
+            TopRight.Text = ""
+            BottomLeft.Text = ""
+            BottomRight.Text = ""
+
+            If MapServerRaster IsNot Nothing Then MapServerRaster.Dispose()
+        End If
+    End Sub
+
+    Private Sub CreateETMap(RasterPath As String, RasterBand As Integer, Optional Full As Boolean = True)
+        Dim MinRasterValue As Double = Double.MaxValue
+        Dim MaxRasterValue As Double = Double.MinValue
+
+        If Full Then
+            Using Raster As New Raster(RasterPath)
+                Raster.Open(GDAL.Access.GA_ReadOnly)
+
+                If IO.File.Exists(MapServerRasterPath) Then
+                    MapServerRaster = New Raster(MapServerRasterPath)
+                Else
+                    MapServerRaster = CreateNewRaster(MapServerRasterPath, Raster.XCount, Raster.YCount, Raster.Projection, Raster.GeoTransform, {Single.MinValue})
+                End If
+                MapServerRaster.Open(GDAL.Access.GA_Update)
+
+                Do Until Raster.BlocksProcessed
+                    Dim RasterPixels = Raster.Read({RasterBand})
+
+                    Dim NoDataValue = Raster.BandNoDataValue(RasterBand - 1)
+
+                    For I = 0 To RasterPixels.Length - 1
+                        If RasterPixels(I) <> NoDataValue Then
+                            If RasterPixels(I) < MinRasterValue Then MinRasterValue = RasterPixels(I)
+                            If RasterPixels(I) > MaxRasterValue Then MaxRasterValue = RasterPixels(I)
+                        End If
+                    Next
+
+                    MapServerRaster.Write({1}, RasterPixels)
+
+                    MapServerRaster.AdvanceBlock()
+                    Raster.AdvanceBlock()
+                Loop
+            End Using
+
+            MinRasterValue = RoundToSignificantDigits(MinRasterValue, 3, False)
+            MaxRasterValue = RoundToSignificantDigits(MaxRasterValue, 3)
+            If MaxRasterValue = MinRasterValue Then MaxRasterValue += 1
+
+            LegendMinValue.Text = "Min:  " & MinRasterValue
+            LegendMaxValue.Text = "Max:  " & MaxRasterValue
+        Else
+            MinRasterValue = Trim(LegendMinValue.Text.Split(":")(1))
+            MaxRasterValue = Trim(LegendMaxValue.Text.Split(":")(1))
+        End If
+
+        Using Writer As New IO.StreamWriter(MapServerMapFilePath)
             Writer.WriteLine("MAP")
             Writer.WriteLine("  STATUS ON")
             Writer.WriteLine("  IMAGETYPE ""png24""")
@@ -67,48 +239,36 @@
                 Next
             End Using
 
-            For Each Path In RasterPaths
-                Writer.WriteLine(Environment.NewLine & "  LAYER")
-                Writer.WriteLine(String.Format("    DATA ""{0}""", Path.Replace("\", "\\")))
-                Writer.WriteLine(String.Format("    NAME ""{0}""", IO.Path.GetFileNameWithoutExtension(Path)))
-                Writer.WriteLine("    STATUS OFF")
-                Writer.WriteLine("    TYPE RASTER")
-                Writer.WriteLine("    TILEITEM ""location""")
+            Writer.WriteLine(Environment.NewLine & "  LAYER")
+            Writer.WriteLine(String.Format("    DATA ""{0}""", MapServerRasterPath.Replace("\", "\\")))
+            Writer.WriteLine(String.Format("    NAME ""{0}""", IO.Path.GetFileNameWithoutExtension(MapServerRasterPath)))
+            Writer.WriteLine("    STATUS ON")
+            Writer.WriteLine("    TYPE RASTER")
+            Writer.WriteLine("    TILEITEM ""location""")
 
-                Using Raster As New Raster(Path)
-                    Writer.WriteLine(String.Format("    EXTENT {0} {1} {2} {3}", Raster.Extent.Xmin, Raster.Extent.Ymin, Raster.Extent.Xmax, Raster.Extent.Ymax))
-                    Writer.WriteLine("    UNITS " & GetUnits(Raster.Projection))
+            Writer.WriteLine(String.Format("    EXTENT {0} {1} {2} {3}", MapServerRaster.Extent.Xmin, MapServerRaster.Extent.Ymin, MapServerRaster.Extent.Xmax, MapServerRaster.Extent.Ymax))
+            Writer.WriteLine("    UNITS " & GetUnits(MapServerRaster.Projection))
 
-                    Writer.WriteLine(Environment.NewLine & "    PROJECTION")
-                    For Each ProjectionPart In GetProj4Array(Raster.Projection)
-                        Writer.WriteLine(String.Format("      ""{0}""", ProjectionPart))
-                    Next
-                    Writer.WriteLine("    END #PROJECTION" & Environment.NewLine)
-
-                    Raster.Open(GDAL.Access.GA_ReadOnly)
-                    Dim Min As Double = 0
-                    Raster.Dataset.GetRasterBand(1).GetMinimum(Min, 0)
-                    Dim Max As Double = 0
-                    Raster.Dataset.GetRasterBand(1).GetMaximum(Max, 0)
-
-                    For Each Line In GetColorGradient(Min, Max, {Color.FromArgb(255, 0, 255), Color.FromArgb(0, 0, 255), Color.FromArgb(0, 255, 255), Color.FromArgb(0, 255, 0), Color.FromArgb(255, 255, 0), Color.FromArgb(255, 128, 0), Color.FromArgb(128, 0, 0)})
-                        Writer.WriteLine("    " & Line)
-                    Next
-                End Using
-
-                Writer.WriteLine("  END #LAYER")
+            Writer.WriteLine(Environment.NewLine & "    PROJECTION")
+            For Each ProjectionPart In GetProj4Array(MapServerRaster.Projection)
+                Writer.WriteLine(String.Format("      ""{0}""", ProjectionPart))
             Next
+            Writer.WriteLine("    END #PROJECTION" & Environment.NewLine)
+
+            For Each Line In GetColorGradient(MinRasterValue, MaxRasterValue, ColorPalette)
+                Writer.WriteLine("    " & Line)
+            Next
+
+            Writer.WriteLine("  END #LAYER")
 
             Writer.WriteLine(Environment.NewLine & "END #MAP")
         End Using
 
-        LoadMapFile(MapRasterPath)
+        LoadMapFile()
     End Sub
 
-    Public Sub LoadMapFile(Path As String)
-        MapRasterPath = Path
-
-        MapObject = New MapServer.mapObj(Path)
+    Private Sub LoadMapFile()
+        MapObject = New MapServer.mapObj(MapServerMapFilePath)
         MapObject.width = Map.Width
         MapObject.height = Map.Height
 
@@ -118,7 +278,7 @@
     End Sub
 
     Private Sub Map_SizeChanged(sender As Object, e As System.EventArgs) Handles Map.SizeChanged
-        If Not MapRasterPath = "" Then
+        If MapObject IsNot Nothing Then
             MapObject.width = Map.Width
             MapObject.height = Map.Height
 
@@ -126,69 +286,113 @@
         End If
     End Sub
 
+    Private Sub SplitContainer_SplitterMoved(sender As Object, e As System.Windows.Forms.SplitterEventArgs) Handles SplitContainer.SplitterMoved
+        Map_SizeChanged(Nothing, Nothing)
+    End Sub
+
     Public Sub RefreshMap()
         Using Stream As New IO.MemoryStream(MapObject.draw().getBytes())
             Map.Image = System.Drawing.Image.FromStream(Stream)
         End Using
 
-        RefreshMapLayers()
         RefreshLegend()
-        UpdateStatusLabel()
-    End Sub
-
-    Private Sub RefreshMapLayers()
-        ''--> initialize map layers with check boxes for on/off
-        ''    note: list is created in reverse so top layer in map appears at top of list
-        'trvLegend.Nodes.Clear()
-        'For i As Integer = MapObject.numlayers - 1 To 0 Step -1
-        '    Dim layer As MapServer.layerObj = MapObject.getLayer(i)
-        '    Dim node As New TreeNode(MapObject.getLayer(i).name)
-
-        '    If layer.status = CInt(MapServer.mapscript.MS_ON) Then
-        '        node.Checked = True
-        '    Else
-        '        node.Checked = False
-        '    End If
-
-        '    trvLegend.Nodes.Add(node)
-        'Next
+        UpdateMapPoint()
     End Sub
 
     Private Sub RefreshLegend()
-        Using Stream As New IO.MemoryStream(MapObject.drawLegend().getBytes())
-            SplitContainer.Panel1.BackgroundImageLayout = ImageLayout.Center
-            SplitContainer.Panel1.BackgroundImage = System.Drawing.Image.FromStream(Stream)
+        Dim ColorLength As Integer = ColorPalette.Length - 1
+        Dim LegendHeight As Integer = Math.Ceiling(1260 / ColorLength) * ColorLength
+        Dim LegendWidth As Integer = LegendHeight / 3
+        Dim BarHeight As Single = LegendHeight / ColorLength
+
+        Dim Bitmap As New Bitmap(LegendWidth, LegendHeight)
+        Using Graphic = Graphics.FromImage(Bitmap)
+            For I = ColorLength To 1 Step -1
+                Using GradientBrush As Brush = New Drawing2D.LinearGradientBrush(New Point(0, 0), New Point(0, BarHeight), ColorPalette(I), ColorPalette(I - 1))
+                    Graphic.FillRectangle(GradientBrush, 0, LegendHeight - BarHeight * I, LegendWidth, BarHeight + 1)
+                End Using
+            Next
         End Using
+
+        Dim LegendBitmap As New Bitmap(LegendImage.Width, LegendImage.Height)
+        Using Graphic = Graphics.FromImage(LegendBitmap)
+            Graphic.InterpolationMode = Drawing2D.InterpolationMode.HighQualityBilinear
+            Graphic.DrawImage(Bitmap, New Rectangle(Point.Empty, LegendBitmap.Size))
+        End Using
+
+        LegendImage.Image = LegendBitmap
     End Sub
 
-    Private Sub UpdateStatusLabel()
-        If Not MapObject Is Nothing Then StatusText.Text = String.Format(StatusString, FormatNumber(MapObject.scaledenom, , , , TriState.True), FormatNumber(MapObject.extent.minx + (MapObject.extent.maxx - MapObject.extent.minx) * (MapPoint.X / Map.Width), , , , TriState.True), FormatNumber(MapObject.extent.maxy + (MapObject.extent.miny - MapObject.extent.maxy) * (MapPoint.Y / Map.Height), , , , TriState.True))
+    Private Sub UpdateMapPoint()
+        If MapObject IsNot Nothing Then
+            Dim XCoordinate = MapObject.extent.minx + (MapObject.extent.maxx - MapObject.extent.minx) * (MapPoint.X / Map.Width)
+            Dim YCoordinate = MapObject.extent.maxy + (MapObject.extent.miny - MapObject.extent.maxy) * (MapPoint.Y / Map.Height)
+
+            StatusText.Text = String.Format(StatusString, FormatNumber(XCoordinate, , , , TriState.True), FormatNumber(YCoordinate, , , , TriState.True), FormatNumber(MapObject.scaledenom, , , , TriState.True))
+
+            Dim Values() As Single = {Single.NaN, Single.NaN, Single.NaN, Single.NaN}
+            If XCoordinate > MapServerRaster.Extent.Xmin + MapServerRaster.XResolution And XCoordinate < MapServerRaster.Extent.Xmax - MapServerRaster.XResolution And YCoordinate > MapServerRaster.Extent.Ymin + MapServerRaster.YResolution And YCoordinate < MapServerRaster.Extent.Ymax - MapServerRaster.YResolution Then
+                Dim Point = MapServerRaster.CoordinateToPixelLocation(New Point64(XCoordinate, YCoordinate))
+
+                MapServerRaster.Dataset.ReadRaster(Math.Floor(Point.X), Math.Floor(Point.Y), 2, 2, Values, 2, 2, 1, {1}, Nothing, Nothing, Nothing)
+
+                Dim ValuesText(3) As String
+                For I = 0 To 3
+                    If Values(I) = MapServerRaster.BandNoDataValue(0) Then
+                        ValuesText(I) = ""
+                    Else
+                        ValuesText(I) = Values(I)
+                    End If
+                Next
+
+                TopLeft.Text = ValuesText(0)
+                TopRight.Text = ValuesText(1)
+                BottomLeft.Text = ValuesText(2)
+                BottomRight.Text = ValuesText(3)
+            Else
+                TopLeft.Text = ""
+                TopRight.Text = ""
+                BottomLeft.Text = ""
+                BottomRight.Text = ""
+            End If
+        End If
     End Sub
 
     Private Sub Zoom(MapX As Double, MapY As Double, ZoomFactor As Integer)
-        If Not MapObject Is Nothing Then
+        If MapObject IsNot Nothing Then
             MapObject.zoomPoint(ZoomFactor, New MapServer.pointObj(MapX, MapY, 0, 0), Map.Width, Map.Height, MapObject.extent, Nothing)
             RefreshMap()
         End If
     End Sub
 
+    Private Sub ZoomScale(MapX As Double, MapY As Double, Scale As Double)
+        If MapObject IsNot Nothing Then
+            MapObject.zoomScale(Scale, New MapServer.pointObj(MapX, MapY, 0, 0), Map.Width, Map.Height, MapObject.extent, Nothing)
+        End If
+    End Sub
+
     Private Sub ZoomFullExtent_Click(sender As Object, e As EventArgs) Handles ZoomFullExtent.Click
-        If Not MapObject Is Nothing Then
+        If MapObject IsNot Nothing Then
             MapObject.extent = FullExtent
             RefreshMap()
         End If
     End Sub
 
     Private Sub ZoomInFixed_Click(sender As Object, e As EventArgs) Handles ZoomInFixed.Click
-        If Not MapObject Is Nothing Then Zoom(Map.Width / 2, Map.Height / 2, 2)
+        If MapObject IsNot Nothing Then Zoom(Map.Width / 2, Map.Height / 2, 2)
     End Sub
 
     Private Sub ZoomOutFixed_Click(sender As Object, e As EventArgs) Handles ZoomOutFixed.Click
-        If Not MapObject Is Nothing Then Zoom(Map.Width / 2, Map.Height / 2, -2)
+        If MapObject IsNot Nothing Then Zoom(Map.Width / 2, Map.Height / 2, -2)
     End Sub
 
     Private Sub Map_MouseWheel(sender As Object, e As System.Windows.Forms.MouseEventArgs) Handles Map.MouseWheel
-        If Not MapObject Is Nothing Then Zoom(e.X, e.Y, e.Delta * 2)
+        If MapObject IsNot Nothing Then
+            'Dim ScaleFactor = 0.9
+            'If Math.Sign(e.Delta) < 0 Then ScaleFactor = 1 / ScaleFactor
+            'ZoomScale(e.X, e.Y, MapObject.scaledenom * ScaleFactor)
+            Zoom(e.X, e.Y, 2 * Math.Sign(e.Delta))
+        End If
     End Sub
 
     Private Sub ZoomInBox_Click(sender As System.Object, e As System.EventArgs) Handles ZoomInBox.Click
@@ -208,7 +412,7 @@
     End Sub
 
     Private Sub Map_MouseDown(sender As Object, e As System.Windows.Forms.MouseEventArgs) Handles Map.MouseDown
-        If Not MapObject Is Nothing Then
+        If MapObject IsNot Nothing Then
             If e.Button = Windows.Forms.MouseButtons.Left And (ZoomInBox.Checked Or ZoomOutBox.Checked) Then
                 DragOperation = True
                 DragStartPoint = Map.PointToScreen(New Point(e.X, e.Y))
@@ -231,7 +435,9 @@
         End If
 
         MapPoint = e.Location
-        UpdateStatusLabel()
+        UpdateMapPoint()
+
+        Map.Focus()
     End Sub
 
     Private Sub Map_MouseUp(sender As Object, e As System.Windows.Forms.MouseEventArgs) Handles Map.MouseUp
@@ -287,7 +493,7 @@
             Dim Unit = SpatialReferenceSystem.GetLinearUnitsName.ToUpper
             Select Case True
                 Case Unit.Contains("DEGREE") : Return "DD"
-                Case Unit.Contains("FEET"), Unit.Contains("INCH") : Return "FEET"
+                Case Unit.Contains("FEET"), Unit.Contains("INCH"), Unit.Contains("FOOT") : Return "FEET"
                 Case Unit.Contains("MILE") : Return "MILES"
                 Case Unit.Contains("KM"), Unit.Contains("KILOMETER") : Return "KILOMETERS"
                 Case Else : Return "METERS"
@@ -302,6 +508,19 @@
             Return Proj4String.Replace(" ", "").Substring(1).Split("+")
         End Using
     End Function
+
+    Private Sub InvertColorRamp_CheckedChanged(sender As System.Object, e As System.EventArgs) Handles InvertColorRamp.CheckedChanged
+        Array.Reverse(ColorPalette)
+
+        CreateETMap(Nothing, Nothing, False)
+    End Sub
+
+    Private Sub ColorRampBox_SelectedValueChanged(sender As Object, e As System.EventArgs) Handles ColorRampBox.SelectedValueChanged
+        ColorPalette = LegendPalette.Value(ColorRampBox.SelectedIndex)
+        If InvertColorRamp.CheckState = CheckState.Checked Then Array.Reverse(ColorPalette)
+
+        If ProjectDirectoryBox.Items.Count > 0 Then CreateETMap(Nothing, Nothing, False)
+    End Sub
 
     Private Function GetColorGradient(MinValue As Double, MaxValue As Double, Colors() As Color) As String()
         Dim Output As New List(Of String)
@@ -326,6 +545,26 @@
 
         Return Output.ToArray()
     End Function
+
+    Private Class LegendPalette
+        Public Shared Name As String() = {"Diametric", _
+                                          "Dualistic", _
+                                          "Horizon", _
+                                          "Monochrome", _
+                                          "Oasis", _
+                                          "Polar", _
+                                          "Temperature" _
+                                         }
+
+        Public Shared Value()() As Color = {New Color() {Color.FromArgb(245, 0, 0), Color.FromArgb(245, 245, 0), Color.FromArgb(0, 245, 0)}, _
+                                            New Color() {Color.FromArgb(255, 0, 0), Color.FromArgb(255, 255, 0), Color.FromArgb(0, 255, 255), Color.FromArgb(0, 0, 255)}, _
+                                            New Color() {Color.FromArgb(255, 255, 128), Color.FromArgb(242, 167, 46), Color.FromArgb(107, 0, 0)}, _
+                                            New Color() {Color.FromArgb(0, 0, 0), Color.FromArgb(255, 255, 255)}, _
+                                            New Color() {Color.FromArgb(194, 82, 60), Color.FromArgb(237, 161, 19), Color.FromArgb(255, 255, 0), Color.FromArgb(0, 219, 0), Color.FromArgb(32, 153, 143), Color.FromArgb(11, 44, 122)}, _
+                                            New Color() {Color.FromArgb(69, 117, 181), Color.FromArgb(255, 255, 191), Color.FromArgb(214, 47, 39)}, _
+                                            New Color() {Color.FromArgb(255, 0, 255), Color.FromArgb(0, 0, 255), Color.FromArgb(0, 255, 255), Color.FromArgb(0, 255, 0), Color.FromArgb(255, 255, 0), Color.FromArgb(255, 128, 0), Color.FromArgb(128, 0, 0)} _
+                                           }
+    End Class
 
     'Private Sub trvLegend_NodeMouseClick(sender As Object, e As TreeNodeMouseClickEventArgs) Handles trvLegend.NodeMouseClick
     '    '--> adjust layer visibility based on check box status

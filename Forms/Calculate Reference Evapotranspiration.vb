@@ -47,7 +47,7 @@
             ClimateDatasetGroup.Enabled = True
             DatesGroup.Enabled = True
 
-            For Each FileName In {NLDAS_2ARastersPath, DAYMETRastersPath, PRISMRastersPath}
+            For Each FileName In {DAYMETRastersPath, NLDAS_2ARastersPath, PRISMRastersPath}
                 Dim Path = FileName
 
                 If IO.File.Exists(Path) Then
@@ -126,6 +126,7 @@
         Dim CalculationExists = DatasetList.CheckedItems.Count > 0
         DatesGroup.Enabled = CalculationExists
         CalculateButton.Enabled = CalculationExists
+        ProgressText.Visible = False
 
         If CalculationExists Then
             Dim MinDateCalculation = DateTime.MinValue
@@ -154,7 +155,12 @@
                 PreviousCalculationEndDate.Text = MaxDateCalculation.ToString(DateFormat)
 
                 CalculationStartDate.Value = MaxDateCalculation
-                If Not CalculationStartDate.Value = CalculationStartDate.MaxDate Then CalculationStartDate.Value = CalculationStartDate.Value.AddDays(1)
+                If Not CalculationStartDate.Value = CalculationStartDate.MaxDate Then
+                    CalculationStartDate.Value = CalculationStartDate.Value.AddDays(1)
+                Else
+                    ProgressText.Text = "Dataset is up-to-date."
+                    ProgressText.Visible = True
+                End If
                 CalculationEndDate.Value = CalculationEndDate.MaxDate
             Else
                 PreviousCalculationStartDate.Text = "-"

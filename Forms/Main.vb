@@ -20,20 +20,10 @@
 
         SetFormLabel()
 
-        ProjectDirectory = "F:\Temporary Project\Test\" '"F:\UtahET 2.0\Utah-Third Mile"
+        ProjectDirectory = "F:\Temporary Project\Test\" ' "F:\UtahET 2.0\Utah-Third Mile" 
         ClimateModelDirectory = "F:\UtahET 2.0\Data Sources\"
         SetFormLabel()
-
-        'Dim File = IO.Directory.GetFiles(PotentialEvapotranspirationDirectory, "*.db")
-        'CalculatePeriodAverages(File, EvapotranspirationTableName.Net, IO.Path.Combine(OutputCalculationsDirectory, "1980-2013"), 1980, 2013, Nothing, Nothing)
-
-        'Dim SpatialReferenceSystem As OSR.SpatialReference
-        'Using Raster As New Raster("C:\Users\Clayton Lewis\Desktop\Images\Mask.tif")
-        '    SpatialReferenceSystem = New OSR.SpatialReference(Raster.Projection)
-        'End Using
-
-        'Dim Process As New GDALProcess
-        'Dim f = Process.Ogr2Ogr("C:\Users\Clayton Lewis\Desktop\Utah Land Use\StateWideLandUse2013.shp", "C:\Users\Clayton Lewis\Desktop\Utah Land Use\StateWideLandUse2013_2.db", , SpatialReferenceSystem)
+        'MapViewer.CreateETMap(IO.Directory.GetFiles(OutputCalculationsDirectory, "*.tif", IO.SearchOption.AllDirectories)(0), 13)
     End Sub
 
 #End Region
@@ -99,6 +89,7 @@
     Private Sub SetFormLabel()
         Dim Text = "GridET"
         If Not ProjectDirectory = "" Then Text &= " - " & ProjectDirectory
+        MapViewer.LoadProjectDirectories()
         Me.Text = Text
     End Sub
 
@@ -167,6 +158,8 @@
                         Command.ExecuteNonQuery()
                     End Using
                 End Using
+
+                MsgBox("Import succeeded.")
             Catch
                 MsgBox("Not a valid project directory.")
                 Exit Sub
@@ -209,7 +202,8 @@
     End Sub
 
     Private Sub ExtractByPolygonToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles ExtractByPolygonToolStripMenuItem.Click
-
+        Dim Form As New Extract_by_Polygon
+        Form.ShowDialog()
     End Sub
 
     Private Sub RunAllToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles RunAllToolStripMenuItem.Click
@@ -256,6 +250,26 @@
     End Sub
 
 End Class
+
+'For Each Directory In IO.Directory.GetDirectories("F:\UtahET 2.0\Extras", "*", IO.SearchOption.TopDirectoryOnly)
+'    For Each ReadDatabasePath In IO.Directory.GetFiles(Directory, "*.db", IO.SearchOption.AllDirectories)
+'        Dim WriteDatabasePath = IO.Path.Combine("F:\UtahET 2.0\Utah-Third Mile\Intermediate Calculations\", IO.Path.GetFileName(IO.Path.GetDirectoryName(ReadDatabasePath)), IO.Path.GetFileName(ReadDatabasePath))
+
+'        Using Connection = CreateConnection(ReadDatabasePath, False)
+'            Connection.Open()
+
+'            Using Command = Connection.CreateCommand
+'                Command.CommandText = String.Format("ATTACH DATABASE ""{0}"" AS Out", WriteDatabasePath)
+'                Command.ExecuteNonQuery()
+
+'                Command.CommandText = "INSERT OR IGNORE INTO Out.Rasters SELECT * FROM Rasters"
+'                Command.ExecuteNonQuery()
+'            End Using
+'        End Using
+'    Next
+'Next
+
+'MsgBox("Transfer completed!")
 
 'Private Function CalculateShadows(Window8() As Single, ShadowConstants As ShadowConstants) As Single
 '    ' First Slope ...

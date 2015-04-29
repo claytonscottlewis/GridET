@@ -423,7 +423,7 @@
     End Function
 
     Function CreateNewRaster(Path As String, XCount As Integer, YCount As Integer, Projection As String, GeoTransform() As Double, NoDataValue As Object(), Optional DataType As GDAL.DataType = GDAL.DataType.GDT_Float32, Optional Options() As String = Nothing, Optional BandCount As Integer = 1, Optional RasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff) As Raster
-        Using Driver = GDAL.Gdal.GetDriverByName(RasterFormat.ToString)
+         Using Driver = GDAL.Gdal.GetDriverByName(RasterFormat.ToString)
             Using Dataset = Driver.Create(Path, XCount, YCount, BandCount, DataType, Options)
                 Dataset.SetProjection(Projection)
                 Dataset.SetGeoTransform(GeoTransform)
@@ -816,6 +816,18 @@
         Public BottomLeft As Single = Single.NaN
         Public TopRight As Single = Single.NaN
         Public BottomRight As Single = Single.NaN
+
+        Sub New()
+
+        End Sub
+
+        Sub New(TopLeft As Single, TopRight As Single, BottomLeft As Single, BottomRight As Single)
+            Me.TopLeft = TopLeft
+            Me.TopRight = TopRight
+            Me.BottomLeft = BottomLeft
+            Me.BottomRight = BottomRight
+        End Sub
+
     End Class
 
 #End Region

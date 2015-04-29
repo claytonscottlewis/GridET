@@ -143,6 +143,12 @@
     <Compile Include="Forms\Calculate Raster Period Average.vb">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\Extract by Polygon.Designer.vb">
+      <DependentUpon>Extract by Polygon.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\Extract by Polygon.vb">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Forms\Download DAYMET.Designer.vb">
       <DependentUpon>Download DAYMET.vb</DependentUpon>
     </Compile>
@@ -225,6 +231,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\Calculate Raster Period Average.resx">
       <DependentUpon>Calculate Raster Period Average.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\Extract by Polygon.resx">
+      <DependentUpon>Extract by Polygon.vb</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\Download DAYMET.resx">
       <DependentUpon>Download DAYMET.vb</DependentUpon>
@@ -784,9 +793,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Dependencies\GDAL\Plugins\gdal_FITS.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Dependencies\GDAL\Plugins\gdal_GEOR.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Dependencies\GDAL\Plugins\gdal_GMT.dll">
