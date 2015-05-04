@@ -272,4 +272,40 @@
 
 #End Region
 
+#Region "Process Scheduling"
+
+    Public ReadOnly Property Progress
+        Get
+            Me.Update()
+            Return New ProgressValues(ProgressText.Text, ProgressBar.Minimum, ProgressBar.Maximum, ProgressBar.Value)
+        End Get
+    End Property
+
+    Public Sub LoadScheduledProcess()
+        Calculate_Evapotranspiration_Load(Nothing, Nothing)
+    End Sub
+
+    WithEvents ProcessTimer As Timer
+
+    Public Sub RunScheduledProcess()
+        CalculateButton_Click(Nothing, Nothing)
+
+        ProcessTimer = New Timer With {.Interval = 1000}
+        ProcessTimer.Start()
+    End Sub
+
+    Public Sub CancelScheduledProcess()
+        Cancel_Button_Click(Nothing, Nothing)
+    End Sub
+
+    Private Sub ProcessTimer_Tick(sender As Object, e As System.EventArgs) Handles ProcessTimer.Tick
+        ProcessTimerContinue()
+    End Sub
+
+    Private Sub ProcessTimerContinue()
+        If BackgroundWorker.IsBusy Then ProcessTimer.Start()
+    End Sub
+
+#End Region
+
 End Class

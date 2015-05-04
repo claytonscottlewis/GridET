@@ -2178,6 +2178,9 @@
                 Dim TemplateRaster As New Raster(MaskRasterPath)
                 Dim VariableName = IO.Path.GetFileNameWithoutExtension(DatabasePath)
 
+                StartDate = New DateTime(1986, 1, 1)
+                EndDate = StartDate
+
                 For Year As Integer = StartDate.Year To EndDate.Year
                     'Insert New Record into Database for Calculation Year
                     Command.CommandText = String.Format("INSERT OR IGNORE INTO Statistics (Year) VALUES ('{0}')", Year)
@@ -3624,6 +3627,21 @@
             Return Scale * Value / Power
         End If
     End Function
+
+    Public Class ProgressValues
+        Public ProgressText As String
+        Public ProgressBarMinValue As Integer
+        Public ProgressBarMaxValue As Integer
+        Public ProgressBarValue As Integer
+
+        Sub New(ProgressText As String, ProgressBarMinValue As Integer, ProgressBarMaxValue As Integer, ProgressBarValue As Integer)
+            Me.ProgressText = ProgressText
+            Me.ProgressBarMinValue = ProgressBarMinValue
+            Me.ProgressBarMaxValue = ProgressBarMaxValue
+            Me.ProgressBarValue = ProgressBarValue
+        End Sub
+
+    End Class
 
 #End Region
 

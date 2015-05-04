@@ -15,7 +15,7 @@
 
 #End Region
 
-#Region "Subroutines"
+#Region "Legend"
 
     Private Sub MapViewer_Load(sender As Object, e As System.EventArgs) Handles Me.Load
         For Each Control In Me.Controls
@@ -32,15 +32,19 @@
         ProjectDirectoryBox.Items.Clear()
 
         If IO.Directory.Exists(ProjectDirectory) Then
-            RemoveHandler ProjectDirectoryBox.selectedvaluechanged, AddressOf LoadSubDirectories
+            RemoveHandler ProjectDirectoryBox.SelectedValueChanged, AddressOf LoadSubDirectories
 
             For Each Directory In {AreaFeaturesDirectory, IntermediateCalculationsDirectory, OutputCalculationsDirectory}
                 ProjectDirectoryBox.Items.Add(IO.Path.GetFileName(Directory))
             Next
 
-            AddHandler ProjectDirectoryBox.selectedvaluechanged, AddressOf LoadSubDirectories
+            AddHandler ProjectDirectoryBox.SelectedValueChanged, AddressOf LoadSubDirectories
 
-            If ProjectDirectoryBox.Items.Count > 0 Then ProjectDirectoryBox.Text = ProjectDirectoryBox.Items(ProjectDirectoryBox.Items.Count - 1)
+            If ProjectDirectoryBox.Items.Count > 0 Then
+                ProjectDirectoryBox.Text = ProjectDirectoryBox.Items(ProjectDirectoryBox.Items.Count - 1)
+            Else
+                LoadSubDirectories(Nothing, Nothing)
+            End If
         Else
             LoadSubDirectories(Nothing, Nothing)
         End If
@@ -50,15 +54,19 @@
         SubDirectoryBox.Items.Clear()
 
         If ProjectDirectoryBox.Text <> "" Then
-            RemoveHandler SubDirectoryBox.selectedvaluechanged, AddressOf LoadFiles
+            RemoveHandler SubDirectoryBox.SelectedValueChanged, AddressOf LoadFiles
 
             For Each Directory In IO.Directory.GetDirectories(IO.Path.Combine(ProjectDirectory, ProjectDirectoryBox.Text), "*", IO.SearchOption.TopDirectoryOnly)
                 SubDirectoryBox.Items.Add(IO.Path.GetFileName(Directory))
             Next
 
-            AddHandler SubDirectoryBox.selectedvaluechanged, AddressOf LoadFiles
+            AddHandler SubDirectoryBox.SelectedValueChanged, AddressOf LoadFiles
 
-            If SubDirectoryBox.Items.Count > 0 Then SubDirectoryBox.Text = SubDirectoryBox.Items(0)
+            If SubDirectoryBox.Items.Count > 0 Then
+                SubDirectoryBox.Text = SubDirectoryBox.Items(0)
+            Else
+                LoadFiles(Nothing, Nothing)
+            End If
         Else
             LoadFiles(Nothing, Nothing)
         End If
@@ -68,15 +76,19 @@
         FileBox.Items.Clear()
 
         If SubDirectoryBox.Text <> "" Then
-            RemoveHandler FileBox.selectedvaluechanged, AddressOf LoadRasters
+            RemoveHandler FileBox.SelectedValueChanged, AddressOf LoadRasters
 
             For Each File In IO.Directory.GetFiles(IO.Path.Combine(ProjectDirectory, ProjectDirectoryBox.Text, SubDirectoryBox.Text), "*", IO.SearchOption.TopDirectoryOnly).Where(Function(F) F.EndsWith(".tif") Or F.EndsWith(".db")).ToArray
                 FileBox.Items.Add(IO.Path.GetFileName(File))
             Next
 
-            AddHandler FileBox.selectedvaluechanged, AddressOf LoadRasters
+            AddHandler FileBox.SelectedValueChanged, AddressOf LoadRasters
 
-            If FileBox.Items.Count > 0 Then FileBox.Text = FileBox.Items(0)
+            If FileBox.Items.Count > 0 Then
+                FileBox.Text = FileBox.Items(0)
+            Else
+                LoadRasters(Nothing, Nothing)
+            End If
         Else
             LoadRasters(Nothing, Nothing)
         End If
@@ -86,7 +98,7 @@
         RasterBox.Items.Clear()
 
         If FileBox.Text <> "" Then
-            RemoveHandler RasterBox.selectedvaluechanged, AddressOf LoadRasterBand
+            RemoveHandler RasterBox.SelectedValueChanged, AddressOf LoadRasterBand
 
             Dim FilePath = IO.Path.Combine(ProjectDirectory, ProjectDirectoryBox.Text, SubDirectoryBox.Text, FileBox.Text)
             Select Case IO.Path.GetExtension(FilePath)
@@ -118,9 +130,13 @@
                     End Using
             End Select
 
-            AddHandler RasterBox.selectedvaluechanged, AddressOf LoadRasterBand
+            AddHandler RasterBox.SelectedValueChanged, AddressOf LoadRasterBand
 
-            If RasterBox.Items.Count > 0 Then RasterBox.Text = RasterBox.Items(RasterBox.Items.Count - 1)
+            If RasterBox.Items.Count > 0 Then
+                RasterBox.Text = RasterBox.Items(RasterBox.Items.Count - 1)
+            Else
+                LoadRasterBand(Nothing, Nothing)
+            End If
         Else
             LoadRasterBand(Nothing, Nothing)
         End If
@@ -129,6 +145,18 @@
     Private Sub LoadRasterBand(sender As Object, e As System.EventArgs) Handles RasterBox.SelectedValueChanged
         If RasterBox.Text <> "" Then
             Dim FilePath = IO.Path.Combine(ProjectDirectory, ProjectDirectoryBox.Text, SubDirectoryBox.Text, FileBox.Text)
+
+            If IO.File.Exists(MapServerRasterPath) Then
+                MapServerRaster = New Raster(MapServerRasterPath)
+            Else
+                Using MaskRaster As New Raster(MaskRasterPath)
+                    MapServerRaster = CreateNewRaster(MapServerRasterPath, MaskRaster.XCount, MaskRaster.YCount, MaskRaster.Projection, MaskRaster.GeoTransform, {Single.MinValue})
+                End Using
+            End If
+            Dim RasterPath As String = ""
+            Dim Band As Integer = 1
+            Dim MinRasterValue As Double = Double.MaxValue
+            Dim MaxRasterValue As Double = Double.MinValue
 
             Select Case IO.Path.GetExtension(FilePath)
                 Case ".db"
@@ -139,14 +167,49 @@
                             Command.CommandText = "SELECT Image FROM Rasters WHERE Date = @Date"
                             Command.Parameters.Add("@Date", DbType.DateTime).Value = DateTime.Parse(RasterBox.Text)
 
-                            IO.File.WriteAllBytes(MapServerTemporaryRasterPath, Command.ExecuteScalar)
+                            RasterPath = "/vsimem/MapServerTemporaryRaster" & RasterBox.Text
+                            GDAL.Gdal.FileFromMemBuffer(RasterPath, Command.ExecuteScalar)
                         End Using
                     End Using
-
-                    CreateETMap(MapServerTemporaryRasterPath, 1)
                 Case ".tif"
-                    CreateETMap(FilePath, RasterBox.SelectedIndex + 1)
+                    RasterPath = FilePath
+                    Band = RasterBox.SelectedIndex + 1
             End Select
+
+            Using Raster As New Raster(RasterPath)
+                Raster.Open(GDAL.Access.GA_ReadOnly)
+
+                MapServerRaster = New Raster(MapServerRasterPath)
+                MapServerRaster.Open(GDAL.Access.GA_Update)
+
+                Do Until Raster.BlocksProcessed
+                    Dim RasterPixels = Raster.Read({Band})
+
+                    Dim NoDataValue = Raster.BandNoDataValue(Band - 1)
+
+                    For I = 0 To RasterPixels.Length - 1
+                        If RasterPixels(I) <> NoDataValue Then
+                            If RasterPixels(I) < MinRasterValue Then MinRasterValue = RasterPixels(I)
+                            If RasterPixels(I) > MaxRasterValue Then MaxRasterValue = RasterPixels(I)
+                        Else
+                            RasterPixels(I) = Single.MinValue
+                        End If
+                    Next
+
+                    MapServerRaster.Write({1}, RasterPixels)
+
+                    MapServerRaster.AdvanceBlock()
+                    Raster.AdvanceBlock()
+                Loop
+
+            End Using
+            If FilePath.EndsWith(".db") Then GDAL.Gdal.Unlink(RasterPath)
+
+            MinRasterValue = RoundToSignificantDigits(MinRasterValue, 4, False)
+            MaxRasterValue = RoundToSignificantDigits(MaxRasterValue, 4)
+            If MaxRasterValue = MinRasterValue Then MaxRasterValue += 1
+
+            CreateETMap(MinRasterValue, MaxRasterValue)
         Else
             MapObject = Nothing
             Map.Image = Nothing
@@ -164,44 +227,179 @@
         End If
     End Sub
 
-    Private Sub CreateETMap(RasterPath As String, RasterBand As Integer, Optional Full As Boolean = True)
-        Dim MinRasterValue As Double = Double.MaxValue
-        Dim MaxRasterValue As Double = Double.MinValue
+    Private Sub InvertColorRamp_CheckedChanged(sender As System.Object, e As System.EventArgs) Handles InvertColorRamp.CheckedChanged
+        Array.Reverse(ColorPalette)
 
-        If Full Then
-            Using Raster As New Raster(RasterPath)
-                Raster.Open(GDAL.Access.GA_ReadOnly)
+        CreateETMap(Nothing, Nothing)
+    End Sub
 
-                If IO.File.Exists(MapServerRasterPath) Then
-                    MapServerRaster = New Raster(MapServerRasterPath)
-                Else
-                    MapServerRaster = CreateNewRaster(MapServerRasterPath, Raster.XCount, Raster.YCount, Raster.Projection, Raster.GeoTransform, {Single.MinValue})
+    Private Sub ColorRampBox_SelectedValueChanged(sender As Object, e As System.EventArgs) Handles ColorRampBox.SelectedValueChanged
+        ColorPalette = LegendPalette.Value(ColorRampBox.SelectedIndex)
+        If InvertColorRamp.CheckState = CheckState.Checked Then Array.Reverse(ColorPalette)
+
+        If ProjectDirectoryBox.Items.Count > 0 Then CreateETMap(Nothing, Nothing)
+    End Sub
+
+#End Region
+
+#Region "Map and Toolbar"
+
+    Private Sub Zoom(MapX As Double, MapY As Double, ZoomFactor As Integer)
+        If MapObject IsNot Nothing Then
+            MapObject.zoomPoint(ZoomFactor, New MapServer.pointObj(MapX, MapY, 0, 0), Map.Width, Map.Height, MapObject.extent, Nothing)
+            UpdateMap()
+        End If
+    End Sub
+
+    Private Sub ZoomScale(MapX As Double, MapY As Double, Scale As Double)
+        If MapObject IsNot Nothing Then
+            MapObject.zoomScale(Scale, New MapServer.pointObj(MapX, MapY, 0, 0), Map.Width, Map.Height, MapObject.extent, Nothing)
+        End If
+    End Sub
+
+    Private Sub ZoomFullExtent_Click(sender As Object, e As EventArgs) Handles ZoomFullExtent.Click
+        If MapObject IsNot Nothing Then
+            MapObject.extent = FullExtent
+            UpdateMap()
+        End If
+    End Sub
+
+    Private Sub ZoomInFixed_Click(sender As Object, e As EventArgs) Handles ZoomInFixed.Click
+        If MapObject IsNot Nothing Then Zoom(Map.Width / 2, Map.Height / 2, 2)
+    End Sub
+
+    Private Sub ZoomOutFixed_Click(sender As Object, e As EventArgs) Handles ZoomOutFixed.Click
+        If MapObject IsNot Nothing Then Zoom(Map.Width / 2, Map.Height / 2, -2)
+    End Sub
+
+    Private Sub Pan_Click(sender As Object, e As System.EventArgs) Handles Pan.Click
+        If Pan.Checked Then
+            Cursor = Cursors.SizeAll
+        Else
+            Cursor = Cursors.Arrow
+        End If
+    End Sub
+
+    Private Sub Zoom_CheckedChanged(sender As Object, e As System.EventArgs) Handles Pan.CheckedChanged, ZoomInBox.CheckedChanged, ZoomOutBox.CheckedChanged
+        RemoveHandler Pan.CheckedChanged, AddressOf Zoom_CheckedChanged
+        RemoveHandler ZoomInBox.CheckedChanged, AddressOf Zoom_CheckedChanged
+        RemoveHandler ZoomOutBox.CheckedChanged, AddressOf Zoom_CheckedChanged
+
+        For Each Button In {Pan, ZoomInBox, ZoomOutBox}
+            If Button IsNot sender Then
+                Button.Checked = False
+            End If
+        Next
+
+        AddHandler Pan.CheckedChanged, AddressOf Zoom_CheckedChanged
+        AddHandler ZoomInBox.CheckedChanged, AddressOf Zoom_CheckedChanged
+        AddHandler ZoomOutBox.CheckedChanged, AddressOf Zoom_CheckedChanged
+    End Sub
+
+    Private Sub Map_MouseWheel(sender As Object, e As System.Windows.Forms.MouseEventArgs) Handles Map.MouseWheel
+        If MapObject IsNot Nothing Then
+            'Dim ScaleFactor = 0.9
+            'If Math.Sign(e.Delta) < 0 Then ScaleFactor = 1 / ScaleFactor
+            'ZoomScale(e.X, e.Y, MapObject.scaledenom * ScaleFactor)
+            Zoom(e.X, e.Y, 2 * Math.Sign(e.Delta))
+        End If
+    End Sub
+
+    Private Sub ZoomInBox_Click(sender As System.Object, e As System.EventArgs) Handles ZoomInBox.Click
+        If ZoomInBox.Checked Then
+            Cursor = Cursors.Cross
+        Else
+            Cursor = Cursors.Arrow
+        End If
+    End Sub
+
+    Private Sub ZoomOutBox_Click(sender As System.Object, e As System.EventArgs) Handles ZoomOutBox.Click
+        If ZoomOutBox.Checked Then
+            Cursor = Cursors.Cross
+        Else
+            Cursor = Cursors.Arrow
+        End If
+    End Sub
+
+    Private Sub Map_MouseDown(sender As Object, e As System.Windows.Forms.MouseEventArgs) Handles Map.MouseDown
+        If MapObject IsNot Nothing Then
+            If e.Button = Windows.Forms.MouseButtons.Left And (ZoomInBox.Checked Or ZoomOutBox.Checked) Then
+                DragOperation = True
+                DragStartPoint = Map.PointToScreen(New Point(e.X, e.Y))
+                DragRectangle = New Rectangle
+            End If
+        End If
+    End Sub
+
+    Private Sub Map_MouseMove(sender As Object, e As System.Windows.Forms.MouseEventArgs) Handles Map.MouseMove
+        If DragOperation Then
+            Dim Point = Map.PointToScreen(New Point(Limit(e.X, 0, Map.Width), Limit(e.Y, 0, Map.Height)))
+            If DragEndPoint = Point Then Exit Sub
+
+            ControlPaint.DrawReversibleFrame(DragRectangle, Map.BackColor, FrameStyle.Dashed)
+
+            DragEndPoint = Point
+            DragRectangle = New Rectangle(DragStartPoint.X, DragStartPoint.Y, DragEndPoint.X - DragStartPoint.X, DragEndPoint.Y - DragStartPoint.Y)
+
+            ControlPaint.DrawReversibleFrame(DragRectangle, Map.BackColor, FrameStyle.Dashed)
+        End If
+
+        MapPoint = e.Location
+        UpdateMapPoint()
+
+        Map.Focus()
+    End Sub
+
+    Private Sub Map_MouseUp(sender As Object, e As System.Windows.Forms.MouseEventArgs) Handles Map.MouseUp
+        If DragRectangle.Width > 0 And DragRectangle.Height > 0 Then
+            If DragOperation Then
+                Dim Scale As Double = MapObject.scaledenom
+
+                Dim Point = Map.PointToScreen(New Point(0, 0))
+                MapObject.zoomRectangle(New MapServer.rectObj(DragRectangle.Left - Point.X, DragRectangle.Bottom - Point.Y, DragRectangle.Right - Point.X, DragRectangle.Top - Point.Y, True), Map.Width, Map.Height, MapObject.extent, Nothing)
+                If ZoomOutBox.Checked = True Then
+                    MapObject.zoomScale(Scale * 2, New MapServer.pointObj(Map.Width / 2, Map.Height / 2, 0, 0), Map.Width, Map.Height, MapObject.extent, Nothing)
                 End If
-                MapServerRaster.Open(GDAL.Access.GA_Update)
 
-                Do Until Raster.BlocksProcessed
-                    Dim RasterPixels = Raster.Read({RasterBand})
+                UpdateMap()
 
-                    Dim NoDataValue = Raster.BandNoDataValue(RasterBand - 1)
+                Me.Refresh()
+                'Cursor = Cursors.Arrow
+                DragOperation = False
+                'ZoomInBox.Checked = False
+                'ZoomOutBox.Checked = False
+            ElseIf Pan.Checked Then
+                Zoom(e.X, e.Y, 1)
+            End If
+        End If
+    End Sub
 
-                    For I = 0 To RasterPixels.Length - 1
-                        If RasterPixels(I) <> NoDataValue Then
-                            If RasterPixels(I) < MinRasterValue Then MinRasterValue = RasterPixels(I)
-                            If RasterPixels(I) > MaxRasterValue Then MaxRasterValue = RasterPixels(I)
-                        End If
-                    Next
+    Private Sub Map_MouseLeave(sender As Object, e As System.EventArgs) Handles Map.MouseLeave
+        TopLeft.Text = ""
+        TopRight.Text = ""
+        BottomLeft.Text = ""
+        BottomRight.Text = ""
+    End Sub
 
-                    MapServerRaster.Write({1}, RasterPixels)
+    Private Sub Map_SizeChanged(sender As Object, e As System.EventArgs) Handles Map.SizeChanged
+        If MapObject IsNot Nothing Then
+            MapObject.width = Map.Width
+            MapObject.height = Map.Height
 
-                    MapServerRaster.AdvanceBlock()
-                    Raster.AdvanceBlock()
-                Loop
-            End Using
+            UpdateMap()
+        End If
+    End Sub
 
-            MinRasterValue = RoundToSignificantDigits(MinRasterValue, 3, False)
-            MaxRasterValue = RoundToSignificantDigits(MaxRasterValue, 3)
-            If MaxRasterValue = MinRasterValue Then MaxRasterValue += 1
+    Private Sub SplitContainer_SplitterMoved(sender As Object, e As System.Windows.Forms.SplitterEventArgs) Handles SplitContainer.SplitterMoved
+        Map_SizeChanged(Nothing, Nothing)
+    End Sub
 
+#End Region
+
+#Region "Functions"
+
+    Private Sub CreateETMap(MinRasterValue As Double, MaxRasterValue As Double)
+        If MinRasterValue <> Nothing Or MaxRasterValue <> Nothing Then
             LegendMinValue.Text = "Min:  " & MinRasterValue
             LegendMaxValue.Text = "Max:  " & MaxRasterValue
         Else
@@ -272,34 +470,21 @@
         MapObject.width = Map.Width
         MapObject.height = Map.Height
 
-        RefreshMap()
+        UpdateMap()
 
         FullExtent = New MapServer.rectObj(MapObject.extent.minx, MapObject.extent.miny, MapObject.extent.maxx, MapObject.extent.maxy, 0)
     End Sub
 
-    Private Sub Map_SizeChanged(sender As Object, e As System.EventArgs) Handles Map.SizeChanged
-        If MapObject IsNot Nothing Then
-            MapObject.width = Map.Width
-            MapObject.height = Map.Height
-
-            RefreshMap()
-        End If
-    End Sub
-
-    Private Sub SplitContainer_SplitterMoved(sender As Object, e As System.Windows.Forms.SplitterEventArgs) Handles SplitContainer.SplitterMoved
-        Map_SizeChanged(Nothing, Nothing)
-    End Sub
-
-    Public Sub RefreshMap()
+    Public Sub UpdateMap()
         Using Stream As New IO.MemoryStream(MapObject.draw().getBytes())
             Map.Image = System.Drawing.Image.FromStream(Stream)
         End Using
 
-        RefreshLegend()
+        UpdateLegend()
         UpdateMapPoint()
     End Sub
 
-    Private Sub RefreshLegend()
+    Private Sub UpdateLegend()
         Dim ColorLength As Integer = ColorPalette.Length - 1
         Dim LegendHeight As Integer = Math.Ceiling(1260 / ColorLength) * ColorLength
         Dim LegendWidth As Integer = LegendHeight / 3
@@ -325,9 +510,9 @@
 
     Private Sub UpdateMapPoint()
         If MapObject IsNot Nothing Then
-            Dim XCoordinate = MapObject.extent.minx + (MapObject.extent.maxx - MapObject.extent.minx) * (MapPoint.X / Map.Width)
-            Dim YCoordinate = MapObject.extent.maxy + (MapObject.extent.miny - MapObject.extent.maxy) * (MapPoint.Y / Map.Height)
-
+            Dim XCoordinate = MapObject.extent.minx + (MapObject.extent.maxx - MapObject.extent.minx) * ((MapPoint.X) / Map.Width)
+            Dim YCoordinate = MapObject.extent.maxy + (MapObject.extent.miny - MapObject.extent.maxy) * ((MapPoint.Y) / Map.Height)
+          
             StatusText.Text = String.Format(StatusString, FormatNumber(XCoordinate, , , , TriState.True), FormatNumber(YCoordinate, , , , TriState.True), FormatNumber(MapObject.scaledenom, , , , TriState.True))
 
             Dim Values() As Single = {Single.NaN, Single.NaN, Single.NaN, Single.NaN}
@@ -358,136 +543,6 @@
         End If
     End Sub
 
-    Private Sub Zoom(MapX As Double, MapY As Double, ZoomFactor As Integer)
-        If MapObject IsNot Nothing Then
-            MapObject.zoomPoint(ZoomFactor, New MapServer.pointObj(MapX, MapY, 0, 0), Map.Width, Map.Height, MapObject.extent, Nothing)
-            RefreshMap()
-        End If
-    End Sub
-
-    Private Sub ZoomScale(MapX As Double, MapY As Double, Scale As Double)
-        If MapObject IsNot Nothing Then
-            MapObject.zoomScale(Scale, New MapServer.pointObj(MapX, MapY, 0, 0), Map.Width, Map.Height, MapObject.extent, Nothing)
-        End If
-    End Sub
-
-    Private Sub ZoomFullExtent_Click(sender As Object, e As EventArgs) Handles ZoomFullExtent.Click
-        If MapObject IsNot Nothing Then
-            MapObject.extent = FullExtent
-            RefreshMap()
-        End If
-    End Sub
-
-    Private Sub ZoomInFixed_Click(sender As Object, e As EventArgs) Handles ZoomInFixed.Click
-        If MapObject IsNot Nothing Then Zoom(Map.Width / 2, Map.Height / 2, 2)
-    End Sub
-
-    Private Sub ZoomOutFixed_Click(sender As Object, e As EventArgs) Handles ZoomOutFixed.Click
-        If MapObject IsNot Nothing Then Zoom(Map.Width / 2, Map.Height / 2, -2)
-    End Sub
-
-    Private Sub Map_MouseWheel(sender As Object, e As System.Windows.Forms.MouseEventArgs) Handles Map.MouseWheel
-        If MapObject IsNot Nothing Then
-            'Dim ScaleFactor = 0.9
-            'If Math.Sign(e.Delta) < 0 Then ScaleFactor = 1 / ScaleFactor
-            'ZoomScale(e.X, e.Y, MapObject.scaledenom * ScaleFactor)
-            Zoom(e.X, e.Y, 2 * Math.Sign(e.Delta))
-        End If
-    End Sub
-
-    Private Sub ZoomInBox_Click(sender As System.Object, e As System.EventArgs) Handles ZoomInBox.Click
-        If ZoomInBox.Checked Then
-            Cursor = Cursors.Cross
-        Else
-            Cursor = Cursors.Arrow
-        End If
-    End Sub
-
-    Private Sub ZoomOutBox_Click(sender As System.Object, e As System.EventArgs) Handles ZoomOutBox.Click
-        If ZoomOutBox.Checked Then
-            Cursor = Cursors.Cross
-        Else
-            Cursor = Cursors.Arrow
-        End If
-    End Sub
-
-    Private Sub Map_MouseDown(sender As Object, e As System.Windows.Forms.MouseEventArgs) Handles Map.MouseDown
-        If MapObject IsNot Nothing Then
-            If e.Button = Windows.Forms.MouseButtons.Left And (ZoomInBox.Checked Or ZoomOutBox.Checked) Then
-                DragOperation = True
-                DragStartPoint = Map.PointToScreen(New Point(e.X, e.Y))
-                DragRectangle = New Rectangle
-            End If
-        End If
-    End Sub
-
-    Private Sub Map_MouseMove(sender As Object, e As System.Windows.Forms.MouseEventArgs) Handles Map.MouseMove
-        If DragOperation Then
-            Dim Point = Map.PointToScreen(New Point(Limit(e.X, 0, Map.Width), Limit(e.Y, 0, Map.Height)))
-            If DragEndPoint = Point Then Exit Sub
-
-            ControlPaint.DrawReversibleFrame(DragRectangle, Map.BackColor, FrameStyle.Dashed)
-
-            DragEndPoint = Point
-            DragRectangle = New Rectangle(DragStartPoint.X, DragStartPoint.Y, DragEndPoint.X - DragStartPoint.X, DragEndPoint.Y - DragStartPoint.Y)
-
-            ControlPaint.DrawReversibleFrame(DragRectangle, Map.BackColor, FrameStyle.Dashed)
-        End If
-
-        MapPoint = e.Location
-        UpdateMapPoint()
-
-        Map.Focus()
-    End Sub
-
-    Private Sub Map_MouseUp(sender As Object, e As System.Windows.Forms.MouseEventArgs) Handles Map.MouseUp
-        If DragRectangle.Width > 0 And DragRectangle.Height > 0 Then
-            If DragOperation Then
-                Dim Scale As Double = MapObject.scaledenom
-
-                Dim Point = Map.PointToScreen(New Point(0, 0))
-                MapObject.zoomRectangle(New MapServer.rectObj(DragRectangle.Left - Point.X, DragRectangle.Bottom - Point.Y, DragRectangle.Right - Point.X, DragRectangle.Top - Point.Y, True), Map.Width, Map.Height, MapObject.extent, Nothing)
-                If ZoomOutBox.Checked = True Then
-                    MapObject.zoomScale(Scale * 2, New MapServer.pointObj(Map.Width / 2, Map.Height / 2, 0, 0), Map.Width, Map.Height, MapObject.extent, Nothing)
-                End If
-
-                RefreshMap()
-
-                Me.Refresh()
-                'Cursor = Cursors.Arrow
-                DragOperation = False
-                'ZoomInBox.Checked = False
-                'ZoomOutBox.Checked = False
-            ElseIf Pan.Checked Then
-                Zoom(e.X, e.Y, 1)
-            End If
-        End If
-    End Sub
-
-    Private Sub CheckedChanged(sender As Object, e As System.EventArgs) Handles Pan.CheckedChanged, ZoomInBox.CheckedChanged, ZoomOutBox.CheckedChanged
-        RemoveHandler Pan.CheckedChanged, AddressOf CheckedChanged
-        RemoveHandler ZoomInBox.CheckedChanged, AddressOf CheckedChanged
-        RemoveHandler ZoomOutBox.CheckedChanged, AddressOf CheckedChanged
-
-        For Each Button In {Pan, ZoomInBox, ZoomOutBox}
-            If Button IsNot sender Then
-                Button.Checked = False
-            End If
-        Next
-
-        AddHandler Pan.CheckedChanged, AddressOf CheckedChanged
-        AddHandler ZoomInBox.CheckedChanged, AddressOf CheckedChanged
-        AddHandler ZoomOutBox.CheckedChanged, AddressOf CheckedChanged
-    End Sub
-
-    Private Sub Pan_Click(sender As Object, e As System.EventArgs) Handles Pan.Click
-        If Pan.Checked Then
-            Cursor = Cursors.SizeAll
-        Else
-            Cursor = Cursors.Arrow
-        End If
-    End Sub
-
     Private Function GetUnits(Projection As String) As String
         Using SpatialReferenceSystem = New OSR.SpatialReference(Projection)
             Dim Unit = SpatialReferenceSystem.GetLinearUnitsName.ToUpper
@@ -508,19 +563,6 @@
             Return Proj4String.Replace(" ", "").Substring(1).Split("+")
         End Using
     End Function
-
-    Private Sub InvertColorRamp_CheckedChanged(sender As System.Object, e As System.EventArgs) Handles InvertColorRamp.CheckedChanged
-        Array.Reverse(ColorPalette)
-
-        CreateETMap(Nothing, Nothing, False)
-    End Sub
-
-    Private Sub ColorRampBox_SelectedValueChanged(sender As Object, e As System.EventArgs) Handles ColorRampBox.SelectedValueChanged
-        ColorPalette = LegendPalette.Value(ColorRampBox.SelectedIndex)
-        If InvertColorRamp.CheckState = CheckState.Checked Then Array.Reverse(ColorPalette)
-
-        If ProjectDirectoryBox.Items.Count > 0 Then CreateETMap(Nothing, Nothing, False)
-    End Sub
 
     Private Function GetColorGradient(MinValue As Double, MaxValue As Double, Colors() As Color) As String()
         Dim Output As New List(Of String)
@@ -565,19 +607,6 @@
                                             New Color() {Color.FromArgb(255, 0, 255), Color.FromArgb(0, 0, 255), Color.FromArgb(0, 255, 255), Color.FromArgb(0, 255, 0), Color.FromArgb(255, 255, 0), Color.FromArgb(255, 128, 0), Color.FromArgb(128, 0, 0)} _
                                            }
     End Class
-
-    'Private Sub trvLegend_NodeMouseClick(sender As Object, e As TreeNodeMouseClickEventArgs) Handles trvLegend.NodeMouseClick
-    '    '--> adjust layer visibility based on check box status
-    '    For i As Integer = 0 To trvLegend.Nodes.Count - 1
-    '        Dim layer As layerObj = m_map.getLayerByName(trvLegend.Nodes(i).Text)
-    '        If trvLegend.Nodes(i).Checked Then
-    '            layer.status = CInt(mapscript.MS_ON)
-    '        Else
-    '            layer.status = CInt(mapscript.MS_OFF)
-    '        End If
-    '    Next
-    '    RefreshMap()
-    'End Sub
 
 #End Region
 

@@ -2,6 +2,8 @@
 
 #Region "Program Initialization"
 
+    Private ProcessSchedulerForm As Process_Scheduler = Nothing
+
     Private Sub Form1_Load(sender As System.Object, e As System.EventArgs) Handles MyBase.Load
         'Remove Internet Download Connection Limit
         Net.ServicePointManager.DefaultConnectionLimit = Integer.MaxValue
@@ -20,10 +22,9 @@
 
         SetFormLabel()
 
-        ProjectDirectory = "F:\Temporary Project\Test\" ' "F:\UtahET 2.0\Utah-Third Mile" 
+        ProjectDirectory = "F:\Temporary Project\Test\" '"F:\UtahET 2.0\Utah-Third Mile" 
         ClimateModelDirectory = "F:\UtahET 2.0\Data Sources\"
         SetFormLabel()
-        'MapViewer.CreateETMap(IO.Directory.GetFiles(OutputCalculationsDirectory, "*.tif", IO.SearchOption.AllDirectories)(0), 13)
     End Sub
 
 #End Region
@@ -206,8 +207,16 @@
         Form.ShowDialog()
     End Sub
 
-    Private Sub RunAllToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles RunAllToolStripMenuItem.Click
+    Private Sub SchedulerToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles SchedulerToolStripMenuItem.Click
+        If ProcessSchedulerForm IsNot Nothing Then
+            If ProcessSchedulerForm.DialogResult = Windows.Forms.DialogResult.Cancel Then
+                ProcessSchedulerForm = New Process_Scheduler
+            End If
+        Else
+            ProcessSchedulerForm = New Process_Scheduler
+        End If
 
+        ProcessSchedulerForm.Show()
     End Sub
 
 #End Region

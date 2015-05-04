@@ -84,7 +84,7 @@
 
                 Dim Path As String = IO.Directory.GetFiles(IntermediateCalculationsDirectory, "*" & ReferenceVariable(I) & ".db", IO.SearchOption.AllDirectories)(0)
                 If IO.File.Exists(Path) Then GetMaxAndMinDates({Path}, MaxDate, MinDate)
-
+              
                 ReferenceStartDate.Add(MinDate)
                 ReferenceEndDate.Add(MaxDate)
             Next
@@ -148,6 +148,10 @@
                 If CoverEndDate(Item.Index) = DateTime.MaxValue Then NoCalculation = True
             Next
             If NoCalculation Then MaxDateCover = DateTime.MaxValue
+
+            If MinDateReference <> DateTime.MinValue Then If MinDateReference.Month <> 1 And MinDateReference.Day <> 1 Then MinDateReference = New DateTime(MinDateReference.Year + 1, 1, 1)
+            If MaxDateReference <> DateTime.MaxValue Then If MaxDateReference.Month <> 12 And MaxDateReference.Day <> 31 Then MaxDateReference = New DateTime(MaxDateReference.Year - 1, 12, 31)
+            MaxDateReference = MaxDateReference.AddHours(13 - MaxDateReference.Hour)
 
             ReferenceDatasetStartDate.Text = MinDateReference.ToString(DateFormat)
             ReferenceDatasetEndDate.Text = MaxDateReference.ToString(DateFormat)
@@ -280,6 +284,42 @@
         CalculateButton.Enabled = True
         CalculateButton.Text = "OK"
         Cancel_Button.Enabled = False
+    End Sub
+
+#End Region
+
+#Region "Process Scheduling"
+
+    Public ReadOnly Property Progress
+        Get
+            Me.Update()
+            Return New ProgressValues(ProgressText.Text, ProgressBar.Minimum, ProgressBar.Maximum, ProgressBar.Value)
+        End Get
+    End Property
+
+    WithEvents ProcessTimer As Timer
+
+    Public Sub LoadScheduledProcess()
+        Calculate_Evapotranspiration_Load(Nothing, Nothing)
+    End Sub
+
+    Public Sub RunScheduledProcess()
+        CalculateButton_Click(Nothing, Nothing)
+
+        ProcessTimer = New Timer With {.Interval = 1000}
+        ProcessTimer.Start()
+    End Sub
+
+    Public Sub CancelScheduledProcess()
+        Cancel_Button_Click(Nothing, Nothing)
+    End Sub
+
+    Private Sub ProcessTimer_Tick(sender As Object, e As System.EventArgs) Handles ProcessTimer.Tick
+        ProcessTimerContinue()
+    End Sub
+
+    Private Sub ProcessTimerContinue()
+        If BackgroundWorker.IsBusy Then ProcessTimer.Start()
     End Sub
 
 #End Region

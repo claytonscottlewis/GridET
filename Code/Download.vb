@@ -2,86 +2,91 @@
 
 #Region "DAYMET"
 
-    Sub DownloadDAYMET(DownloadStartDate As DateTime, DownloadEndDate As DateTime, Variable As String, Connection As System.Data.SQLite.SQLiteConnection, Command As System.Data.SQLite.SQLiteCommand, BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
-        'Download DAYMET Files
-        Dim Year As Integer = 0
-        For Year = DownloadStartDate.Year To DownloadEndDate.Year
-            'Start DAYMET Ftp File Download
-            Dim VariablePath As String = IO.Path.GetTempFileName
-            DownloadFileToDrive(BuildFtpStringDAYMET(Year, Variable), VariablePath)
+    Sub DownloadDAYMET(DatabasePath As String, DownloadStartDate As DateTime, DownloadEndDate As DateTime, Variable As String, BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
+        Using Connection = CreateConnection(DatabasePath, False)
+            Connection.Open()
+            Using Command = Connection.CreateCommand
 
-            Dim Raster As New Raster(String.Format("NETCDF:""{0}"":{1}", VariablePath, Variable))
-            Raster.Open(GDAL.Access.GA_ReadOnly)
-            Dim XCount = Raster.XCount
-            Dim YCount = Raster.YCount
+                'Download DAYMET Files
+                Dim Year As Integer = 0
+                For Year = DownloadStartDate.Year To DownloadEndDate.Year
+                    'Start DAYMET Ftp File Download
+                    Dim VariablePath As String = IO.Path.GetTempFileName
+                    DownloadFileToDrive(BuildFtpStringDAYMET(Year, Variable), VariablePath)
 
-            'Determine Start and End Dates
-            Dim StartDoY As Integer = 1
-            If Year = DownloadStartDate.Year Then StartDoY = DownloadStartDate.DayOfYear
-            If StartDoY = 366 Then StartDoY = 365
+                    Dim Raster As New Raster(String.Format("NETCDF:""{0}"":{1}", VariablePath, Variable))
+                    Raster.Open(GDAL.Access.GA_ReadOnly)
+                    Dim XCount = Raster.XCount
+                    Dim YCount = Raster.YCount
 
-            Dim EndDoY As Integer = 365
-            If Year = DownloadEndDate.Year Then EndDoY = DownloadEndDate.DayOfYear
-            If EndDoY = 366 Then EndDoY = 365
+                    'Determine Start and End Dates
+                    Dim StartDoY As Integer = 1
+                    If Year = DownloadStartDate.Year Then StartDoY = DownloadStartDate.DayOfYear
+                    If StartDoY = 366 Then StartDoY = 365
 
-            For DoY = StartDoY To EndDoY
-                Dim Path = IO.Path.Combine(IO.Path.GetTempPath, String.Format("Daymet_{0}_{1}.tif", Year, DoY))
+                    Dim EndDoY As Integer = 365
+                    If Year = DownloadEndDate.Year Then EndDoY = DownloadEndDate.DayOfYear
+                    If EndDoY = 366 Then EndDoY = 365
 
-                Using Driver = GDAL.Gdal.GetDriverByName(GDALProcess.RasterFormat.GTiff.ToString)
-                    Using Dataset = Driver.Create(Path, XCount, YCount, 1, GDAL.DataType.GDT_Float32, {"COMPRESS=DEFLATE", "TILED=YES"})
-                        Dataset.SetProjection(Raster.Projection)
-                        Dataset.SetGeoTransform(Raster.GeoTransform)
+                    For DoY = StartDoY To EndDoY
+                        Dim Path = IO.Path.Combine(IO.Path.GetTempPath, String.Format("Daymet_{0}_{1}.tif", Year, DoY))
 
-                        Using Band = Dataset.GetRasterBand(1)
-                            Band.SetDescription(Variable)
-                            Band.SetNoDataValue(Single.MinValue)
+                        Using Driver = GDAL.Gdal.GetDriverByName(GDALProcess.RasterFormat.GTiff.ToString)
+                            Using Dataset = Driver.Create(Path, XCount, YCount, 1, GDAL.DataType.GDT_Float32, {"COMPRESS=DEFLATE", "TILED=YES"})
+                                Dataset.SetProjection(Raster.Projection)
+                                Dataset.SetGeoTransform(Raster.GeoTransform)
+
+                                Using Band = Dataset.GetRasterBand(1)
+                                    Band.SetDescription(Variable)
+                                    Band.SetNoDataValue(Single.MinValue)
+                                End Using
+
+                                Dim Data(XCount * YCount - 1) As Single
+                                Raster.Dataset.ReadRaster(0, 0, XCount, YCount, Data, XCount, YCount, 1, {DoY}, 0, 0, 0)
+
+                                For I = 0 To Data.Length - 1
+                                    If Data(I) = Raster.BandNoDataValue(DoY - 1) Then Data(I) = Single.MinValue
+                                Next
+
+                                Dataset.WriteRaster(0, 0, XCount, YCount, Data, XCount, YCount, 1, {1}, 0, 0, 0)
+                            End Using
                         End Using
 
-                        Dim Data(XCount * YCount - 1) As Single
-                        Raster.Dataset.ReadRaster(0, 0, XCount, YCount, Data, XCount, YCount, 1, {DoY}, 0, 0, 0)
-
-                        For I = 0 To Data.Length - 1
-                            If Data(I) = Raster.BandNoDataValue(DoY - 1) Then Data(I) = Single.MinValue
-                        Next
-
-                        Dataset.WriteRaster(0, 0, XCount, YCount, Data, XCount, YCount, 1, {1}, 0, 0, 0)
-                    End Using
-                End Using
-
-                'Store Raster in Database
-                Command.CommandText = "INSERT OR REPLACE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
-                Command.Parameters.Add("@Date", DbType.DateTime).Value = New DateTime(Year - 1, 12, 31).AddDays(DoY).AddHours(13)
-                Command.Parameters.Add("@Image", DbType.Object).Value = IO.File.ReadAllBytes(Path)
-                Command.ExecuteNonQuery()
-
-                If DoY = 365 Then
-                    Dim LastDay = New DateTime(Year, 12, 31)
-                    If LastDay.DayOfYear = 366 Then
+                        'Store Raster in Database
                         Command.CommandText = "INSERT OR REPLACE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
-                        Command.Parameters.Add("@Date", DbType.DateTime).Value = LastDay.AddHours(13)
+                        Command.Parameters.Add("@Date", DbType.DateTime).Value = New DateTime(Year - 1, 12, 31).AddDays(DoY).AddHours(13)
                         Command.Parameters.Add("@Image", DbType.Object).Value = IO.File.ReadAllBytes(Path)
                         Command.ExecuteNonQuery()
-                    End If
 
-                    BackgroundWorker.ReportProgress(0)
-                End If
+                        If DoY = 365 Then
+                            Dim LastDay = New DateTime(Year, 12, 31)
+                            If LastDay.DayOfYear = 366 Then
+                                Command.CommandText = "INSERT OR REPLACE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
+                                Command.Parameters.Add("@Date", DbType.DateTime).Value = LastDay.AddHours(13)
+                                Command.Parameters.Add("@Image", DbType.Object).Value = IO.File.ReadAllBytes(Path)
+                                Command.ExecuteNonQuery()
+                            End If
 
-                'Delete Intermediate File
-                IO.File.Delete(Path)
- 
-                BackgroundWorker.ReportProgress(0)
-                If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
+                            BackgroundWorker.ReportProgress(0)
+                        End If
 
-                If Year = DownloadEndDate.Year Then
-                    If DoY = DownloadEndDate.DayOfYear Then Exit For
-                End If
-            Next
+                        'Delete Intermediate File
+                        IO.File.Delete(Path)
 
-            Raster.Close()
-            IO.File.Delete(VariablePath)
-        Next
+                        BackgroundWorker.ReportProgress(0)
+                        If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
 
-        DownloadNLDAS_2ATopography()
+                        If Year = DownloadEndDate.Year Then
+                            If DoY = DownloadEndDate.DayOfYear Then Exit For
+                        End If
+                    Next
+
+                    Raster.Close()
+                    IO.File.Delete(VariablePath)
+                Next
+
+            End Using
+        End Using
     End Sub
 
     Function BuildFtpStringDAYMET(Optional Year As Integer = Nothing, Optional Variable As String = Nothing)
@@ -101,40 +106,49 @@
     ''' <summary>
     ''' Downloads and updates a database storing hourly NLDAS-2 Forcing File A GRIB rasters.
     ''' </summary>
-    Sub DownloadNDLAS_2A(DownloadStartDate As DateTime, DownloadEndDate As DateTime, Increment As Integer, Connection As System.Data.SQLite.SQLiteConnection, Command As System.Data.SQLite.SQLiteCommand, BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
-        Dim First As Integer = DownloadStartDate.Subtract(NLDAS_2AStartDate).TotalHours
-        Dim Last As Integer = DownloadEndDate.Subtract(NLDAS_2AStartDate).TotalHours
-        Dim Hour As Integer = First
+    Sub DownloadNDLAS_2A(DatabasePath As String, DownloadStartDate As DateTime, DownloadEndDate As DateTime, Increment As Integer, BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
+        Using Connection = CreateConnection(DatabasePath, False)
+            Connection.Open()
+            Using Command = Connection.CreateCommand
 
-        'Download NDLAS Files
-        For Hour = First To Last Step Increment
-            Dim Count As Integer = Math.Min(Last - Hour + 1, Increment) - 1
+                'Download NDLAS Files
+                Dim First As Integer = DownloadStartDate.Subtract(NLDAS_2AStartDate).TotalHours
+                Dim Last As Integer = DownloadEndDate.Subtract(NLDAS_2AStartDate).TotalHours
+                Dim Hour As Integer = First
 
-            'Start Asynchronous NLDAS Ftp File Downloads
-            Dim FileDownloads(Count) As Threading.Tasks.Task(Of Byte())  '() As Byte
-            Dim I As Integer = 0
-            For I = 0 To Count
-                Dim RecordDate As DateTime = NLDAS_2AStartDate.AddHours(Hour + I)
-                FileDownloads(I) = Threading.Tasks.Task.Factory.StartNew(Function() DownloadFtpFileToBytes(BuildFtpStringNLDAS_2A(RecordDate)))
-                'FileDownloads(I) = IO.File.ReadAllBytes("F:\NLDAS-2\" & RecordDate.Year & "\" & IO.Path.GetFileName(BuildFtpStringNLDAS_2A(RecordDate)))
-            Next
-            Threading.Tasks.Task.WaitAll(FileDownloads)
+                For Hour = First To Last Step Increment
+                    Dim Count As Integer = Math.Min(Last - Hour + 1, Increment) - 1
 
-            'Add Raster File and Associated Time Stamp into Database
-            Using Transaction = Connection.BeginTransaction
-                For I = 0 To Count
-                    Command.CommandText = "INSERT OR REPLACE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
-                    Command.Parameters.Add("@Date", DbType.DateTime).Value = NLDAS_2AStartDate.AddHours(Hour + I)
-                    Command.Parameters.Add("@Image", DbType.Object).Value = FileDownloads(I).Result
-                    Command.ExecuteNonQuery()
+                    'Start Asynchronous NLDAS Ftp File Downloads
+                    Dim FileDownloads(Count) As Threading.Tasks.Task(Of Byte())  '() As Byte
+                    Dim I As Integer = 0
+                    For I = 0 To Count
+                        Dim RecordDate As DateTime = NLDAS_2AStartDate.AddHours(Hour + I)
+                        FileDownloads(I) = Threading.Tasks.Task.Factory.StartNew(Function() DownloadFtpFileToBytes(BuildFtpStringNLDAS_2A(RecordDate)))
+                        'FileDownloads(I) = IO.File.ReadAllBytes("F:\NLDAS-2\" & RecordDate.Year & "\" & IO.Path.GetFileName(BuildFtpStringNLDAS_2A(RecordDate)))
+                    Next
+                    Threading.Tasks.Task.WaitAll(FileDownloads)
+
+                    'Add Raster File and Associated Time Stamp into Database
+                    If 1 = 2 Then
+                        Using Transaction = Connection.BeginTransaction
+                            For I = 0 To Count
+                                Command.CommandText = "INSERT OR REPLACE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
+                                Command.Parameters.Add("@Date", DbType.DateTime).Value = NLDAS_2AStartDate.AddHours(Hour + I)
+                                Command.Parameters.Add("@Image", DbType.Object).Value = FileDownloads(I).Result
+                                Command.ExecuteNonQuery()
+                            Next
+
+                            Transaction.Commit()
+                        End Using
+                    End If
+
+                    BackgroundWorker.ReportProgress(0, "Downloading...")
+                    If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
                 Next
 
-                Transaction.Commit()
             End Using
-
-            BackgroundWorker.ReportProgress(0, "Downloading...")
-            If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
-        Next
+        End Using
 
         DownloadNLDAS_2ATopography()
     End Sub

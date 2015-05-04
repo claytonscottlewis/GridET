@@ -143,6 +143,12 @@
     <Compile Include="Forms\Calculate Raster Period Average.vb">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\Process Scheduler.Designer.vb">
+      <DependentUpon>Process Scheduler.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\Process Scheduler.vb">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Forms\Extract by Polygon.Designer.vb">
       <DependentUpon>Extract by Polygon.vb</DependentUpon>
     </Compile>
@@ -231,6 +237,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\Calculate Raster Period Average.resx">
       <DependentUpon>Calculate Raster Period Average.vb</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\Process Scheduler.resx">
+      <DependentUpon>Process Scheduler.vb</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\Extract by Polygon.resx">
       <DependentUpon>Extract by Polygon.vb</DependentUpon>

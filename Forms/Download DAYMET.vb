@@ -2,8 +2,6 @@
 
 #Region "Dates"
 
-    Private Connection As System.Data.SQLite.SQLiteConnection
-    Private Command As System.Data.SQLite.SQLiteCommand
     Private DateFormat As String = "MMMM dd, yyyy"
     Private ParameterStartDate As DateTime = Nothing
     Private ParameterEndDate As DateTime = Nothing
@@ -16,69 +14,72 @@
         If IO.Directory.Exists(ClimateModelDirectory) Then
             DatesGroup.Enabled = True
 
-            Connection = CreateConnection(DAYMETRastersPath, False)
-            Connection.Open()
+            Using Connection = CreateConnection(DAYMETRastersPath, False)
+                Connection.Open()
 
-            Command = Connection.CreateCommand
-            Command.CommandText = "CREATE TABLE IF NOT EXISTS Rasters (Date NUMERIC UNIQUE, Image BLOB)"
-            Command.ExecuteNonQuery()
+                Using Command = Connection.CreateCommand
+                    Command.CommandText = "CREATE TABLE IF NOT EXISTS Rasters (Date NUMERIC UNIQUE, Image BLOB)"
+                    Command.ExecuteNonQuery()
 
-            'Determine DAYMET Date Span for Download
-            Dim Files = DownloadFtpDirectory(BuildFtpStringDAYMET())
-            Dim Variables As New List(Of String)
-            Dim MaxYear As Integer = DAYMETStartDate.Year
+                    'Determine DAYMET Date Span for Download
+                    Dim Files = DownloadFtpDirectory(BuildFtpStringDAYMET())
+                    Dim Variables As New List(Of String)
+                    Dim MaxYear As Integer = DAYMETStartDate.Year
 
-            For Each File In Files
-                If Not File = "" Then
-                    Dim Parts = File.Replace(".nc4", "").Split("_")
+                    For Each File In Files
+                        If Not File = "" Then
+                            Dim Parts = File.Replace(".nc4", "").Split("_")
 
-                    If Not Variables.Contains(Parts(0)) Then Variables.Add(Parts(0))
-                    If Parts(1) > MaxYear Then MaxYear = Parts(1)
-                End If
-            Next
+                            If Not Variables.Contains(Parts(0)) Then Variables.Add(Parts(0))
+                            If Parts(1) > MaxYear Then MaxYear = Parts(1)
+                        End If
+                    Next
 
-            Me.Variables = Variables.ToArray
-            Dim ModelEndDate = New DateTime(MaxYear, 12, 31).AddHours(13)
+                    Me.Variables = Variables.ToArray
+                    Dim ModelEndDate = New DateTime(MaxYear, 12, 31).AddHours(13)
 
-            WebsiteStartDate.Text = DAYMETStartDate.ToString(DateFormat)
-            WebsiteEndDate.Text = ModelEndDate.ToString(DateFormat)
+                    WebsiteStartDate.Text = DAYMETStartDate.ToString(DateFormat)
+                    WebsiteEndDate.Text = ModelEndDate.ToString(DateFormat)
 
-            Command.CommandText = "SELECT MIN(Date) FROM Rasters"
-            Dim Value = Command.ExecuteScalar
-            ParameterStartDate = DAYMETStartDate
-            If Not IsDBNull(Value) Then ParameterStartDate = CDate(Value)
+                    Command.CommandText = "SELECT MIN(Date) FROM Rasters"
+                    Dim Value = Command.ExecuteScalar
+                    ParameterStartDate = DAYMETStartDate
+                    If Not IsDBNull(Value) Then ParameterStartDate = CDate(Value)
 
-            Command.CommandText = "SELECT MAX(Date) FROM Rasters"
-            Value = Command.ExecuteScalar
-            ParameterEndDate = DAYMETStartDate
-            If Not IsDBNull(Value) Then ParameterEndDate = CDate(Value)
+                    Command.CommandText = "SELECT MAX(Date) FROM Rasters"
+                    Value = Command.ExecuteScalar
+                    ParameterEndDate = DAYMETStartDate
+                    If Not IsDBNull(Value) Then ParameterEndDate = CDate(Value)
 
-            If IsDBNull(Value) Then
-                LocalStartDate.Text = "-"
-                LocalEndDate.Text = "-"
-            Else
-                LocalStartDate.Text = ParameterStartDate.ToString(DateFormat)
-                LocalEndDate.Text = ParameterEndDate.ToString(DateFormat)
-            End If
+                    If IsDBNull(Value) Then
+                        LocalStartDate.Text = "-"
+                        LocalEndDate.Text = "-"
+                    Else
+                        LocalStartDate.Text = ParameterStartDate.ToString(DateFormat)
+                        LocalEndDate.Text = ParameterEndDate.ToString(DateFormat)
+                    End If
 
-            DownloadStartDate.MinDate = DAYMETStartDate
-            DownloadStartDate.MaxDate = ModelEndDate
-            DownloadEndDate.MinDate = DAYMETStartDate
-            DownloadEndDate.MaxDate = ModelEndDate
+                    DownloadStartDate.MinDate = DAYMETStartDate
+                    DownloadStartDate.MaxDate = ModelEndDate
+                    DownloadEndDate.MinDate = DAYMETStartDate
+                    DownloadEndDate.MaxDate = ModelEndDate
 
-            If ParameterEndDate = ModelEndDate Then
-                DownloadStartDate.Value = ParameterEndDate
-                DownloadEndDate.Value = ParameterEndDate
+                    If ParameterEndDate = ModelEndDate Then
+                        DownloadStartDate.Value = ParameterEndDate
+                        DownloadEndDate.Value = ParameterEndDate
 
-                ProgressText.Text = "Dataset is up-to-date."
-                ProgressText.Visible = True
-            ElseIf IsDBNull(Value) Then
-                DownloadStartDate.Value = ParameterEndDate
-                DownloadEndDate.Value = ModelEndDate
-            Else
-                DownloadStartDate.Value = ParameterEndDate.AddDays(1)
-                DownloadEndDate.Value = ModelEndDate
-            End If
+                        ProgressText.Text = "Dataset is up-to-date."
+                        ProgressText.Visible = True
+                    ElseIf IsDBNull(Value) Then
+                        DownloadStartDate.Value = ParameterEndDate
+                        DownloadEndDate.Value = ModelEndDate
+                    Else
+                        DownloadStartDate.Value = ParameterEndDate.AddDays(1)
+                        DownloadEndDate.Value = ModelEndDate
+                    End If
+
+                End Using
+            End Using
         Else
             DatesGroup.Enabled = False
             DownloadButton.Enabled = False
@@ -88,11 +89,6 @@
     Private Sub Form_Closing(sender As Object, e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
         e.Cancel = BackgroundWorker.IsBusy
         Cancel_Button_Click(Nothing, Nothing)
-    End Sub
-
-    Private Sub Form_FormClosed(sender As Object, e As System.Windows.Forms.FormClosedEventArgs) Handles Me.FormClosed
-        If Not Command Is Nothing Then Command.Dispose()
-        If Not Connection Is Nothing Then Connection.Dispose()
     End Sub
 
     Private Sub DownloadButton_Click(sender As System.Object, e As System.EventArgs) Handles DownloadButton.Click
@@ -155,7 +151,7 @@
     Private Variables() As String
 
     Private Sub BackgroundWorker_DoWork(sender As System.Object, e As System.ComponentModel.DoWorkEventArgs) Handles BackgroundWorker.DoWork
-        If DownloadStartDate.Value < DownloadEndDate.Value Then DownloadDAYMET(DownloadStartDate.Value, DownloadEndDate.Value, Variables(1), Connection, Command, BackgroundWorker, e)
+        If DownloadStartDate.Value < DownloadEndDate.Value Then DownloadDAYMET(DAYMETRastersPath, DownloadStartDate.Value, DownloadEndDate.Value, Variables(1), BackgroundWorker, e)
     End Sub
 
     Private Sub BackgroundWorker_ProgressChanged(sender As Object, e As System.ComponentModel.ProgressChangedEventArgs) Handles BackgroundWorker.ProgressChanged
@@ -183,6 +179,42 @@
         DownloadButton.Enabled = True
         DownloadButton.Text = "OK"
         Cancel_Button.Enabled = False
+    End Sub
+
+#End Region
+
+#Region "Process Scheduling"
+
+    Public ReadOnly Property Progress
+        Get
+            Me.Update()
+            Return New ProgressValues(ProgressText.Text, ProgressBar.Minimum, ProgressBar.Maximum, ProgressBar.Value)
+        End Get
+    End Property
+
+    WithEvents ProcessTimer As Timer
+
+    Public Sub LoadScheduledProcess()
+        Form_Load(Nothing, Nothing)
+    End Sub
+
+    Public Sub RunScheduledProcess()
+        DownloadButton_Click(Nothing, Nothing)
+
+        ProcessTimer = New Timer With {.Interval = 1000}
+        ProcessTimer.Start()
+    End Sub
+
+    Public Sub CancelScheduledProcess()
+        Cancel_Button_Click(Nothing, Nothing)
+    End Sub
+
+    Private Sub ProcessTimer_Tick(sender As Object, e As System.EventArgs) Handles ProcessTimer.Tick
+        ProcessTimerContinue()
+    End Sub
+
+    Private Sub ProcessTimerContinue()
+        If BackgroundWorker.IsBusy Then ProcessTimer.Start()
     End Sub
 
 #End Region

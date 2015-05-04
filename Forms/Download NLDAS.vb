@@ -2,8 +2,6 @@
 
 #Region "Dates"
 
-    Private Connection As System.Data.SQLite.SQLiteConnection
-    Private Command As System.Data.SQLite.SQLiteCommand
     Private DateFormat As String = "MMMM dd, yyyy"
     Private ParameterStartDate As DateTime = Nothing
     Private ParameterEndDate As DateTime = Nothing
@@ -16,82 +14,85 @@
         If IO.Directory.Exists(ClimateModelDirectory) Then
             DatesGroup.Enabled = True
 
-            Connection = CreateConnection(NLDAS_2ARastersPath, False)
-            Connection.Open()
+            Using Connection = CreateConnection(NLDAS_2ARastersPath, False)
+                Connection.Open()
 
-            Command = Connection.CreateCommand
-            Command.CommandText = "CREATE TABLE IF NOT EXISTS Rasters (Date NUMERIC UNIQUE, Image BLOB)"
-            Command.ExecuteNonQuery()
+                Using Command = Connection.CreateCommand
+                    Command.CommandText = "CREATE TABLE IF NOT EXISTS Rasters (Date NUMERIC UNIQUE, Image BLOB)"
+                    Command.ExecuteNonQuery()
 
-            'Determine NLDAS Date Span for Download
-            Dim Years = DownloadFtpDirectory(BuildFtpStringNLDAS_2A(NLDAS_2AStartDate, 1))
-            Dim MaxYear As Integer = NLDAS_2AStartDate.Year
-            For Each Yr In Years
-                If IsNumeric(Yr) Then If Yr > MaxYear Then MaxYear = Yr
-            Next
+                    'Determine NLDAS Date Span for Download
+                    Dim Years = DownloadFtpDirectory(BuildFtpStringNLDAS_2A(NLDAS_2AStartDate, 1))
+                    Dim MaxYear As Integer = NLDAS_2AStartDate.Year
+                    For Each Yr In Years
+                        If IsNumeric(Yr) Then If Yr > MaxYear Then MaxYear = Yr
+                    Next
 
-            Dim DaysOfYear = DownloadFtpDirectory(BuildFtpStringNLDAS_2A(New DateTime(MaxYear, 1, 1), 2))
-            Dim MaxDayOfYear As Integer = 0
-            For Each DoY In DaysOfYear
-                If IsNumeric(DoY) Then If DoY > MaxDayOfYear Then MaxDayOfYear = DoY
-            Next
+                    Dim DaysOfYear = DownloadFtpDirectory(BuildFtpStringNLDAS_2A(New DateTime(MaxYear, 1, 1), 2))
+                    Dim MaxDayOfYear As Integer = 0
+                    For Each DoY In DaysOfYear
+                        If IsNumeric(DoY) Then If DoY > MaxDayOfYear Then MaxDayOfYear = DoY
+                    Next
 
-            Dim Hours = DownloadFtpDirectory(BuildFtpStringNLDAS_2A(New DateTime(MaxYear - 1, 12, 31).AddDays(MaxDayOfYear), 3))
-            Dim MaxHour As Integer = 0
-            For Each Hr In Hours
-                Dim FileName = Hr.Split(".")
-                If FileName.Length > 1 Then If FileName(2) > MaxHour Then MaxHour = FileName(2)
-            Next
-            MaxHour /= 100
-            Dim ModelEndDate = New DateTime(MaxYear - 1, 12, 31).AddDays(MaxDayOfYear).AddHours(-MaxHour)
+                    Dim Hours = DownloadFtpDirectory(BuildFtpStringNLDAS_2A(New DateTime(MaxYear - 1, 12, 31).AddDays(MaxDayOfYear), 3))
+                    Dim MaxHour As Integer = 0
+                    For Each Hr In Hours
+                        Dim FileName = Hr.Split(".")
+                        If FileName.Length > 1 Then If FileName(2) > MaxHour Then MaxHour = FileName(2)
+                    Next
+                    MaxHour /= 100
+                    Dim ModelEndDate = New DateTime(MaxYear - 1, 12, 31).AddDays(MaxDayOfYear).AddHours(-MaxHour)
 
-            WebsiteStartDate.Text = NLDAS_2AStartDate.ToString(DateFormat)
-            WebsiteEndDate.Text = ModelEndDate.ToString(DateFormat)
+                    WebsiteStartDate.Text = NLDAS_2AStartDate.ToString(DateFormat)
+                    WebsiteEndDate.Text = ModelEndDate.ToString(DateFormat)
 
-            Command.CommandText = "SELECT MIN(Date) FROM Rasters"
-            Dim Value = Command.ExecuteScalar
-            ParameterStartDate = NLDAS_2AStartDate
-            If Not IsDBNull(Value) Then ParameterStartDate = CDate(Value)
+                    Command.CommandText = "SELECT MIN(Date) FROM Rasters"
+                    Dim Value = Command.ExecuteScalar
+                    ParameterStartDate = NLDAS_2AStartDate
+                    If Not IsDBNull(Value) Then ParameterStartDate = CDate(Value)
 
-            Command.CommandText = "SELECT MAX(Date) FROM Rasters"
-            Value = Command.ExecuteScalar
-            ParameterEndDate = NLDAS_2AStartDate
-            If Not IsDBNull(Value) Then
-                ParameterEndDate = CDate(Value)
-                If ParameterEndDate.Hour <> 12 Then
-                    ParameterEndDate = ParameterEndDate.AddDays(-2)
-                    If ParameterEndDate < NLDAS_2AStartDate Then ParameterEndDate = NLDAS_2AStartDate.AddHours(-2)
-                Else
-                    ParameterEndDate = ParameterEndDate.AddDays(-1)
-                End If
-            End If
+                    Command.CommandText = "SELECT MAX(Date) FROM Rasters"
+                    Value = Command.ExecuteScalar
+                    ParameterEndDate = NLDAS_2AStartDate
+                    If Not IsDBNull(Value) Then
+                        ParameterEndDate = CDate(Value)
+                        If ParameterEndDate.Hour <> 12 Then
+                            ParameterEndDate = ParameterEndDate.AddDays(-2)
+                            If ParameterEndDate < NLDAS_2AStartDate Then ParameterEndDate = NLDAS_2AStartDate.AddHours(-2)
+                        Else
+                            ParameterEndDate = ParameterEndDate.AddDays(-1)
+                        End If
+                    End If
 
-            If IsDBNull(Value) Or ParameterEndDate.Subtract(ParameterStartDate).TotalHours < -1 Then
-                LocalStartDate.Text = "-"
-                LocalEndDate.Text = "-"
-            Else
-                LocalStartDate.Text = ParameterStartDate.ToString(DateFormat)
-                LocalEndDate.Text = ParameterEndDate.ToString(DateFormat)
-            End If
+                    If IsDBNull(Value) Or ParameterEndDate.Subtract(ParameterStartDate).TotalHours < -1 Then
+                        LocalStartDate.Text = "-"
+                        LocalEndDate.Text = "-"
+                    Else
+                        LocalStartDate.Text = ParameterStartDate.ToString(DateFormat)
+                        LocalEndDate.Text = ParameterEndDate.ToString(DateFormat)
+                    End If
 
-            DownloadStartDate.MinDate = NLDAS_2AStartDate
-            DownloadStartDate.MaxDate = ModelEndDate
-            DownloadEndDate.MinDate = NLDAS_2AStartDate
-            DownloadEndDate.MaxDate = ModelEndDate
+                    DownloadStartDate.MinDate = NLDAS_2AStartDate
+                    DownloadStartDate.MaxDate = ModelEndDate
+                    DownloadEndDate.MinDate = NLDAS_2AStartDate
+                    DownloadEndDate.MaxDate = ModelEndDate
 
-            If ParameterEndDate = ModelEndDate Then
-                DownloadStartDate.Value = ParameterEndDate
-                DownloadEndDate.Value = ParameterEndDate
+                    If ParameterEndDate = ModelEndDate Then
+                        DownloadStartDate.Value = ParameterEndDate
+                        DownloadEndDate.Value = ParameterEndDate
 
-                ProgressText.Text = "Dataset is up-to-date."
-                ProgressText.Visible = True
-            ElseIf IsDBNull(Value) Or ParameterEndDate.Subtract(ParameterStartDate).TotalHours < -1 Then
-                DownloadStartDate.Value = ParameterEndDate.Date.AddHours(13)
-                DownloadEndDate.Value = ModelEndDate
-            Else
-                DownloadStartDate.Value = ParameterEndDate.AddHours(24)
-                DownloadEndDate.Value = ModelEndDate
-            End If
+                        ProgressText.Text = "Dataset is up-to-date."
+                        ProgressText.Visible = True
+                    ElseIf IsDBNull(Value) Or ParameterEndDate.Subtract(ParameterStartDate).TotalHours < -1 Then
+                        DownloadStartDate.Value = ParameterEndDate.Date.AddHours(13)
+                        DownloadEndDate.Value = ModelEndDate
+                    Else
+                        DownloadStartDate.Value = ParameterEndDate.AddHours(24)
+                        DownloadEndDate.Value = ModelEndDate
+                    End If
+
+                End Using
+            End Using
         Else
             DatesGroup.Enabled = False
             DownloadButton.Enabled = False
@@ -101,11 +102,6 @@
     Private Sub Form_Closing(sender As Object, e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
         e.Cancel = BackgroundWorker.IsBusy
         Cancel_Button_Click(Nothing, Nothing)
-    End Sub
-
-    Private Sub Form_FormClosed(sender As Object, e As System.Windows.Forms.FormClosedEventArgs) Handles Me.FormClosed
-        If Not Command Is Nothing Then Command.Dispose()
-        If Not Connection Is Nothing Then Connection.Dispose()
     End Sub
 
     Private Sub DownloadButton_Click(sender As System.Object, e As System.EventArgs) Handles DownloadButton.Click
@@ -163,7 +159,7 @@
 
 #Region "Background Execution"
 
-    WithEvents BackgroundWorker As New System.ComponentModel.BackgroundWorker
+    Public WithEvents BackgroundWorker As New System.ComponentModel.BackgroundWorker
     Private Timer As Stopwatch
     Private DownloadCount As Integer = 8
 
@@ -171,7 +167,7 @@
         Dim StartDate = New DateTime(DownloadStartDate.Value.Year, DownloadStartDate.Value.Month, DownloadStartDate.Value.Day).AddHours(13)
         Dim EndDate = New DateTime(DownloadEndDate.Value.Year, DownloadEndDate.Value.Month, DownloadEndDate.Value.Day).AddDays(1).AddHours(12)
 
-        If StartDate < EndDate Then DownloadNDLAS_2A(StartDate, EndDate, DownloadCount, Connection, Command, BackgroundWorker, e)
+        If StartDate < EndDate Then DownloadNDLAS_2A(NLDAS_2ARastersPath, StartDate, EndDate, DownloadCount, BackgroundWorker, e)
     End Sub
 
     Private Sub BackgroundWorker_ProgressChanged(sender As Object, e As System.ComponentModel.ProgressChangedEventArgs) Handles BackgroundWorker.ProgressChanged
@@ -203,4 +199,41 @@
 
 #End Region
 
+#Region "Process Scheduling"
+
+    Public ReadOnly Property Progress
+        Get
+            Me.Update()
+            Return New ProgressValues(ProgressText.Text, ProgressBar.Minimum, ProgressBar.Maximum, ProgressBar.Value)
+        End Get
+    End Property
+
+    WithEvents ProcessTimer As Timer
+
+    Public Sub LoadScheduledProcess()
+        Form_Load(Nothing, Nothing)
+    End Sub
+
+    Public Sub RunScheduledProcess()
+        DownloadButton_Click(Nothing, Nothing)
+
+        ProcessTimer = New Timer With {.Interval = 1000}
+        ProcessTimer.Start()
+    End Sub
+
+    Public Sub CancelScheduledProcess()
+        Cancel_Button_Click(Nothing, Nothing)
+    End Sub
+
+    Private Sub ProcessTimer_Tick(sender As Object, e As System.EventArgs) Handles ProcessTimer.Tick
+        If BackgroundWorker.IsBusy Then ProcessTimerContinue()
+    End Sub
+
+    Private Sub ProcessTimerContinue()
+        If BackgroundWorker.IsBusy Then ProcessTimer.Start()
+    End Sub
+
+#End Region
+
+  
 End Class
