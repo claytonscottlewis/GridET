@@ -114,15 +114,13 @@
     End Sub
 
     Private Sub DateTimePicker_PreviewKeyDown(sender As DateTimePicker, e As System.Windows.Forms.PreviewKeyDownEventArgs) Handles CalculationStartDate.PreviewKeyDown, CalculationEndDate.PreviewKeyDown
-        sender.Value = New DateTime(sender.Value.Year, sender.Value.Month, 1)
+            sender.Value = New DateTime(sender.Value.Year, sender.Value.Month, 1)
     End Sub
 
     Private Sub DateTimePicker_ValueChanged(sender As Object, e As System.EventArgs) Handles CalculationStartDate.ValueChanged, CalculationEndDate.ValueChanged
-        If sender Is CalculationStartDate Then
-            sender.Value = New DateTime(sender.Value.Year, sender.Value.Month, 1)
-        Else
-            sender.Value = New DateTime(sender.Value.Year, sender.Value.Month, DateTime.DaysInMonth(sender.Value.Year, sender.Value.Month))
-        End If
+        sender.Value = New DateTime(sender.Value.Year, sender.Value.Month, 1)
+
+        If CalculationStartDate.Value > CalculationEndDate.Value Then CalculationStartDate.Value = CalculationEndDate.Value
     End Sub
 
     Private Sub PrecipitationDataset_TextChanged(sender As Object, e As System.EventArgs) Handles PrecipitationDataset.TextChanged
@@ -161,7 +159,7 @@
                 CalculationEndDate.MinDate = MinDateStatistics
                 CalculationEndDate.MaxDate = MaxDateStatistics
 
-                If MaxDateNet <> DateTime.MaxValue Then
+                If MaxDateNet <> DateTime.MaxValue And MaxDateNet >= MinDateNet Then
                     PreviousCalculationStartDate.Text = MinDateNet.ToString(DateFormat)
                     PreviousCalculationEndDate.Text = MaxDateNet.ToString(DateFormat)
 
@@ -274,16 +272,15 @@
     Private CoverEffectivePrecipitation As New List(Of EffectivePrecipitationType)
 
     Private Sub BackgroundWorker_DoWork(sender As System.Object, e As System.ComponentModel.DoWorkEventArgs) Handles BackgroundWorker.DoWork
-        CalculateNetPotentialEvapotranspiration(CoverPaths.ToArray, CoverEffectivePrecipitation.ToArray, PrecipitationPath, CalculationStartDate.Value, CalculationEndDate.Value, BackgroundWorker, e)
+        CalculateNetPotentialEvapotranspiration(CoverPaths.ToArray, CoverEffectivePrecipitation.ToArray, PrecipitationPath, CalculationStartDate.Value, New DateTime(CalculationEndDate.Value.Year, CalculationEndDate.Value.Month, DateTime.DaysInMonth(CalculationEndDate.Value.Year, CalculationEndDate.Value.Month)), BackgroundWorker, e)
     End Sub
 
     Private Sub BackgroundWorker_ProgressChanged(sender As Object, e As System.ComponentModel.ProgressChangedEventArgs) Handles BackgroundWorker.ProgressChanged
-        If ProgressBar.Maximum - ProgressBar.Value > 1 Then
-            Dim Timespan As TimeSpan = New TimeSpan(Timer.Elapsed.Ticks / (ProgressBar.Value + 1) * (ProgressBar.Maximum - ProgressBar.Value - 1))
+        If ProgressBar.Value < ProgressBar.Maximum Then
+            ProgressBar.Value += 1
+            Dim Timespan As TimeSpan = New TimeSpan(Timer.Elapsed.Ticks * (ProgressBar.Maximum / ProgressBar.Value - 1))
             ProgressText.Text = String.Format("Estimated time remaining...({0})", Timespan.ToString("d\.hh\:mm\:ss"))
         End If
-
-        If ProgressBar.Value < ProgressBar.Maximum Then ProgressBar.Value += 1
     End Sub
 
     Private Sub BackgroundWorker_RunWorkerCompleted(sender As Object, e As System.ComponentModel.RunWorkerCompletedEventArgs) Handles BackgroundWorker.RunWorkerCompleted

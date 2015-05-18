@@ -22,9 +22,11 @@
 
         SetFormLabel()
 
-        ProjectDirectory = "F:\Temporary Project\Test\" '"F:\UtahET 2.0\Utah-Third Mile" 
-        ClimateModelDirectory = "F:\UtahET 2.0\Data Sources\"
-        SetFormLabel()
+        'ProjectDirectory = "F:\GridET Project\Example Project" '"F:\UtahET 2.0\Utah-Third Mile" 
+        'ClimateModelDirectory = "F:\UtahET 2.0\Data Sources\"
+        'SetFormLabel()
+
+        'NetPotentialToolStripMenuItem_Click(Nothing, Nothing)
     End Sub
 
 #End Region
@@ -135,36 +137,40 @@
     End Sub
 
     Private Sub ImportToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles ImportToolStripMenuItem.Click
-        Dim FolderBrowserDialog As New FolderBrowserDialog
-        FolderBrowserDialog.Description = "Import cover and curve project location..."
+        If IO.File.Exists(ProjectDetailsPath) Then
+            Dim FolderBrowserDialog As New FolderBrowserDialog
+            FolderBrowserDialog.Description = "Import cover and curve project location..."
 
-        If Not FolderBrowserDialog.ShowDialog = Windows.Forms.DialogResult.OK Then Exit Sub
+            If Not FolderBrowserDialog.ShowDialog = Windows.Forms.DialogResult.OK Then Exit Sub
 
-        Dim Path = IO.Path.Combine(FolderBrowserDialog.SelectedPath, "Project Details.db")
+            Dim Path = IO.Path.Combine(FolderBrowserDialog.SelectedPath, "Project Details.db")
 
-        If Not IO.File.Exists(Path) Then
-            MsgBox("Not a valid project directory.")
-            Exit Sub
-        Else
-            Try
-                'Open Database
-                Using Connection = CreateConnection(Path, False)
-                    Connection.Open()
-
-                    Using Command = Connection.CreateCommand
-                        Command.CommandText = String.Format("ATTACH DATABASE '{0}' AS 'CurrentDatabase'", ProjectDetailsPath)
-                        Command.ExecuteNonQuery()
-
-                        Command.CommandText = "INSERT OR REPLACE INTO CurrentDatabase.Curve SELECT * FROM main.Curve; INSERT OR REPLACE INTO CurrentDatabase.Cover SELECT * FROM main.Cover"
-                        Command.ExecuteNonQuery()
-                    End Using
-                End Using
-
-                MsgBox("Import succeeded.")
-            Catch
+            If Not IO.File.Exists(Path) Then
                 MsgBox("Not a valid project directory.")
                 Exit Sub
-            End Try
+            Else
+                Try
+                    'Open Database
+                    Using Connection = CreateConnection(Path, False)
+                        Connection.Open()
+
+                        Using Command = Connection.CreateCommand
+                            Command.CommandText = String.Format("ATTACH DATABASE '{0}' AS 'CurrentDatabase'", ProjectDetailsPath)
+                            Command.ExecuteNonQuery()
+
+                            Command.CommandText = "INSERT OR REPLACE INTO CurrentDatabase.Curve SELECT * FROM main.Curve; INSERT OR REPLACE INTO CurrentDatabase.Cover SELECT * FROM main.Cover"
+                            Command.ExecuteNonQuery()
+                        End Using
+                    End Using
+
+                    MsgBox("Import succeeded.")
+                Catch
+                    MsgBox("Not a valid project directory.")
+                    Exit Sub
+                End Try
+            End If
+        Else
+            MsgBox("Please load or create a new project to import cover and curve properties.")
         End If
     End Sub
 
@@ -221,6 +227,19 @@
 
 #End Region
 
+#Region "Help"
+
+    Private Sub ContentsToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles ContentsToolStripMenuItem.Click
+        Help.ShowHelp(Me, IO.Path.Combine(Application.StartupPath, "Help File\GridET.chm"), HelpNavigator.TableOfContents)
+    End Sub
+
+    Private Sub AboutToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles AboutToolStripMenuItem.Click
+        Dim Form As New About
+        Form.ShowDialog()
+    End Sub
+
+#End Region
+
 #End Region
 
     Sub GetRaster()
@@ -234,7 +253,7 @@
 
                 Dim OutputRaster As New Raster(OutputPath)
                 OutputRaster.Open(GDAL.Access.GA_ReadOnly)
-                Dim RealOutputRaster = CreateNewRaster(OutputPath & ".tif", OutputRaster.XCount, OutputRaster.YCount, OutputRaster.Projection, OutputRaster.GeoTransform, {Single.MinValue})
+                Dim RealOutputRaster = CreateNewRaster(OutputPath & ".tif", OutputRaster, {Single.MinValue})
                 RealOutputRaster.Open(GDAL.Access.GA_Update)
 
                 Dim NoDataValue = OutputRaster.BandNoDataValue(0)
@@ -259,6 +278,72 @@
     End Sub
 
 End Class
+
+'If 1 = 2 Then
+'    'For Each Directory In {InputVariablesDirectory, DateVariablesDirectory, ReferenceEvapotranspirationDirectory}
+'    '    For Each Path In IO.Directory.GetFiles(Directory, "*.db")
+'    Dim Path = NLDAS_2AMeanAirTemperaturePath
+'    Using Con = CreateConnection(Path)
+'        Con.Open()
+'        Using Com = Con.CreateCommand
+'            Dim P = IO.Path.GetFileNameWithoutExtension(Path)
+
+'            Com.CommandText = "SELECT MIN(Year) FROM Statistics"
+'            Dim MinYear = Com.ExecuteScalar
+
+'            Com.CommandText = "SELECT MAX(Year) FROM Statistics"
+'            Dim MaxYear = Com.ExecuteScalar
+
+'            Com.CommandText = "SELECT Count(Date) FROM Rasters"
+'            Dim DayCount = Com.ExecuteScalar
+
+'            Using c = CreateConnection("C:\Users\A00578752\Desktop\Temp.db", False)
+'                c.Open()
+'                Using d = c.CreateCommand
+'                    d.CommandText = String.Format("ATTACH ""{0}"" AS Temp2", Path)
+'                    d.ExecuteNonQuery()
+
+'                    d.CommandText = "CREATE TABLE main.Statistics AS SELECT * FROM Temp2.Statistics"
+'                    d.ExecuteNonQuery()
+'                End Using
+'            End Using
+
+'            If 1 = 2 Then
+'                Com.CommandText = "SELECT Annual FROM Statistics WHERE Year = '1983'"
+'                Dim Path1 = IO.Path.Combine(FileIO.SpecialDirectories.Desktop, "Temp.tif")
+'                IO.File.WriteAllBytes(Path1, Com.ExecuteScalar)
+
+'                Using Raster1 As New Raster(Path1)
+'                    Raster1.Open(GDAL.Access.GA_ReadOnly)
+
+'                    Using Raster2 = CreateNewRaster(IO.Path.Combine(FileIO.SpecialDirectories.Desktop, IO.Path.GetFileNameWithoutExtension(Path) & ".tif"), Raster1.XCount, Raster1.YCount, Raster1.Projection, Raster1.GeoTransform, {Single.MinValue})
+'                        Raster2.Open(GDAL.Access.GA_Update)
+
+'                        Do Until Raster2.BlocksProcessed
+'                            Dim Pixels = Raster1.Read({1})
+
+'                            Dim NoDataValue = Raster1.BandNoDataValue(0)
+'                            For I = 0 To Pixels.Length - 1
+'                                If Pixels(I) = NoDataValue Then Pixels(I) = Single.MinValue
+'                            Next
+
+'                            Raster2.Write({1}, Pixels)
+
+'                            Raster2.AdvanceBlock()
+'                            Raster1.AdvanceBlock()
+'                        Loop
+
+'                    End Using
+
+'                End Using
+
+'                IO.File.Delete(Path1)
+'            End If
+'        End Using
+'    End Using
+'    '    Next
+'    'Next
+'End If
 
 'For Each Directory In IO.Directory.GetDirectories("F:\UtahET 2.0\Extras", "*", IO.SearchOption.TopDirectoryOnly)
 '    For Each ReadDatabasePath In IO.Directory.GetFiles(Directory, "*.db", IO.SearchOption.AllDirectories)

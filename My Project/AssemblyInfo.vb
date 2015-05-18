@@ -9,10 +9,10 @@ Imports System.Runtime.InteropServices
 ' Review the values of the assembly attributes
 
 <Assembly: AssemblyTitle("GridET")> 
-<Assembly: AssemblyDescription("")> 
-<Assembly: AssemblyCompany("")> 
+<Assembly: AssemblyDescription("GridET is opensource software dedicated to raster-based evapotranspiration calculations within the United States.  It was originally developed by Clayton S. Lewis starting in September 2014.")> 
+<Assembly: AssemblyCompany("Community Edition")> 
 <Assembly: AssemblyProduct("GridET")> 
-<Assembly: AssemblyCopyright("Copyright ©  2015")> 
+<Assembly: AssemblyCopyright("License:  Boost 1.0")> 
 <Assembly: AssemblyTrademark("")> 
 
 <Assembly: ComVisible(False)>

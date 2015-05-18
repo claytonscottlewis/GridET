@@ -46,6 +46,12 @@
         Next
 
         CheckAll_Click(Nothing, Nothing)
+
+        If Not IO.File.Exists(ProjectDetailsPath) Then
+            ProcessGroup.Enabled = False
+            TimeGroup.Enabled = False
+            StartButton.Enabled = False
+        End If
     End Sub
 
     Private Sub Process_Scheduler_FormClosing(sender As Object, e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing

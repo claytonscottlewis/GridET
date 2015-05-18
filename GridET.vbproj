@@ -119,6 +119,12 @@
     <Compile Include="Code\Download.vb" />
     <Compile Include="Code\GDALProcess.vb" />
     <Compile Include="Code\Global Variables.vb" />
+    <Compile Include="Forms\About.Designer.vb">
+      <DependentUpon>About.vb</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\About.vb">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Forms\Calculate Potential Evapotranspiration.Designer.vb">
       <DependentUpon>Calculate Potential Evapotranspiration.vb</DependentUpon>
     </Compile>
@@ -226,6 +232,9 @@
     <EmbeddedResource Include="Controls\MapViewer.resx">
       <DependentUpon>MapViewer.vb</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Forms\About.resx">
+      <DependentUpon>About.vb</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Forms\Calculate Potential Evapotranspiration.resx">
       <DependentUpon>Calculate Potential Evapotranspiration.vb</DependentUpon>
     </EmbeddedResource>
@@ -276,236 +285,247 @@
     <None Include="app.config">
       <SubType>Designer</SubType>
     </None>
-    <None Include="Dependencies\GDAL\curl-ca-bundle.crt">
+    <Content Include="Dependencies\GDAL\curl-ca-bundle.crt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\compdcs.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\compdcs.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\coordinate_axis.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\coordinate_axis.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\cubewerx_extra.wkt">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\cubewerx_extra.wkt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\datum_shift.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\datum_shift.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\ecw_cs.wkt">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\ecw_cs.wkt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\ellipsoid.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\ellipsoid.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\epsg.wkt">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\epsg.wkt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\esri_extra.wkt">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\esri_extra.wkt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\esri_StatePlane_extra.wkt">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\esri_StatePlane_extra.wkt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\esri_Wisconsin_extra.wkt">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\esri_Wisconsin_extra.wkt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\gcs.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\gcs.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\gcs.override.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\gcs.override.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\gdal_datum.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\gdal_datum.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\geoccs.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\geoccs.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\gt_datum.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\gt_datum.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\gt_ellips.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\gt_ellips.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\header.dxf">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\header.dxf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\inspire_cp_BasicPropertyUnit.gfs">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\inspire_cp_BasicPropertyUnit.gfs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\inspire_cp_CadastralBoundary.gfs">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\inspire_cp_CadastralBoundary.gfs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\inspire_cp_CadastralParcel.gfs">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\inspire_cp_CadastralParcel.gfs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\inspire_cp_CadastralZoning.gfs">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\inspire_cp_CadastralZoning.gfs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\nitf_spec.xsd">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\nitf_spec.xsd">
       <SubType>Designer</SubType>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\ogrvrt.xsd">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\ogrvrt.xsd">
       <SubType>Designer</SubType>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\osmconf.ini">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\osmconf.ini">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\ozi_datum.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\ozi_datum.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\ozi_ellips.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\ozi_ellips.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\pcs.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\pcs.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\pcs.override.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\pcs.override.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\prime_meridian.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\prime_meridian.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\projop_wparm.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\projop_wparm.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\ruian_vf_ob_v1.gfs">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\ruian_vf_ob_v1.gfs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\ruian_vf_st_uvoh_v1.gfs">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\ruian_vf_st_uvoh_v1.gfs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\ruian_vf_st_v1.gfs">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\ruian_vf_st_v1.gfs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\ruian_vf_v1.gfs">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\ruian_vf_v1.gfs">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\s57agencies.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\s57agencies.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\s57attributes.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\s57attributes.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\s57attributes_aml.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\s57attributes_aml.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\s57attributes_iw.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\s57attributes_iw.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\s57expectedinput.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\s57expectedinput.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\s57objectclasses.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\s57objectclasses.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\s57objectclasses_aml.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\s57objectclasses_aml.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\s57objectclasses_iw.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\s57objectclasses_iw.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\seed_2d.dgn">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\seed_2d.dgn">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\seed_3d.dgn">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\seed_3d.dgn">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\stateplane.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\stateplane.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\trailer.dxf">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\trailer.dxf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\unit_of_measure.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\unit_of_measure.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\vertcs.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\vertcs.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Data\vertcs.override.csv">
+    </Content>
+    <Content Include="Dependencies\GDAL\Data\vertcs.override.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\alaska">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\alaska">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\conus">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\conus">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\epsg">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\epsg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\esri">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\esri">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\esri.extra">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\esri.extra">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\GL27">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\GL27">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\hawaii">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\hawaii">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\IGNF">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\IGNF">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\MD">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\MD">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\nad27">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\nad27">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\nad83">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\nad83">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\ntf_r93.gsb">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\ntf_r93.gsb">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\ntv1_can.dat">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\ntv1_can.dat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\null">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\null">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\nzgd2kgrid0005.gsb">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\nzgd2kgrid0005.gsb">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\other.extra">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\other.extra">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\proj_def.dat">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\proj_def.dat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\prvi">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\prvi">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\stgeorge">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\stgeorge">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\stlrnc">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\stlrnc">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\stpaul">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\stpaul">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\TN">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\TN">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\WI">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\WI">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\WO">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\WO">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\GDAL\Projections\world">
+    </Content>
+    <Content Include="Dependencies\GDAL\Projections\world">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Dependencies\SQLite\System.Data.SQLite.dll.config">
+    </Content>
+    <Content Include="Dependencies\SQLite\System.Data.SQLite.dll.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    </Content>
+    <None Include="Help File\GridET License.rtf" />
+    <None Include="Help File\GridET Manual Cover.docx" />
+    <None Include="Help File\GridET Manual.docx" />
+    <Content Include="Help File\GridET.chm">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <None Include="Help File\NuHelp v2014.10.10\NuHelp.exe.config" />
+    <None Include="Help File\NuHelp v2014.10.10\NüHelp.chm" />
+    <None Include="Help File\NuHelp v2014.10.10\NüHelp.docx" />
+    <None Include="Help File\NuHelp v2014.10.10\QuickGuide.chm" />
+    <None Include="Help File\NuHelp v2014.10.10\QuickGuide.docx" />
     <None Include="My Project\app.manifest" />
     <None Include="My Project\Application.myapp">
       <Generator>MyApplicationCodeGenerator</Generator>
@@ -921,6 +941,192 @@
     <Content Include="Dependencies\SQLite\System.Data.SQLite.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <None Include="Help File\GridET.cs" />
+    <Content Include="Help File\GridET_files\image001.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image002.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image003.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image004.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image005.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image006.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image007.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image008.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image009.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image010.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image011.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image012.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image013.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image014.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image015.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image016.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image017.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image018.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image019.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image020.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image021.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image022.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image023.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image024.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image025.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image026.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image027.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image028.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image029.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image030.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image031.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image032.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image033.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image034.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image035.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image036.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image037.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image038.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image039.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image040.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image041.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image042.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image043.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image044.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image045.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image046.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image047.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image048.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image049.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image050.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image051.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image052.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image053.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image054.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image055.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image056.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image057.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image058.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image059.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help File\GridET_files\image060.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <None Include="Help File\NuHelp v2014.10.10\htmlhelp.exe" />
+    <None Include="Help File\NuHelp v2014.10.10\htmlhelp.exe.txt" />
+    <None Include="Help File\NuHelp v2014.10.10\NuHelp.exe" />
+    <None Include="Help File\NuHelp v2014.10.10\NuHelp.pdb" />
+    <None Include="Help File\NuHelp v2014.10.10\Readme_Release_Notes.txt" />
     <None Include="Images\GridET.ico" />
   </ItemGroup>
   <ItemGroup />

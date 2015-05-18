@@ -38,15 +38,20 @@
 
         If Not OpenFileDialog.ShowDialog = Windows.Forms.DialogResult.OK Then Exit Sub
 
-        Using Datasource = OGR.Ogr.OpenShared(OpenFileDialog.FileName, False)
-            If Datasource Is Nothing Then
-                MsgBox(String.Format("'{0}' not recognized as a supported file format.", OpenFileDialog.FileName))
-                MaskDatasetPath.Text = ""
-            Else
-                ResolutionLabel.Text = String.Format("Project Raster Resolution ({0})", Datasource.GetLayerByIndex(0).GetSpatialRef.GetLinearUnitsName)
-                MaskDatasetPath.Text = OpenFileDialog.FileName
-            End If
-        End Using
+        Try
+            Using Datasource = OGR.Ogr.OpenShared(OpenFileDialog.FileName, False)
+                If Datasource Is Nothing Then
+                    MsgBox(String.Format("'{0}' not recognized as a supported file format.", OpenFileDialog.FileName))
+                    MaskDatasetPath.Text = ""
+                Else
+                    ResolutionLabel.Text = String.Format("Project Raster Resolution ({0})", Datasource.GetLayerByIndex(0).GetSpatialRef.GetLinearUnitsName)
+                    MaskDatasetPath.Text = OpenFileDialog.FileName
+                End If
+            End Using
+        Catch
+            MsgBox(String.Format("'{0}' not recognized as a supported file format.", OpenFileDialog.FileName))
+            MaskDatasetPath.Text = ""
+        End Try
     End Sub
 
     Private Sub ElevationAdd_Click(sender As System.Object, e As System.EventArgs) Handles ElevationAdd.Click

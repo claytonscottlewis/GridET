@@ -98,7 +98,7 @@ Partial Class New_Project
         Me.Label4.Name = "Label4"
         Me.Label4.Size = New System.Drawing.Size(450, 13)
         Me.Label4.TabIndex = 30
-        Me.Label4.Text = "Vertical Scaling Factor"
+        Me.Label4.Text = "Vertical Scaling Factor (To Feet)"
         Me.Label4.TextAlign = System.Drawing.ContentAlignment.TopRight
         '
         'Scaling

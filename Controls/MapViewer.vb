@@ -150,7 +150,7 @@
                 MapServerRaster = New Raster(MapServerRasterPath)
             Else
                 Using MaskRaster As New Raster(MaskRasterPath)
-                    MapServerRaster = CreateNewRaster(MapServerRasterPath, MaskRaster.XCount, MaskRaster.YCount, MaskRaster.Projection, MaskRaster.GeoTransform, {Single.MinValue})
+                    MapServerRaster = CreateNewRaster(MapServerRasterPath, MaskRaster, {Single.MinValue})
                 End Using
             End If
             Dim RasterPath As String = ""
@@ -184,6 +184,7 @@
 
                 Do Until Raster.BlocksProcessed
                     Dim RasterPixels = Raster.Read({Band})
+                    Dim IsByte = RasterPixels.GetType.GetElementType Is GetType(Byte)
 
                     Dim NoDataValue = Raster.BandNoDataValue(Band - 1)
 
@@ -192,7 +193,11 @@
                             If RasterPixels(I) < MinRasterValue Then MinRasterValue = RasterPixels(I)
                             If RasterPixels(I) > MaxRasterValue Then MaxRasterValue = RasterPixels(I)
                         Else
-                            RasterPixels(I) = Single.MinValue
+                            If IsByte Then
+                                RasterPixels(I) = NoDataValue
+                            Else
+                                RasterPixels(I) = Single.MinValue
+                            End If
                         End If
                     Next
 
@@ -222,6 +227,8 @@
             TopRight.Text = ""
             BottomLeft.Text = ""
             BottomRight.Text = ""
+
+            StatusText.Text = ""
 
             If MapServerRaster IsNot Nothing Then MapServerRaster.Dispose()
         End If
@@ -595,16 +602,16 @@
                                           "Monochrome", _
                                           "Oasis", _
                                           "Polar", _
-                                          "Temperature" _
+                                          "Spectrum" _
                                          }
 
-        Public Shared Value()() As Color = {New Color() {Color.FromArgb(245, 0, 0), Color.FromArgb(245, 245, 0), Color.FromArgb(0, 245, 0)}, _
+        Public Shared Value()() As Color = {New Color() {Color.FromArgb(240, 0, 0), Color.FromArgb(240, 240, 0), Color.FromArgb(0, 240, 0)}, _
                                             New Color() {Color.FromArgb(255, 0, 0), Color.FromArgb(255, 255, 0), Color.FromArgb(0, 255, 255), Color.FromArgb(0, 0, 255)}, _
-                                            New Color() {Color.FromArgb(255, 255, 128), Color.FromArgb(242, 167, 46), Color.FromArgb(107, 0, 0)}, _
+                                            New Color() {Color.FromArgb(255, 255, 127), Color.FromArgb(242, 167, 47), Color.FromArgb(106, 0, 0)}, _
                                             New Color() {Color.FromArgb(0, 0, 0), Color.FromArgb(255, 255, 255)}, _
                                             New Color() {Color.FromArgb(194, 82, 60), Color.FromArgb(237, 161, 19), Color.FromArgb(255, 255, 0), Color.FromArgb(0, 219, 0), Color.FromArgb(32, 153, 143), Color.FromArgb(11, 44, 122)}, _
-                                            New Color() {Color.FromArgb(69, 117, 181), Color.FromArgb(255, 255, 191), Color.FromArgb(214, 47, 39)}, _
-                                            New Color() {Color.FromArgb(255, 0, 255), Color.FromArgb(0, 0, 255), Color.FromArgb(0, 255, 255), Color.FromArgb(0, 255, 0), Color.FromArgb(255, 255, 0), Color.FromArgb(255, 128, 0), Color.FromArgb(128, 0, 0)} _
+                                            New Color() {Color.FromArgb(69, 117, 182), Color.FromArgb(255, 255, 191), Color.FromArgb(214, 47, 39)}, _
+                                            New Color() {Color.FromArgb(255, 0, 255), Color.FromArgb(0, 0, 255), Color.FromArgb(0, 255, 255), Color.FromArgb(0, 255, 0), Color.FromArgb(255, 255, 0), Color.FromArgb(255, 127, 0), Color.FromArgb(127, 0, 0)} _
                                            }
     End Class
 

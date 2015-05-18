@@ -1,0 +1,5 @@
+html help workshop
+
+Downloaded from microsoft: http://www.microsoft.com/en-ca/download/details.aspx?id=21138
+
+It does the work of compiling the html files into the chm format.

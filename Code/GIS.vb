@@ -167,8 +167,8 @@
 
             'Create Output Datasets
             Dim OutputNoDataValue As Single = -9999
-            Dim LongitudeRaster = CreateNewRaster(LongitudeRasterPath, BaseRaster.XCount, BaseRaster.YCount, BaseRaster.Projection, BaseRaster.GeoTransform, {OutputNoDataValue}, , CreationOptions, , OutputRasterFormat)
-            Dim LatitudeRaster = CreateNewRaster(LatitudeRasterPath, BaseRaster.XCount, BaseRaster.YCount, BaseRaster.Projection, BaseRaster.GeoTransform, {OutputNoDataValue}, , CreationOptions, , OutputRasterFormat)
+            Dim LongitudeRaster = CreateNewRaster(LongitudeRasterPath, BaseRaster, {OutputNoDataValue}, , CreationOptions, , OutputRasterFormat)
+            Dim LatitudeRaster = CreateNewRaster(LatitudeRasterPath, BaseRaster, {OutputNoDataValue}, , CreationOptions, , OutputRasterFormat)
 
             'Open Rasters and Prepare Pixel Block Arrays
             BaseRaster.Open(GDAL.Access.GA_ReadOnly)
@@ -423,7 +423,7 @@
     End Function
 
     Function CreateNewRaster(Path As String, XCount As Integer, YCount As Integer, Projection As String, GeoTransform() As Double, NoDataValue As Object(), Optional DataType As GDAL.DataType = GDAL.DataType.GDT_Float32, Optional Options() As String = Nothing, Optional BandCount As Integer = 1, Optional RasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff) As Raster
-         Using Driver = GDAL.Gdal.GetDriverByName(RasterFormat.ToString)
+        Using Driver = GDAL.Gdal.GetDriverByName(RasterFormat.ToString)
             Using Dataset = Driver.Create(Path, XCount, YCount, BandCount, DataType, Options)
                 Dataset.SetProjection(Projection)
                 Dataset.SetGeoTransform(GeoTransform)
@@ -438,6 +438,10 @@
         End Using
 
         Return New Raster(Path)
+    End Function
+
+    Function CreateNewRaster(Path As String, TemplateRaster As Raster, NoDataValue As Object(), Optional DataType As GDAL.DataType = GDAL.DataType.GDT_Float32, Optional Options() As String = Nothing, Optional BandCount As Integer = 1, Optional RasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff) As Raster
+        Return CreateNewRaster(Path, TemplateRaster.XCount, TemplateRaster.YCount, TemplateRaster.Projection, TemplateRaster.GeoTransform, NoDataValue, DataType, Options, BandCount, RasterFormat)
     End Function
 
 #End Region
@@ -510,7 +514,7 @@
         Private Property BandValueMultiplier As Double()
         Private Property BandValueOffset As Double()
         Private Property FetchNoDataValue As Double()
-        Private Property BlockLength As Integer = 2 ^ 20 '1 MB
+        Private Property BlockLength As Integer = 2 ^ 21 '2 MB * BytesPerPixel
         Private Property BlockYCount As Integer
         Private Property BlockCount As Integer
         Private Property FetchBlock As Integer

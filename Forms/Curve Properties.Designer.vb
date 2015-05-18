@@ -40,24 +40,24 @@ Partial Class Cover_Curves
         Me.CurveListBox = New System.Windows.Forms.ListBox()
         Me.VariableGroup = New System.Windows.Forms.GroupBox()
         Me.TableLayoutPanel1 = New System.Windows.Forms.TableLayoutPanel()
-        Me.BaseVariable = New System.Windows.Forms.ComboBox()
+        Me.Label3 = New System.Windows.Forms.Label()
         Me.InitialPeriodGrid = New System.Windows.Forms.DataGridView()
+        Me.DataGridViewTextBoxColumn1 = New System.Windows.Forms.DataGridViewTextBoxColumn()
+        Me.DataGridViewTextBoxColumn2 = New System.Windows.Forms.DataGridViewTextBoxColumn()
+        Me.DataGridViewTextBoxColumn3 = New System.Windows.Forms.DataGridViewTextBoxColumn()
         Me.FinalPeriodGrid = New System.Windows.Forms.DataGridView()
+        Me.Column1 = New System.Windows.Forms.DataGridViewTextBoxColumn()
+        Me.Column2 = New System.Windows.Forms.DataGridViewTextBoxColumn()
+        Me.Column3 = New System.Windows.Forms.DataGridViewTextBoxColumn()
         Me.CurveTypePeriod2 = New System.Windows.Forms.ComboBox()
         Me.CurveTypePeriod1 = New System.Windows.Forms.ComboBox()
         Me.Label9 = New System.Windows.Forms.Label()
         Me.Label4 = New System.Windows.Forms.Label()
-        Me.SeasonalCurveType = New System.Windows.Forms.ComboBox()
         Me.Label2 = New System.Windows.Forms.Label()
         Me.Label1 = New System.Windows.Forms.Label()
+        Me.BaseVariable = New System.Windows.Forms.ComboBox()
+        Me.SeasonalCurveType = New System.Windows.Forms.ComboBox()
         Me.Save = New System.Windows.Forms.Button()
-        Me.Label3 = New System.Windows.Forms.Label()
-        Me.Column1 = New System.Windows.Forms.DataGridViewTextBoxColumn()
-        Me.Column2 = New System.Windows.Forms.DataGridViewTextBoxColumn()
-        Me.Column3 = New System.Windows.Forms.DataGridViewTextBoxColumn()
-        Me.DataGridViewTextBoxColumn1 = New System.Windows.Forms.DataGridViewTextBoxColumn()
-        Me.DataGridViewTextBoxColumn2 = New System.Windows.Forms.DataGridViewTextBoxColumn()
-        Me.DataGridViewTextBoxColumn3 = New System.Windows.Forms.DataGridViewTextBoxColumn()
         CType(Me.SplitContainer1, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.SplitContainer1.Panel1.SuspendLayout()
         Me.SplitContainer1.Panel2.SuspendLayout()
@@ -182,7 +182,7 @@ Partial Class Cover_Curves
         Me.VariableGroup.Location = New System.Drawing.Point(12, 0)
         Me.VariableGroup.Name = "VariableGroup"
         Me.VariableGroup.Padding = New System.Windows.Forms.Padding(3, 6, 3, 3)
-        Me.VariableGroup.Size = New System.Drawing.Size(560, 334)
+        Me.VariableGroup.Size = New System.Drawing.Size(559, 308)
         Me.VariableGroup.TabIndex = 10
         Me.VariableGroup.TabStop = False
         Me.VariableGroup.Text = "Curve Variables"
@@ -209,8 +209,8 @@ Partial Class Cover_Curves
         Me.TableLayoutPanel1.Controls.Add(Me.Label1, 1, 0)
         Me.TableLayoutPanel1.Controls.Add(Me.BaseVariable, 0, 1)
         Me.TableLayoutPanel1.Controls.Add(Me.SeasonalCurveType, 1, 1)
-        Me.TableLayoutPanel1.Location = New System.Drawing.Point(18, 31)
-        Me.TableLayoutPanel1.Margin = New System.Windows.Forms.Padding(0, 12, 0, 0)
+        Me.TableLayoutPanel1.Location = New System.Drawing.Point(18, 62)
+        Me.TableLayoutPanel1.Margin = New System.Windows.Forms.Padding(0, 9, 0, 0)
         Me.TableLayoutPanel1.Name = "TableLayoutPanel1"
         Me.TableLayoutPanel1.RowCount = 6
         Me.TableLayoutPanel1.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 21.0!))
@@ -220,21 +220,21 @@ Partial Class Cover_Curves
         Me.TableLayoutPanel1.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 21.0!))
         Me.TableLayoutPanel1.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 21.0!))
         Me.TableLayoutPanel1.RowStyles.Add(New System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 20.0!))
-        Me.TableLayoutPanel1.Size = New System.Drawing.Size(453, 279)
+        Me.TableLayoutPanel1.Size = New System.Drawing.Size(524, 218)
         Me.TableLayoutPanel1.TabIndex = 30
         '
-        'BaseVariable
+        'Label3
         '
-        Me.BaseVariable.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
-            Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.BaseVariable.BackColor = System.Drawing.SystemColors.Window
-        Me.BaseVariable.FormattingEnabled = True
-        Me.BaseVariable.Location = New System.Drawing.Point(3, 27)
-        Me.BaseVariable.Margin = New System.Windows.Forms.Padding(0)
-        Me.BaseVariable.Name = "BaseVariable"
-        Me.BaseVariable.Size = New System.Drawing.Size(222, 21)
-        Me.BaseVariable.TabIndex = 32
+        Me.Label3.Anchor = CType((System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.Label3.BackColor = System.Drawing.SystemColors.Control
+        Me.Label3.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
+        Me.TableLayoutPanel1.SetColumnSpan(Me.Label3, 2)
+        Me.Label3.Location = New System.Drawing.Point(3, 51)
+        Me.Label3.Margin = New System.Windows.Forms.Padding(0)
+        Me.Label3.Name = "Label3"
+        Me.Label3.Size = New System.Drawing.Size(518, 21)
+        Me.Label3.TabIndex = 33
+        Me.Label3.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
         '
         'InitialPeriodGrid
         '
@@ -287,8 +287,29 @@ Partial Class Cover_Curves
         Me.InitialPeriodGrid.RowTemplate.DefaultCellStyle.NullValue = Nothing
         Me.InitialPeriodGrid.RowTemplate.Resizable = System.Windows.Forms.DataGridViewTriState.[False]
         Me.InitialPeriodGrid.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.CellSelect
-        Me.InitialPeriodGrid.Size = New System.Drawing.Size(216, 147)
+        Me.InitialPeriodGrid.Size = New System.Drawing.Size(251, 86)
         Me.InitialPeriodGrid.TabIndex = 30
+        '
+        'DataGridViewTextBoxColumn1
+        '
+        Me.DataGridViewTextBoxColumn1.HeaderText = "Curve 1"
+        Me.DataGridViewTextBoxColumn1.Name = "DataGridViewTextBoxColumn1"
+        Me.DataGridViewTextBoxColumn1.Resizable = System.Windows.Forms.DataGridViewTriState.[False]
+        Me.DataGridViewTextBoxColumn1.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable
+        '
+        'DataGridViewTextBoxColumn2
+        '
+        Me.DataGridViewTextBoxColumn2.HeaderText = "Curve 2"
+        Me.DataGridViewTextBoxColumn2.Name = "DataGridViewTextBoxColumn2"
+        Me.DataGridViewTextBoxColumn2.Resizable = System.Windows.Forms.DataGridViewTriState.[False]
+        Me.DataGridViewTextBoxColumn2.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable
+        '
+        'DataGridViewTextBoxColumn3
+        '
+        Me.DataGridViewTextBoxColumn3.HeaderText = "Curve 3"
+        Me.DataGridViewTextBoxColumn3.Name = "DataGridViewTextBoxColumn3"
+        Me.DataGridViewTextBoxColumn3.Resizable = System.Windows.Forms.DataGridViewTriState.[False]
+        Me.DataGridViewTextBoxColumn3.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable
         '
         'FinalPeriodGrid
         '
@@ -317,7 +338,7 @@ Partial Class Cover_Curves
         DataGridViewCellStyle6.SelectionForeColor = System.Drawing.SystemColors.HighlightText
         DataGridViewCellStyle6.WrapMode = System.Windows.Forms.DataGridViewTriState.[False]
         Me.FinalPeriodGrid.DefaultCellStyle = DataGridViewCellStyle6
-        Me.FinalPeriodGrid.Location = New System.Drawing.Point(231, 126)
+        Me.FinalPeriodGrid.Location = New System.Drawing.Point(266, 126)
         Me.FinalPeriodGrid.Name = "FinalPeriodGrid"
         DataGridViewCellStyle7.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleRight
         DataGridViewCellStyle7.BackColor = System.Drawing.SystemColors.Control
@@ -337,119 +358,8 @@ Partial Class Cover_Curves
         Me.FinalPeriodGrid.RowTemplate.DefaultCellStyle.Format = "N3"
         Me.FinalPeriodGrid.RowTemplate.DefaultCellStyle.NullValue = Nothing
         Me.FinalPeriodGrid.RowTemplate.Resizable = System.Windows.Forms.DataGridViewTriState.[False]
-        Me.FinalPeriodGrid.Size = New System.Drawing.Size(216, 147)
+        Me.FinalPeriodGrid.Size = New System.Drawing.Size(252, 86)
         Me.FinalPeriodGrid.TabIndex = 31
-        '
-        'CurveTypePeriod2
-        '
-        Me.CurveTypePeriod2.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
-            Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.CurveTypePeriod2.BackColor = System.Drawing.SystemColors.Window
-        Me.CurveTypePeriod2.FormattingEnabled = True
-        Me.CurveTypePeriod2.Location = New System.Drawing.Point(228, 99)
-        Me.CurveTypePeriod2.Margin = New System.Windows.Forms.Padding(0)
-        Me.CurveTypePeriod2.Name = "CurveTypePeriod2"
-        Me.CurveTypePeriod2.Size = New System.Drawing.Size(222, 21)
-        Me.CurveTypePeriod2.TabIndex = 30
-        '
-        'CurveTypePeriod1
-        '
-        Me.CurveTypePeriod1.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
-            Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.CurveTypePeriod1.BackColor = System.Drawing.SystemColors.Window
-        Me.CurveTypePeriod1.FormattingEnabled = True
-        Me.CurveTypePeriod1.Location = New System.Drawing.Point(3, 99)
-        Me.CurveTypePeriod1.Margin = New System.Windows.Forms.Padding(0)
-        Me.CurveTypePeriod1.Name = "CurveTypePeriod1"
-        Me.CurveTypePeriod1.Size = New System.Drawing.Size(222, 21)
-        Me.CurveTypePeriod1.TabIndex = 29
-        '
-        'Label9
-        '
-        Me.Label9.Anchor = CType((System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.Label9.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
-        Me.Label9.Location = New System.Drawing.Point(3, 75)
-        Me.Label9.Margin = New System.Windows.Forms.Padding(0)
-        Me.Label9.Name = "Label9"
-        Me.Label9.Size = New System.Drawing.Size(222, 21)
-        Me.Label9.TabIndex = 28
-        Me.Label9.Text = "Initial Period Curve Type"
-        Me.Label9.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        '
-        'Label4
-        '
-        Me.Label4.Anchor = CType((System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.Label4.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
-        Me.Label4.Location = New System.Drawing.Point(228, 75)
-        Me.Label4.Margin = New System.Windows.Forms.Padding(0)
-        Me.Label4.Name = "Label4"
-        Me.Label4.Size = New System.Drawing.Size(222, 21)
-        Me.Label4.TabIndex = 29
-        Me.Label4.Text = "Final Period Curve Type"
-        Me.Label4.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        '
-        'SeasonalCurveType
-        '
-        Me.SeasonalCurveType.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
-            Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.SeasonalCurveType.BackColor = System.Drawing.SystemColors.Window
-        Me.SeasonalCurveType.FormattingEnabled = True
-        Me.SeasonalCurveType.Location = New System.Drawing.Point(228, 27)
-        Me.SeasonalCurveType.Margin = New System.Windows.Forms.Padding(0)
-        Me.SeasonalCurveType.Name = "SeasonalCurveType"
-        Me.SeasonalCurveType.Size = New System.Drawing.Size(222, 21)
-        Me.SeasonalCurveType.TabIndex = 31
-        '
-        'Label2
-        '
-        Me.Label2.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
-        Me.Label2.Dock = System.Windows.Forms.DockStyle.Fill
-        Me.Label2.Location = New System.Drawing.Point(3, 3)
-        Me.Label2.Margin = New System.Windows.Forms.Padding(0)
-        Me.Label2.Name = "Label2"
-        Me.Label2.Size = New System.Drawing.Size(222, 21)
-        Me.Label2.TabIndex = 32
-        Me.Label2.Text = "Base Atmospheric Variable"
-        Me.Label2.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        '
-        'Label1
-        '
-        Me.Label1.Anchor = CType((System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.Label1.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
-        Me.Label1.Location = New System.Drawing.Point(228, 3)
-        Me.Label1.Margin = New System.Windows.Forms.Padding(0)
-        Me.Label1.Name = "Label1"
-        Me.Label1.Size = New System.Drawing.Size(222, 21)
-        Me.Label1.TabIndex = 31
-        Me.Label1.Text = "Seasonal Curve Type"
-        Me.Label1.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
-        '
-        'Save
-        '
-        Me.Save.Anchor = CType((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.Save.Location = New System.Drawing.Point(476, 31)
-        Me.Save.Margin = New System.Windows.Forms.Padding(3, 9, 3, 9)
-        Me.Save.Name = "Save"
-        Me.Save.Size = New System.Drawing.Size(67, 23)
-        Me.Save.TabIndex = 26
-        Me.Save.Text = "Save"
-        Me.Save.UseVisualStyleBackColor = True
-        '
-        'Label3
-        '
-        Me.Label3.Anchor = CType((System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.Label3.BackColor = System.Drawing.SystemColors.Control
-        Me.Label3.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
-        Me.TableLayoutPanel1.SetColumnSpan(Me.Label3, 2)
-        Me.Label3.Location = New System.Drawing.Point(3, 51)
-        Me.Label3.Margin = New System.Windows.Forms.Padding(0)
-        Me.Label3.Name = "Label3"
-        Me.Label3.Size = New System.Drawing.Size(447, 21)
-        Me.Label3.TabIndex = 33
-        Me.Label3.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
         '
         'Column1
         '
@@ -472,26 +382,116 @@ Partial Class Cover_Curves
         Me.Column3.Resizable = System.Windows.Forms.DataGridViewTriState.[False]
         Me.Column3.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable
         '
-        'DataGridViewTextBoxColumn1
+        'CurveTypePeriod2
         '
-        Me.DataGridViewTextBoxColumn1.HeaderText = "Curve 1"
-        Me.DataGridViewTextBoxColumn1.Name = "DataGridViewTextBoxColumn1"
-        Me.DataGridViewTextBoxColumn1.Resizable = System.Windows.Forms.DataGridViewTriState.[False]
-        Me.DataGridViewTextBoxColumn1.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable
+        Me.CurveTypePeriod2.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
+            Or System.Windows.Forms.AnchorStyles.Left) _
+            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.CurveTypePeriod2.BackColor = System.Drawing.SystemColors.Window
+        Me.CurveTypePeriod2.FormattingEnabled = True
+        Me.CurveTypePeriod2.Location = New System.Drawing.Point(263, 99)
+        Me.CurveTypePeriod2.Margin = New System.Windows.Forms.Padding(0)
+        Me.CurveTypePeriod2.Name = "CurveTypePeriod2"
+        Me.CurveTypePeriod2.Size = New System.Drawing.Size(258, 21)
+        Me.CurveTypePeriod2.TabIndex = 30
         '
-        'DataGridViewTextBoxColumn2
+        'CurveTypePeriod1
         '
-        Me.DataGridViewTextBoxColumn2.HeaderText = "Curve 2"
-        Me.DataGridViewTextBoxColumn2.Name = "DataGridViewTextBoxColumn2"
-        Me.DataGridViewTextBoxColumn2.Resizable = System.Windows.Forms.DataGridViewTriState.[False]
-        Me.DataGridViewTextBoxColumn2.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable
+        Me.CurveTypePeriod1.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
+            Or System.Windows.Forms.AnchorStyles.Left) _
+            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.CurveTypePeriod1.BackColor = System.Drawing.SystemColors.Window
+        Me.CurveTypePeriod1.FormattingEnabled = True
+        Me.CurveTypePeriod1.Location = New System.Drawing.Point(3, 99)
+        Me.CurveTypePeriod1.Margin = New System.Windows.Forms.Padding(0)
+        Me.CurveTypePeriod1.Name = "CurveTypePeriod1"
+        Me.CurveTypePeriod1.Size = New System.Drawing.Size(257, 21)
+        Me.CurveTypePeriod1.TabIndex = 29
         '
-        'DataGridViewTextBoxColumn3
+        'Label9
         '
-        Me.DataGridViewTextBoxColumn3.HeaderText = "Curve 3"
-        Me.DataGridViewTextBoxColumn3.Name = "DataGridViewTextBoxColumn3"
-        Me.DataGridViewTextBoxColumn3.Resizable = System.Windows.Forms.DataGridViewTriState.[False]
-        Me.DataGridViewTextBoxColumn3.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable
+        Me.Label9.Anchor = CType((System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.Label9.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
+        Me.Label9.Location = New System.Drawing.Point(3, 75)
+        Me.Label9.Margin = New System.Windows.Forms.Padding(0)
+        Me.Label9.Name = "Label9"
+        Me.Label9.Size = New System.Drawing.Size(257, 21)
+        Me.Label9.TabIndex = 28
+        Me.Label9.Text = "Initial Period Curve Type"
+        Me.Label9.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        '
+        'Label4
+        '
+        Me.Label4.Anchor = CType((System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.Label4.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
+        Me.Label4.Location = New System.Drawing.Point(263, 75)
+        Me.Label4.Margin = New System.Windows.Forms.Padding(0)
+        Me.Label4.Name = "Label4"
+        Me.Label4.Size = New System.Drawing.Size(258, 21)
+        Me.Label4.TabIndex = 29
+        Me.Label4.Text = "Final Period Curve Type"
+        Me.Label4.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        '
+        'Label2
+        '
+        Me.Label2.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
+        Me.Label2.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Label2.Location = New System.Drawing.Point(3, 3)
+        Me.Label2.Margin = New System.Windows.Forms.Padding(0)
+        Me.Label2.Name = "Label2"
+        Me.Label2.Size = New System.Drawing.Size(257, 21)
+        Me.Label2.TabIndex = 32
+        Me.Label2.Text = "Base Atmospheric Variable"
+        Me.Label2.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        '
+        'Label1
+        '
+        Me.Label1.Anchor = CType((System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.Label1.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
+        Me.Label1.Location = New System.Drawing.Point(263, 3)
+        Me.Label1.Margin = New System.Windows.Forms.Padding(0)
+        Me.Label1.Name = "Label1"
+        Me.Label1.Size = New System.Drawing.Size(258, 21)
+        Me.Label1.TabIndex = 31
+        Me.Label1.Text = "Seasonal Curve Type"
+        Me.Label1.TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+        '
+        'BaseVariable
+        '
+        Me.BaseVariable.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
+            Or System.Windows.Forms.AnchorStyles.Left) _
+            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.BaseVariable.BackColor = System.Drawing.SystemColors.Window
+        Me.BaseVariable.FormattingEnabled = True
+        Me.BaseVariable.Location = New System.Drawing.Point(3, 27)
+        Me.BaseVariable.Margin = New System.Windows.Forms.Padding(0)
+        Me.BaseVariable.Name = "BaseVariable"
+        Me.BaseVariable.Size = New System.Drawing.Size(257, 21)
+        Me.BaseVariable.TabIndex = 32
+        '
+        'SeasonalCurveType
+        '
+        Me.SeasonalCurveType.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
+            Or System.Windows.Forms.AnchorStyles.Left) _
+            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.SeasonalCurveType.BackColor = System.Drawing.SystemColors.Window
+        Me.SeasonalCurveType.FormattingEnabled = True
+        Me.SeasonalCurveType.Location = New System.Drawing.Point(263, 27)
+        Me.SeasonalCurveType.Margin = New System.Windows.Forms.Padding(0)
+        Me.SeasonalCurveType.Name = "SeasonalCurveType"
+        Me.SeasonalCurveType.Size = New System.Drawing.Size(258, 21)
+        Me.SeasonalCurveType.TabIndex = 31
+        '
+        'Save
+        '
+        Me.Save.Anchor = CType((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.Save.Location = New System.Drawing.Point(475, 27)
+        Me.Save.Margin = New System.Windows.Forms.Padding(3, 9, 3, 9)
+        Me.Save.Name = "Save"
+        Me.Save.Size = New System.Drawing.Size(67, 23)
+        Me.Save.TabIndex = 26
+        Me.Save.Text = "Save"
+        Me.Save.UseVisualStyleBackColor = True
         '
         'Cover_Curves
         '

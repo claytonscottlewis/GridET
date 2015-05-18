@@ -19,7 +19,7 @@
 #Region "Project Paths"
 
     'Level 1
-    Public Property ProjectDirectory As String
+    Public Property ProjectDirectory As String = ""
 
     Public ReadOnly Property ProjectDetailsPath As String
         Get
@@ -29,13 +29,13 @@
 
     Public ReadOnly Property MapServerMapFilePath As String
         Get
-            Return IO.Path.Combine(ProjectDirectory, "MapServer Map File Path.map")
+            Return IO.Path.Combine(ProjectDirectory, "MapServer Map File.map")
         End Get
     End Property
 
     Public ReadOnly Property MapServerRasterPath As String
         Get
-            Return IO.Path.Combine(ProjectDirectory, "MapServer Raster Path.tif")
+            Return IO.Path.Combine(ProjectDirectory, "MapServer Raster.tif")
         End Get
     End Property
 
@@ -266,7 +266,7 @@
     End Property
 
     'Level 1
-    Public Property ClimateModelDirectory As String
+    Public Property ClimateModelDirectory As String = ""
 
     Public ReadOnly Property NLDAS_2ARastersPath As String
         Get

@@ -130,18 +130,16 @@
                     Threading.Tasks.Task.WaitAll(FileDownloads)
 
                     'Add Raster File and Associated Time Stamp into Database
-                    If 1 = 2 Then
-                        Using Transaction = Connection.BeginTransaction
-                            For I = 0 To Count
-                                Command.CommandText = "INSERT OR REPLACE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
-                                Command.Parameters.Add("@Date", DbType.DateTime).Value = NLDAS_2AStartDate.AddHours(Hour + I)
-                                Command.Parameters.Add("@Image", DbType.Object).Value = FileDownloads(I).Result
-                                Command.ExecuteNonQuery()
-                            Next
+                    Using Transaction = Connection.BeginTransaction
+                        For I = 0 To Count
+                            Command.CommandText = "INSERT OR REPLACE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
+                            Command.Parameters.Add("@Date", DbType.DateTime).Value = NLDAS_2AStartDate.AddHours(Hour + I)
+                            Command.Parameters.Add("@Image", DbType.Object).Value = FileDownloads(I).Result
+                            Command.ExecuteNonQuery()
+                        Next
 
-                            Transaction.Commit()
-                        End Using
-                    End If
+                        Transaction.Commit()
+                    End Using
 
                     BackgroundWorker.ReportProgress(0, "Downloading...")
                     If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If

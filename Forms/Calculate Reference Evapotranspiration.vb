@@ -43,7 +43,7 @@
             GetType(Control).InvokeMember("DoubleBuffered", Reflection.BindingFlags.NonPublic Or Reflection.BindingFlags.Instance Or Reflection.BindingFlags.SetProperty, Nothing, Control, New Object() {True})
         Next
 
-        If IO.Directory.Exists(ClimateModelDirectory) Then
+        If IO.Directory.Exists(ClimateModelDirectory) And IO.File.Exists(ProjectDetailsPath) Then
             ClimateDatasetGroup.Enabled = True
             DatesGroup.Enabled = True
 
@@ -150,7 +150,7 @@
             CalculationEndDate.MinDate = MinDateDataset
             CalculationEndDate.MaxDate = MaxDateDataset
 
-            If CalculationExists Then
+            If CalculationExists And MaxDateCalculation >= MinDateCalculation Then
                 PreviousCalculationStartDate.Text = MinDateCalculation.ToString(DateFormat)
                 PreviousCalculationEndDate.Text = MaxDateCalculation.ToString(DateFormat)
 
@@ -170,6 +170,10 @@
                 CalculationEndDate.Value = CalculationEndDate.MaxDate
             End If
         End If
+    End Sub
+
+    Private Sub DateTimePicker_ValueChanged(sender As Object, e As System.EventArgs) Handles CalculationStartDate.ValueChanged, CalculationEndDate.ValueChanged
+        If CalculationStartDate.Value > CalculationEndDate.Value Then CalculationStartDate.Value = CalculationEndDate.Value
     End Sub
 
     Private Sub CalculateButton_Click(sender As System.Object, e As System.EventArgs) Handles CalculateButton.Click
@@ -246,12 +250,11 @@
     End Sub
 
     Private Sub BackgroundWorker_ProgressChanged(sender As Object, e As System.ComponentModel.ProgressChangedEventArgs) Handles BackgroundWorker.ProgressChanged
-        If ProgressBar.Maximum - ProgressBar.Value > 1 Then
-            Dim Timespan As TimeSpan = New TimeSpan(Timer.Elapsed.Ticks / (ProgressBar.Value + 1) * (ProgressBar.Maximum - ProgressBar.Value - 1))
+        If ProgressBar.Value < ProgressBar.Maximum Then
+            ProgressBar.Value += 1
+            Dim Timespan As TimeSpan = New TimeSpan(Timer.Elapsed.Ticks * (ProgressBar.Maximum / ProgressBar.Value - 1))
             ProgressText.Text = String.Format("Estimated time remaining...({0})", Timespan.ToString("d\.hh\:mm\:ss"))
         End If
-
-        If ProgressBar.Value < ProgressBar.Maximum Then ProgressBar.Value += 1
     End Sub
 
     Private Sub BackgroundWorker_RunWorkerCompleted(sender As Object, e As System.ComponentModel.RunWorkerCompletedEventArgs) Handles BackgroundWorker.RunWorkerCompleted

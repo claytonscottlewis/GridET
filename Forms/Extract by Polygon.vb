@@ -113,15 +113,18 @@
             GetType(Control).InvokeMember("DoubleBuffered", Reflection.BindingFlags.NonPublic Or Reflection.BindingFlags.Instance Or Reflection.BindingFlags.SetProperty, Nothing, Control, New Object() {True})
         Next
 
-        CalculationPeriod.Items.Clear()
-        For Each Directory In IO.Directory.GetDirectories(OutputCalculationsDirectory)
-            CalculationPeriod.Items.Add(IO.Path.GetFileName(Directory))
-        Next
-
-        'InputPolygonPath.Text = "F:\UtahET 2.0\Project Initialization Data\Utah Statewide Land Use\StateWideLandUse2013.shp"
-        'CalculationPeriod.SelectedText = CalculationPeriod.Items(0)
-        'OutputPolygonPath.Text = "F:\UtahET 2.0\Project Initialization Data\Utah Statewide Land Use\StateWideLandUse2013.Out.shp"
-        'OutputPath = OutputPolygonPath.Text
+        If IO.File.Exists(ProjectDetailsPath) Then
+            CalculationPeriod.Items.Clear()
+            For Each Directory In IO.Directory.GetDirectories(OutputCalculationsDirectory)
+                CalculationPeriod.Items.Add(IO.Path.GetFileName(Directory))
+            Next
+        Else
+            InputPolygonGroup.Enabled = False
+            PolygonRasterRelationGroup.Enabled = False
+            OutputPolygonGroup.Enabled = False
+            CalculateButton.Enabled = False
+            CalculateButton.Enabled = False
+        End If
     End Sub
 
     Private Sub Calculate_FormClosing(sender As Object, e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing

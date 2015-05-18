@@ -161,7 +161,7 @@
             CalculationEndDate.MinDate = MinDateReference
             CalculationEndDate.MaxDate = MaxDateReference
 
-            If NoCalculation Then
+            If NoCalculation Or MaxDateCover < MinDateCover Then
                 PreviousCalculationStartDate.Text = "-"
                 PreviousCalculationEndDate.Text = "-"
 
@@ -183,6 +183,10 @@
         End If
     End Sub
 
+    Private Sub DateTimePicker_ValueChanged(sender As Object, e As System.EventArgs) Handles CalculationStartDate.ValueChanged, CalculationEndDate.ValueChanged
+        If CalculationStartDate.Value > CalculationEndDate.Value Then CalculationStartDate.Value = CalculationEndDate.Value
+    End Sub
+
     Private Sub CalculateButton_Click(sender As System.Object, e As System.EventArgs) Handles CalculateButton.Click
         If Cancel_Button.Enabled = False Then
             Me.DialogResult = System.Windows.Forms.DialogResult.OK
@@ -190,19 +194,15 @@
             Exit Sub
         End If
 
-        Dim CalculationWillOverwriteData As Boolean = False
-        For I = 0 To CoverEndDate.Count - 1
-            If CalculationStartDate.Value <= CoverEndDate(I) Then
-                CalculationWillOverwriteData = True
+        For Each Item As ListViewItem In CoverList.CheckedItems
+            If CalculationStartDate.Value >= CoverStartDate(Item.Index) And CalculationStartDate.Value <= CoverEndDate(Item.Index) And CoverEndDate(Item.Index) <> DateTime.MaxValue Then
+                If MsgBox("The selected time period will overwrite previous calculations.  Continue with action anyway?", MsgBoxStyle.YesNo) = MsgBoxResult.No Then
+                    Exit Sub
+                End If
+
                 Exit For
             End If
         Next
-
-        If CalculationWillOverwriteData Then
-            If MsgBox("The selected time period will overwrite previous calculations.  Continue with action anyway?", MsgBoxStyle.YesNo) = MsgBoxResult.No Then
-                Exit Sub
-            End If
-        End If
 
         For I = 0 To CoverProperties.Length - 1
             If CoverList.Items(I).Checked Then CoverPropertiesList.Add(CoverProperties(I))
@@ -223,7 +223,7 @@
 
             ProgressText.Text = "Initializing calculation datasets..."
             ProgressBar.Minimum = 0
-            ProgressBar.Maximum = CoverPropertiesList.Count
+            ProgressBar.Maximum = CoverPropertiesList.Count * (Math.Round(CalculationEndDate.Value.Subtract(CalculationStartDate.Value).TotalDays / 365.25, 0) + 1)
             ProgressBar.Value = 0
             ProgressText.Visible = True
             ProgressBar.Visible = True
@@ -262,12 +262,11 @@
     End Sub
 
     Private Sub BackgroundWorker_ProgressChanged(sender As Object, e As System.ComponentModel.ProgressChangedEventArgs) Handles BackgroundWorker.ProgressChanged
-        If ProgressBar.Maximum - ProgressBar.Value > 1 Then
-            Dim Timespan As TimeSpan = New TimeSpan(Timer.Elapsed.Ticks / (ProgressBar.Value + 1) * (ProgressBar.Maximum - ProgressBar.Value - 1))
+        If ProgressBar.Value < ProgressBar.Maximum Then
+            ProgressBar.Value += 1
+            Dim Timespan As TimeSpan = New TimeSpan(Timer.Elapsed.Ticks * (ProgressBar.Maximum / ProgressBar.Value - 1))
             ProgressText.Text = String.Format("Estimated time remaining...({0})", Timespan.ToString("d\.hh\:mm\:ss"))
         End If
-
-        If ProgressBar.Value < ProgressBar.Maximum Then ProgressBar.Value += 1
     End Sub
 
     Private Sub BackgroundWorker_RunWorkerCompleted(sender As Object, e As System.ComponentModel.RunWorkerCompletedEventArgs) Handles BackgroundWorker.RunWorkerCompleted

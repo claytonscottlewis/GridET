@@ -142,12 +142,6 @@
     Private Connection As System.Data.SQLite.SQLiteConnection
     Private Command As System.Data.SQLite.SQLiteCommand
 
-    Private Sub Save_Click(sender As System.Object, e As System.EventArgs) Handles Save.Click
-        Command.CommandText = String.Format("UPDATE Cover SET Properties = '{0}' WHERE Name = '{1}'", CreatePropertiesString(), CoverBox.SelectedItem)
-        Command.ExecuteNonQuery()
-        Save.Enabled = False
-    End Sub
-
     Private Sub Cover_Properties_Load(sender As System.Object, e As System.EventArgs) Handles MyBase.Load
         For Each Control In Me.Controls
             GetType(Control).InvokeMember("DoubleBuffered", Reflection.BindingFlags.NonPublic Or Reflection.BindingFlags.Instance Or Reflection.BindingFlags.SetProperty, Nothing, Control, New Object() {True})
@@ -217,6 +211,12 @@
     Private Sub Cover_Properties_FormClosed(sender As Object, e As System.Windows.Forms.FormClosedEventArgs) Handles Me.FormClosed
         If Not Command Is Nothing Then Command.Dispose()
         If Not Connection Is Nothing Then Connection.Dispose()
+    End Sub
+
+    Private Sub Save_Click(sender As System.Object, e As System.EventArgs) Handles Save.Click
+        Command.CommandText = String.Format("UPDATE Cover SET Properties = '{0}' WHERE Name = '{1}'", CreatePropertiesString(), CoverBox.SelectedItem)
+        Command.ExecuteNonQuery()
+        Save.Enabled = False
     End Sub
 
     Private Function CreatePropertiesString() As String
