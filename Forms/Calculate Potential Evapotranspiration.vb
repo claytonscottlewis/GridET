@@ -1,4 +1,9 @@
-﻿Public Class Calculate_Potential_Evapotranspiration
+﻿'            Copyright Clayton S. Lewis 2014-2015.
+'   Distributed under the Boost Software License, Version 1.0.
+'      (See accompanying file GridET License.rtf or copy at
+'            http://www.boost.org/LICENSE_1_0.txt)
+
+Public Class Calculate_Potential_Evapotranspiration
 
 #Region "Cover Selection"
 
@@ -84,7 +89,7 @@
 
                 Dim Path As String = IO.Directory.GetFiles(IntermediateCalculationsDirectory, "*" & ReferenceVariable(I) & ".db", IO.SearchOption.AllDirectories)(0)
                 If IO.File.Exists(Path) Then GetMaxAndMinDates({Path}, MaxDate, MinDate)
-              
+
                 ReferenceStartDate.Add(MinDate)
                 ReferenceEndDate.Add(MaxDate)
             Next

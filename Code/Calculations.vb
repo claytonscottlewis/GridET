@@ -1,4 +1,9 @@
-﻿Module Calculations
+﻿'            Copyright Clayton S. Lewis 2014-2015.
+'   Distributed under the Boost Software License, Version 1.0.
+'      (See accompanying file GridET License.rtf or copy at
+'            http://www.boost.org/LICENSE_1_0.txt)
+
+Module Calculations
 
 #Region "Functions"
 
@@ -667,7 +672,7 @@
 
     Sub CalculatePotentialEvapotranspiration(CoverProperties() As CoverProperties, MinDate As DateTime, MaxDate As DateTime, BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
         'For Each Cover In CoverProperties
-        Threading.Tasks.Parallel.ForEach(CoverProperties, New Threading.Tasks.ParallelOptions With {.MaxDegreeOfParallelism = Environment.ProcessorCount}, _
+        Threading.Tasks.Parallel.ForEach(CoverProperties, _
         Sub(Cover)
             Try
                 'Open Mask Raster
@@ -1675,7 +1680,7 @@
 
                         Dim NoDataValue = PrecipitationRaster.BandNoDataValue(0)
 
-                        Threading.Tasks.Parallel.For(0, Count + 1, _
+                        Threading.Tasks.Parallel.For(0, Count + 1, New Threading.Tasks.ParallelOptions With {.MaxDegreeOfParallelism = Environment.ProcessorCount}, _
                         Sub(I)
                             'For I = 0 To Count
                             For J = 0 To PrecipitationPixels.Length - 1
@@ -1734,9 +1739,9 @@
 
                 'Annual Summation
                 If DoAnnualCalculation Then
-                    Threading.Tasks.Parallel.For(0, Count + 1, _
-                    Sub(I)
-                        'For I = 0 To Count
+                    'Threading.Tasks.Parallel.For(0, Count + 1, New Threading.Tasks.ParallelOptions With {.MaxDegreeOfParallelism = Environment.ProcessorCount}, _
+                    'Sub(I)
+                    For I = 0 To Count
                         Dim MaskRaster As New Raster(MaskRasterPath)
                         Dim AnnualRasterPath As String = CoverRasterPaths(I) & ".Annual.tif"
                         Dim AnnualRaster = CreateNewRaster(AnnualRasterPath, MaskRaster, {Single.MinValue}, GDAL.DataType.GDT_Float32)
@@ -1781,8 +1786,8 @@
                         CommandCover(I).ExecuteNonQuery()
 
                         IO.File.Delete(AnnualRasterPath)
-                        'Next
-                    End Sub)
+                    Next
+                    'End Sub)
                 End If
 
                 'Delete Temporary Files
@@ -1812,8 +1817,9 @@
 
     Sub CalculateRasterPeriodAverages(DatabasePaths() As String, TableName() As DatabaseTableName, OutputDirectory As String, MinYear As Integer, MaxYear As Integer, BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
         'Open Database Containing Rasters
-        Threading.Tasks.Parallel.For(0, DatabasePaths.Length, _
-        Sub(J)
+        'Threading.Tasks.Parallel.For(0, DatabasePaths.Length, _
+        'Sub(J)
+        For J = 0 To DatabasePaths.Length - 1
             Try
                 Using Connection = CreateConnection(DatabasePaths(J), False)
                     Connection.Open()
@@ -1842,38 +1848,39 @@
                         Dim OutputRasterPath = IO.Path.Combine(OutputDirectory, VariableFileName)
                         Dim OutputRaster = CreateNewRaster(OutputRasterPath, TemplateRaster, {Single.MinValue}, , {"TILED=YES", "COMPRESS=DEFLATE"}, 13)
 
-                        Dim RasterPath As String = IO.Path.Combine(IO.Path.GetTempPath, VariableFileName)
                         For C = 0 To MonthAndAnnualNames.Length - 1
-                            'Prepare Output Datasets for Period Average Calculation
-                            Dim YearlyRasterPath = RasterPath & " - Yearly"
-                            Dim PeriodRasterPath = RasterPath & MonthAndAnnualNames(C)
+                            'Prepare Temporary Dataset for Period Average Calculation
+                            Dim RasterPath As String = IO.Path.Combine(IO.Path.GetTempPath, VariableFileName) & " " & MonthAndAnnualNames(C) & " - "
+                            Dim PeriodRasterPath = RasterPath & "Period"
                             Dim PeriodRaster = CreateNewRaster(PeriodRasterPath, TemplateRaster, {Single.MinValue})
 
                             'Extract Yearly Rasters and Sum in Period Dataset
                             Command.CommandText = String.Format("SELECT {0} FROM {1} WHERE Year >= '{2}' AND Year <= '{3}' AND Annual IS NOT NULL", MonthAndAnnualNames(C), TableName(J).ToString, StartYear, EndYear)
                             Using Reader = Command.ExecuteReader
                                 Do Until Not Reader.Read
+                                    Dim YearlyRasterPath = RasterPath & "Yearly"
                                     IO.File.WriteAllBytes(YearlyRasterPath, Reader(0))
 
                                     Dim YearlyRaster As New Raster(YearlyRasterPath)
                                     YearlyRaster.Open(GDAL.Access.GA_ReadOnly)
                                     PeriodRaster.Open(GDAL.Access.GA_Update)
-                                    TemplateRaster.Open(GDAL.Access.GA_ReadOnly)
 
                                     Do Until PeriodRaster.BlocksProcessed
                                         Dim PeriodPixels = PeriodRaster.Read({1})
                                         Dim YearlyPixels = YearlyRaster.Read({1})
-                                        Dim TemplatePixels = TemplateRaster.Read({1})
 
-                                        Dim NoDataValue = TemplateRaster.BandNoDataValue(0)
+                                        Dim NoDataValue = YearlyRaster.BandNoDataValue(0)
 
-                                        For I = 0 To PeriodPixels.Length - 1
-                                            If TemplatePixels(I) = NoDataValue Then
+                                        Threading.Tasks.Parallel.For(0, PeriodPixels.Length, _
+                                        Sub(I)
+                                            'For I = 0 To PeriodPixels.Length - 1
+                                            If YearlyPixels(I) = NoDataValue Then
                                                 PeriodPixels(I) = Single.MinValue
                                             Else
                                                 PeriodPixels(I) += YearlyPixels(I)
                                             End If
-                                        Next
+                                            'Next
+                                        End Sub)
 
                                         PeriodRaster.Write({1}, PeriodPixels)
 
@@ -1882,19 +1889,25 @@
                                         If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
                                     Loop
 
+                                    PeriodRaster.Close()
                                     YearlyRaster.Close()
+                                    IO.File.Delete(YearlyRasterPath)
                                 Loop
                             End Using
 
                             'Divide by Number of Represented Years and Store in Output Dataset
                             PeriodRaster.Open(GDAL.Access.GA_ReadOnly)
                             OutputRaster.Open(GDAL.Access.GA_Update)
+
                             Do Until PeriodRaster.BlocksProcessed
                                 Dim PeriodPixels = PeriodRaster.Read({1})
 
-                                For I = 0 To PeriodPixels.Length - 1
+                                Threading.Tasks.Parallel.For(0, PeriodPixels.Length, _
+                                Sub(I)
+                                    'For I = 0 To PeriodPixels.Length - 1
                                     If PeriodPixels(I) <> Single.MinValue Then PeriodPixels(I) /= YearCount
-                                Next
+                                    'Next
+                                End Sub)
 
                                 OutputRaster.Write({C + 1}, PeriodPixels)
 
@@ -1902,10 +1915,10 @@
                                 PeriodRaster.AdvanceBlock()
                                 If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
                             Loop
-                            PeriodRaster.Close()
 
+                            OutputRaster.Close()
+                            PeriodRaster.Close()
                             IO.File.Delete(PeriodRasterPath)
-                            IO.File.Delete(YearlyRasterPath)
 
                             BackgroundWorker.ReportProgress(0)
                         Next
@@ -1928,7 +1941,8 @@
             Catch Exception As Exception
                 MsgBox(Exception.Message)
             End Try
-        End Sub)
+        Next
+        'End Sub)
     End Sub
 
     Sub CalculateAverageRasterValueInPolygon(RasterPaths() As String, RasterVectorRelations() As List(Of String), VectorDatabasePath As String, VectorTableName As String, RelationField As String, OutputVectorPath As String, VectorFormat As GDALProcess.VectorFormat, BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)

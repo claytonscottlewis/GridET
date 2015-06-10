@@ -1,4 +1,9 @@
-﻿Public NotInheritable Class About
+﻿'            Copyright Clayton S. Lewis 2014-2015.
+'   Distributed under the Boost Software License, Version 1.0.
+'      (See accompanying file GridET License.rtf or copy at
+'            http://www.boost.org/LICENSE_1_0.txt)
+
+Public NotInheritable Class About
 
     Private Sub About_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
         ' Set the title of the form.

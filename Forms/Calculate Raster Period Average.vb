@@ -1,4 +1,9 @@
-﻿Public Class Calculate_Raster_Period_Average
+﻿'            Copyright Clayton S. Lewis 2014-2015.
+'   Distributed under the Boost Software License, Version 1.0.
+'      (See accompanying file GridET License.rtf or copy at
+'            http://www.boost.org/LICENSE_1_0.txt)
+
+Public Class Calculate_Raster_Period_Average
 
 #Region "Cover Selection"
 
@@ -175,7 +180,7 @@
 
         OutputDirectory = IO.Path.Combine(OutputCalculationsDirectory, String.Format("{0}-{1}", CalculationStartDate.Value.Year, CalculationEndDate.Value.Year))
         If Not IO.Directory.Exists(OutputDirectory) Then
-            IO.Directory.CreateDirectory(OutputCalculationsDirectory)
+            IO.Directory.CreateDirectory(OutputDirectory)
         Else
             Dim ExistingParameters = IO.Directory.GetFiles(OutputDirectory, "*.tif")
             For I = 0 To ExistingParameters.Length - 1

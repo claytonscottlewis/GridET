@@ -1,4 +1,9 @@
-﻿Public Class Process_Scheduler
+﻿'            Copyright Clayton S. Lewis 2014-2015.
+'   Distributed under the Boost Software License, Version 1.0.
+'      (See accompanying file GridET License.rtf or copy at
+'            http://www.boost.org/LICENSE_1_0.txt)
+
+Public Class Process_Scheduler
 
 #Region "Process"
 
@@ -9,7 +14,7 @@
     End Sub
 
     Private Sub UncheckAll_Click(sender As System.Object, e As System.EventArgs) Handles UncheckAll.Click
-         For Item = 0 To ProcessList.Items.Count - 1
+        For Item = 0 To ProcessList.Items.Count - 1
             ProcessList.Items(Item).Checked = False
         Next
     End Sub

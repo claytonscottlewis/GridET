@@ -1,4 +1,9 @@
-﻿Public Class MapViewer
+﻿'            Copyright Clayton S. Lewis 2014-2015.
+'   Distributed under the Boost Software License, Version 1.0.
+'      (See accompanying file GridET License.rtf or copy at
+'            http://www.boost.org/LICENSE_1_0.txt)
+
+Public Class MapViewer
 
 #Region "Variables"
 
@@ -519,7 +524,7 @@
         If MapObject IsNot Nothing Then
             Dim XCoordinate = MapObject.extent.minx + (MapObject.extent.maxx - MapObject.extent.minx) * ((MapPoint.X) / Map.Width)
             Dim YCoordinate = MapObject.extent.maxy + (MapObject.extent.miny - MapObject.extent.maxy) * ((MapPoint.Y) / Map.Height)
-          
+
             StatusText.Text = String.Format(StatusString, FormatNumber(XCoordinate, , , , TriState.True), FormatNumber(YCoordinate, , , , TriState.True), FormatNumber(MapObject.scaledenom, , , , TriState.True))
 
             Dim Values() As Single = {Single.NaN, Single.NaN, Single.NaN, Single.NaN}

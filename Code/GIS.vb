@@ -1,4 +1,9 @@
-﻿Module GIS
+﻿'            Copyright Clayton S. Lewis 2014-2015.
+'   Distributed under the Boost Software License, Version 1.0.
+'      (See accompanying file GridET License.rtf or copy at
+'            http://www.boost.org/LICENSE_1_0.txt)
+
+Module GIS
 
 #Region "Operations"
 
@@ -340,7 +345,6 @@
                         If InputValues(I) = NoDataValue Then
                             OutputValues(I) = 0
                         Else
-                            Dim ff = (InputValues(I) - OffsetValue)
                             OutputValues(I) = Convert.ToUInt16((InputValues(I) - OffsetValue) / ScaleValue)
                         End If
                     Next
@@ -659,7 +663,10 @@
         End Sub
 
         Sub Close()
-            If Not Dataset Is Nothing Then Dataset.Dispose()
+            If Dataset IsNot Nothing Then
+                Dataset.FlushCache()
+                Dataset.Dispose()
+            End If
         End Sub
 
         Function Read(Band() As Integer) As Array

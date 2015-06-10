@@ -1,4 +1,9 @@
-﻿Public Class Calculate_Net_Potential_Evapotranspiration
+﻿'            Copyright Clayton S. Lewis 2014-2015.
+'   Distributed under the Boost Software License, Version 1.0.
+'      (See accompanying file GridET License.rtf or copy at
+'            http://www.boost.org/LICENSE_1_0.txt)
+
+Public Class Calculate_Net_Potential_Evapotranspiration
 
 #Region "Cover Selection"
 
@@ -114,7 +119,7 @@
     End Sub
 
     Private Sub DateTimePicker_PreviewKeyDown(sender As DateTimePicker, e As System.Windows.Forms.PreviewKeyDownEventArgs) Handles CalculationStartDate.PreviewKeyDown, CalculationEndDate.PreviewKeyDown
-            sender.Value = New DateTime(sender.Value.Year, sender.Value.Month, 1)
+        sender.Value = New DateTime(sender.Value.Year, sender.Value.Month, 1)
     End Sub
 
     Private Sub DateTimePicker_ValueChanged(sender As Object, e As System.EventArgs) Handles CalculationStartDate.ValueChanged, CalculationEndDate.ValueChanged
@@ -134,6 +139,7 @@
         ProgressText.Visible = False
 
         If CalculationExists Then
+            Dim IncompleteCalculation As Boolean = False
             Dim MinDateNet = DateTime.MinValue
             Dim MaxDateNet = DateTime.MaxValue
             Dim MinDateStatistics = DateTime.MinValue
@@ -142,6 +148,7 @@
             For Each Item As ListViewItem In CoverList.CheckedItems
                 If CoverNetStartDate(Item.Index) > MinDateNet Then MinDateNet = CoverNetStartDate(Item.Index)
                 If CoverNetEndDate(Item.Index) < MaxDateNet Then MaxDateNet = CoverNetEndDate(Item.Index)
+                If CoverNetEndDate(Item.Index) = DateTime.MaxValue Then IncompleteCalculation = True
                 If CoverStatisticsStartDate(Item.Index) > MinDateStatistics Then MinDateStatistics = CoverStatisticsStartDate(Item.Index)
                 If CoverStatisticsEndDate(Item.Index) < MaxDateStatistics Then MaxDateStatistics = CoverStatisticsEndDate(Item.Index)
                 If CoverStatisticsEndDate(Item.Index) = DateTime.MaxValue Then CalculationExists = False
@@ -159,7 +166,7 @@
                 CalculationEndDate.MinDate = MinDateStatistics
                 CalculationEndDate.MaxDate = MaxDateStatistics
 
-                If MaxDateNet <> DateTime.MaxValue And MaxDateNet >= MinDateNet Then
+                If MaxDateNet <> DateTime.MaxValue And MaxDateNet >= MinDateNet And Not IncompleteCalculation Then
                     PreviousCalculationStartDate.Text = MinDateNet.ToString(DateFormat)
                     PreviousCalculationEndDate.Text = MaxDateNet.ToString(DateFormat)
 

@@ -419,8 +419,8 @@ Partial Class Cover_Properties
         Me.SpringFrost.DecimalPlaces = 3
         Me.SpringFrost.Location = New System.Drawing.Point(365, 151)
         Me.SpringFrost.Margin = New System.Windows.Forms.Padding(0, 3, 0, 0)
-        Me.SpringFrost.Maximum = New Decimal(New Integer() {200, 0, 0, 0})
-        Me.SpringFrost.Minimum = New Decimal(New Integer() {200, 0, 0, -2147483648})
+        Me.SpringFrost.Maximum = New Decimal(New Integer() {1316134911, 2328, 0, 0})
+        Me.SpringFrost.Minimum = New Decimal(New Integer() {1316134911, 2328, 0, -2147483648})
         Me.SpringFrost.Name = "SpringFrost"
         Me.SpringFrost.Size = New System.Drawing.Size(157, 16)
         Me.SpringFrost.TabIndex = 19
@@ -433,8 +433,8 @@ Partial Class Cover_Properties
         Me.KillingFrost.DecimalPlaces = 3
         Me.KillingFrost.Location = New System.Drawing.Point(365, 175)
         Me.KillingFrost.Margin = New System.Windows.Forms.Padding(0, 3, 0, 0)
-        Me.KillingFrost.Maximum = New Decimal(New Integer() {200, 0, 0, 0})
-        Me.KillingFrost.Minimum = New Decimal(New Integer() {200, 0, 0, -2147483648})
+        Me.KillingFrost.Maximum = New Decimal(New Integer() {1316134911, 2328, 0, 0})
+        Me.KillingFrost.Minimum = New Decimal(New Integer() {1316134911, 2328, 0, -2147483648})
         Me.KillingFrost.Name = "KillingFrost"
         Me.KillingFrost.Size = New System.Drawing.Size(157, 16)
         Me.KillingFrost.TabIndex = 20

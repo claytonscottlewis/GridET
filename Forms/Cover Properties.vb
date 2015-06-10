@@ -1,4 +1,9 @@
-﻿Public Class Cover_Properties
+﻿'            Copyright Clayton S. Lewis 2014-2015.
+'   Distributed under the Boost Software License, Version 1.0.
+'      (See accompanying file GridET License.rtf or copy at
+'            http://www.boost.org/LICENSE_1_0.txt)
+
+Public Class Cover_Properties
 
 #Region "Cover Name"
 
@@ -155,7 +160,7 @@
         Next
 
         Dim ThresholdTypes As String() = [Enum].GetNames(GetType(ThresholdType))
-        For I = 1 To ComboBoxes.Count - 1
+        For I = 2 To ComboBoxes.Count - 1
             ComboBoxes(I).Items.AddRange(ThresholdTypes)
         Next
 

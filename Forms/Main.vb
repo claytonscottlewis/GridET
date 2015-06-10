@@ -1,4 +1,9 @@
-﻿Public Class Main
+﻿'            Copyright Clayton S. Lewis 2014-2015.
+'   Distributed under the Boost Software License, Version 1.0.
+'      (See accompanying file GridET License.rtf or copy at
+'            http://www.boost.org/LICENSE_1_0.txt)
+
+Public Class Main
 
 #Region "Program Initialization"
 
@@ -15,18 +20,12 @@
         GDALProcess.SetEnvironmentVariable("GDAL_DATA", IO.Path.Combine(GDALPath, "Data"))
         GDALProcess.SetEnvironmentVariable("GDAL_DRIVER_PATH", IO.Path.Combine(GDALPath, "Plugins"))
         GDALProcess.SetEnvironmentVariable("PROJ_LIB", IO.Path.Combine(GDALPath, "Projections"))
-        GDALProcess.SetEnvironmentVariable("GDAL_CACHEMAX", 128)
-        GDALProcess.SetEnvironmentVariable("OGR_SQLITE_CACHE", 128)
+        'GDALProcess.SetEnvironmentVariable("GDAL_CACHEMAX", 128)
+        'GDALProcess.SetEnvironmentVariable("OGR_SQLITE_CACHE", 128)
         GDAL.Gdal.AllRegister()
         OGR.Ogr.RegisterAll()
 
         SetFormLabel()
-
-        'ProjectDirectory = "F:\GridET Project\Example Project" '"F:\UtahET 2.0\Utah-Third Mile" 
-        'ClimateModelDirectory = "F:\UtahET 2.0\Data Sources\"
-        'SetFormLabel()
-
-        'NetPotentialToolStripMenuItem_Click(Nothing, Nothing)
     End Sub
 
 #End Region
@@ -242,37 +241,141 @@
 
 #End Region
 
+    Sub SetNoData()
+        Dim PotentialDirectory = "F:\UtahET 2.0\Utah-Third Mile\Intermediate Calculations\Potential Evapotranspiration"
+        Dim TemporaryDirectory = "F:\UtahET 2.0\Utah-Third Mile\Intermediate Calculations\Potential Evapotranspiration-Check"
+        If Not IO.Directory.Exists(TemporaryDirectory) Then IO.Directory.CreateDirectory(TemporaryDirectory)
+
+        For Each Path In IO.Directory.GetFiles(PotentialDirectory)
+            If Path.Contains("Open Water Deep") Then
+                Using ConnectionIn = CreateConnection(Path)
+                    ConnectionIn.Open()
+                    Using CommandIn = ConnectionIn.CreateCommand
+
+                        Using ConnectionOut = CreateConnection(IO.Path.Combine(TemporaryDirectory, IO.Path.GetFileName(Path)), False)
+                            ConnectionOut.Open()
+                            Using CommandOut = ConnectionOut.CreateCommand
+
+                                CommandOut.CommandText = "CREATE TABLE IF NOT EXISTS Rasters (Date NUMERIC UNIQUE, Image BLOB)"
+                                CommandOut.ExecuteNonQuery()
+
+                                CommandOut.CommandText = "CREATE TABLE IF NOT EXISTS Dates (Year INTEGER UNIQUE, Initiation BLOB, Intermediate BLOB, Termination BLOB, SpringFrost BLOB, KillingFrost BLOB)"
+                                CommandOut.ExecuteNonQuery()
+
+                                CommandOut.CommandText = "CREATE TABLE IF NOT EXISTS Statistics (Year INTEGER UNIQUE, Month1 BLOB, Month2 BLOB, Month3 BLOB, Month4 BLOB, Month5 BLOB, Month6 BLOB, Month7 BLOB, Month8 BLOB, Month9 BLOB, Month10 BLOB, Month11 BLOB, Month12 BLOB, Annual BLOB)"
+                                CommandOut.ExecuteNonQuery()
+
+                                Dim TemporaryPath = IO.Path.Combine(IO.Path.GetTempPath, IO.Path.GetFileNameWithoutExtension(Path) & " {0}.tif")
+                                Dim InPath = String.Format(TemporaryPath, "In")
+                                Dim OutPath = String.Format(TemporaryPath, "Out")
+                                Dim ScaledPath = String.Format(TemporaryPath, "Scaled")
+                                Dim MaskPath = "F:\UtahET 2.0\Utah-Third Mile\Area Features\Mask\Mask.tif"
+
+                                For Each TableName In {"Statistics"} '{"Statistics", "Dates", "Rasters"}
+                                    CommandIn.CommandText = String.Format("SELECT * FROM ""{0}""", TableName)
+                                    Using Reader = CommandIn.ExecuteReader
+                                        While Reader.Read
+                                            If TableName <> "Rasters" Then
+                                                CommandOut.CommandText = String.Format("INSERT OR REPLACE INTO ""{0}"" (Year) VALUES ('{1}')", TableName, Reader.GetInt32(0))
+                                                CommandOut.ExecuteNonQuery()
+                                            End If
+
+                                            For I = 1 To Reader.FieldCount - 1
+                                                IO.File.WriteAllBytes(InPath, Reader.GetValue(I))
+
+                                                If TableName <> "Dates" Then
+                                                    Dim MaskRaster As New Raster(MaskPath)
+                                                    MaskRaster.Open(GDAL.Access.GA_ReadOnly)
+                                                    Dim InRaster As New Raster(InPath)
+                                                    InRaster.Open(GDAL.Access.GA_ReadOnly)
+                                                    Dim OutRaster = CreateNewRaster(OutPath, InRaster, {Single.MinValue})
+                                                    OutRaster.Open(GDAL.Access.GA_Update)
+
+                                                    Dim Scale As Double = 1
+                                                    Dim Offset As Double = 0
+
+                                                    Do Until MaskRaster.BlocksProcessed
+                                                        Dim MaskPixels = MaskRaster.Read({1})
+                                                        Dim InOutPixels(MaskPixels.Length - 1) As Single
+                                                        InRaster.Dataset.ReadRaster(0, 0, MaskRaster.XCount, MaskRaster.YCount, InOutPixels, MaskRaster.XCount, MaskRaster.YCount, 1, {1}, 0, 0, 0)
+
+                                                        Dim NoData = CByte(MaskRaster.BandNoDataValue(0))
+
+                                                        Using Band = InRaster.Dataset.GetRasterBand(1)
+                                                            Band.GetScale(Scale, 0)
+                                                            Band.SetScale(1)
+                                                            Band.GetOffset(Offset, 0)
+                                                            Band.SetOffset(0)
+                                                        End Using
+
+                                                        For J = 0 To InOutPixels.Length - 1
+                                                            If MaskPixels(J) = NoData Then
+                                                                InOutPixels(J) = Single.MinValue
+                                                            Else
+                                                                InOutPixels(J) = InOutPixels(J) * Scale + Offset
+                                                            End If
+                                                        Next
+
+                                                        OutRaster.Write({1}, InOutPixels)
+                                                    Loop
+
+                                                    ScaleRaster(OutPath, ScaledPath, , {"COMPRESS=DEFLATE"})
+
+                                                    MaskRaster.Dispose()
+                                                    InRaster.Dispose()
+                                                    OutRaster.Dispose()
+                                                End If
+
+                                                If TableName = "Rasters" Then
+                                                    CommandOut.CommandText = "INSERT OR REPLACE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
+                                                    CommandOut.Parameters.Add("@Date", DbType.DateTime).Value = Reader.GetDateTime(0)
+                                                Else
+                                                    CommandOut.CommandText = String.Format("UPDATE ""{0}"" SET ""{1}"" = @Image WHERE Year = '{2}'", TableName, Reader.GetName(I), Reader.GetInt32(0))
+                                                End If
+
+                                                If TableName <> "Dates" Then
+                                                    CommandOut.Parameters.Add("@Image", DbType.Object).Value = IO.File.ReadAllBytes(ScaledPath)
+                                                Else
+                                                    CommandOut.Parameters.Add("@Image", DbType.Object).Value = IO.File.ReadAllBytes(InPath)
+                                                End If
+
+                                                CommandOut.ExecuteNonQuery()
+                                            Next
+                                        End While
+                                    End Using
+                                Next
+
+                                For Each TempPath In {InPath, OutPath, ScaledPath}
+                                    IO.File.Delete(TempPath)
+                                Next
+                            End Using
+                        End Using
+
+                    End Using
+                End Using
+            End If
+        Next
+    End Sub
+
     Sub GetRaster()
-        Using Connection = CreateConnection(DAYMETPrecipitationPath)
+        Using Connection = CreateConnection("F:\UtahET 2.0\Utah-Third Mile\Intermediate Calculations\Potential Evapotranspiration\Pasture Potential Evapotranspiration.db")
             Connection.Open()
 
             Using Command = Connection.CreateCommand
-                Dim OutputPath = IO.Path.Combine(FileIO.SpecialDirectories.Desktop, "DAYMET")
-                Command.CommandText = "SELECT Annual FROM Statistics WHERE YEAR = '1985'"
-                IO.File.WriteAllBytes(OutputPath, Command.ExecuteScalar)
+                Dim OutputPath = IO.Path.Combine(FileIO.SpecialDirectories.Desktop, "ETp\{0}-{1}.tif")
+                Command.CommandText = "SELECT * FROM Net"
 
-                Dim OutputRaster As New Raster(OutputPath)
-                OutputRaster.Open(GDAL.Access.GA_ReadOnly)
-                Dim RealOutputRaster = CreateNewRaster(OutputPath & ".tif", OutputRaster, {Single.MinValue})
-                RealOutputRaster.Open(GDAL.Access.GA_Update)
+                Using Reader = Command.ExecuteReader
+                    While Reader.Read
+                        Dim Year = Reader.GetInt32(0)
 
-                Dim NoDataValue = OutputRaster.BandNoDataValue(0)
+                        For I = 1 To Reader.FieldCount - 1
+                            IO.File.WriteAllBytes(String.Format(OutputPath, Year, I), Reader.GetValue(I))
+                        Next
+                    End While
+                End Using
 
-                Do Until OutputRaster.BlocksProcessed
-                    Dim OPixels = OutputRaster.Read({1})
 
-                    For I = 0 To OPixels.Length - 1
-                        If OPixels(I) = NoDataValue Then OPixels(I) = Single.MinValue
-                    Next
-
-                    RealOutputRaster.Write({1}, OPixels)
-
-                    RealOutputRaster.AdvanceBlock()
-                    OutputRaster.AdvanceBlock()
-                Loop
-
-                OutputRaster.Dispose()
-                RealOutputRaster.Dispose()
             End Using
         End Using
     End Sub
