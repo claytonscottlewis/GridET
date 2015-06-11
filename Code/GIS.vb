@@ -663,10 +663,7 @@ Module GIS
         End Sub
 
         Sub Close()
-            If Dataset IsNot Nothing Then
-                Dataset.FlushCache()
-                Dataset.Dispose()
-            End If
+            If Dataset IsNot Nothing Then Dataset.Dispose()
         End Sub
 
         Function Read(Band() As Integer) As Array
@@ -752,7 +749,7 @@ Module GIS
         End Sub
 
         Sub AddStatistics()
-            If Dataset Is Nothing Then Dataset = GDAL.Gdal.OpenShared(Path, GDAL.Access.GA_Update)
+            Dataset = GDAL.Gdal.Open(Path, GDAL.Access.GA_Update)
 
             For B = 1 To BandCount
                 Using Band = Dataset.GetRasterBand(B)

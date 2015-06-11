@@ -515,18 +515,18 @@
     <Content Include="Dependencies\SQLite\System.Data.SQLite.dll.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <None Include="Help File\GridET License.rtf">
+    <Content Include="Help File\GridET License.rtf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Help File\GridET Manual Cover.docx">
+    </Content>
+    <Content Include="Help File\GridET Manual Cover.docx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    </Content>
     <Content Include="Help File\GridET.chm">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <None Include="Help File\GridET Manual_Revised.docx">
+    <Content Include="Help File\GridET Manual.docx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    </Content>
     <None Include="My Project\app.manifest" />
     <None Include="My Project\Application.myapp">
       <Generator>MyApplicationCodeGenerator</Generator>

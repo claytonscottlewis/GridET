@@ -1817,7 +1817,7 @@ Module Calculations
 
     Sub CalculateRasterPeriodAverages(DatabasePaths() As String, TableName() As DatabaseTableName, OutputDirectory As String, MinYear As Integer, MaxYear As Integer, BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
         'Open Database Containing Rasters
-        'Threading.Tasks.Parallel.For(0, DatabasePaths.Length, _
+        'Threading.Tasks.Parallel.For(0, DatabasePaths.Length, New Threading.Tasks.ParallelOptions With {.MaxDegreeOfParallelism = Environment.ProcessorCount * 1.5}, _
         'Sub(J)
         For J = 0 To DatabasePaths.Length - 1
             Try
@@ -1829,36 +1829,29 @@ Module Calculations
                         Dim TemplateRaster As New Raster(MaskRasterPath)
 
                         'Determine Period
-                        Command.CommandText = String.Format("SELECT MIN(Year) FROM {0} WHERE Annual IS NOT NULL", TableName(J).ToString)
-                        Dim StartYear As Integer = Command.ExecuteScalar
-
-                        Command.CommandText = String.Format("SELECT MAX(Year) FROM {0} WHERE Annual IS NOT NULL", TableName(J).ToString)
-                        Dim EndYear As Integer = Command.ExecuteScalar
-
-                        StartYear = Limit(MinYear, StartYear, EndYear)
-                        EndYear = Limit(MaxYear, StartYear, EndYear)
-
-                        Command.CommandText = String.Format("SELECT COUNT(Year) FROM {0} WHERE Year >= '{1}' AND Year <= '{2}' AND Annual IS NOT NULL", TableName(J).ToString, StartYear, EndYear)
+                        Command.CommandText = String.Format("SELECT COUNT(Year) FROM {0} WHERE Year >= '{1}' AND Year <= '{2}' AND Annual IS NOT NULL", TableName(J).ToString, MinYear, MaxYear)
                         Dim YearCount As Integer = Command.ExecuteScalar
 
                         'Prepare Output Raster
                         Dim VariableFileName = IO.Path.GetFileNameWithoutExtension(DatabasePaths(J))
                         If TableName(J) = DatabaseTableName.Net Then VariableFileName = VariableFileName.Insert(VariableFileName.Length - 29, " Net")
-                        VariableFileName &= " (" & YearCount & " Year Average, " & StartYear & "-" & EndYear & ").tif"
+                        VariableFileName &= " (" & YearCount & " Year Average, " & MinYear & "-" & MaxYear & ").tif"
                         Dim OutputRasterPath = IO.Path.Combine(OutputDirectory, VariableFileName)
-                        Dim OutputRaster = CreateNewRaster(OutputRasterPath, TemplateRaster, {Single.MinValue}, , {"TILED=YES", "COMPRESS=DEFLATE"}, 13)
+                        Dim OutputRaster = CreateNewRaster(OutputRasterPath, TemplateRaster, {Single.MinValue}, , {"COMPRESS=DEFLATE", "TILED=YES"}, 13)
 
                         For C = 0 To MonthAndAnnualNames.Length - 1
                             'Prepare Temporary Dataset for Period Average Calculation
                             Dim RasterPath As String = IO.Path.Combine(IO.Path.GetTempPath, VariableFileName) & " " & MonthAndAnnualNames(C) & " - "
-                            Dim PeriodRasterPath = RasterPath & "Period"
+                            Dim PeriodRasterPath As String = RasterPath & "Period"
                             Dim PeriodRaster = CreateNewRaster(PeriodRasterPath, TemplateRaster, {Single.MinValue})
+                            Dim Count As Integer = 0
 
                             'Extract Yearly Rasters and Sum in Period Dataset
-                            Command.CommandText = String.Format("SELECT {0} FROM {1} WHERE Year >= '{2}' AND Year <= '{3}' AND Annual IS NOT NULL", MonthAndAnnualNames(C), TableName(J).ToString, StartYear, EndYear)
+                            Command.CommandText = String.Format("SELECT {0} FROM {1} WHERE Year >= '{2}' AND Year <= '{3}' AND Annual IS NOT NULL", MonthAndAnnualNames(C), TableName(J).ToString, MinYear, MaxYear)
                             Using Reader = Command.ExecuteReader
                                 Do Until Not Reader.Read
-                                    Dim YearlyRasterPath = RasterPath & "Yearly"
+                                    Count += 1
+                                    Dim YearlyRasterPath = RasterPath & "Year" & Count
                                     IO.File.WriteAllBytes(YearlyRasterPath, Reader(0))
 
                                     Dim YearlyRaster As New Raster(YearlyRasterPath)
@@ -1871,16 +1864,13 @@ Module Calculations
 
                                         Dim NoDataValue = YearlyRaster.BandNoDataValue(0)
 
-                                        Threading.Tasks.Parallel.For(0, PeriodPixels.Length, _
-                                        Sub(I)
-                                            'For I = 0 To PeriodPixels.Length - 1
+                                        For I = 0 To PeriodPixels.Length - 1
                                             If YearlyPixels(I) = NoDataValue Then
                                                 PeriodPixels(I) = Single.MinValue
                                             Else
                                                 PeriodPixels(I) += YearlyPixels(I)
                                             End If
-                                            'Next
-                                        End Sub)
+                                        Next
 
                                         PeriodRaster.Write({1}, PeriodPixels)
 
@@ -1895,19 +1885,18 @@ Module Calculations
                                 Loop
                             End Using
 
-                            'Divide by Number of Represented Years and Store in Output Dataset
                             PeriodRaster.Open(GDAL.Access.GA_ReadOnly)
                             OutputRaster.Open(GDAL.Access.GA_Update)
 
                             Do Until PeriodRaster.BlocksProcessed
                                 Dim PeriodPixels = PeriodRaster.Read({1})
 
-                                Threading.Tasks.Parallel.For(0, PeriodPixels.Length, _
-                                Sub(I)
-                                    'For I = 0 To PeriodPixels.Length - 1
-                                    If PeriodPixels(I) <> Single.MinValue Then PeriodPixels(I) /= YearCount
-                                    'Next
-                                End Sub)
+                                Dim NoDataValue = PeriodRaster.BandNoDataValue(0)
+
+                                'Period Average
+                                For I = 0 To PeriodPixels.Length - 1
+                                    If PeriodPixels(I) <> NoDataValue Then PeriodPixels(I) /= YearCount
+                                Next
 
                                 OutputRaster.Write({C + 1}, PeriodPixels)
 
@@ -1923,10 +1912,8 @@ Module Calculations
                             BackgroundWorker.ReportProgress(0)
                         Next
 
+                        'Add Statistics
                         OutputRaster.AddStatistics()
-
-                        'Set Band Descriptions
-                        OutputRaster.Open(GDAL.Access.GA_Update)
                         For I = 1 To 13
                             Using Band = OutputRaster.Dataset.GetRasterBand(I)
                                 Band.SetDescription(MonthAndAnnualNames(I - 1))
