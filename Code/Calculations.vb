@@ -2723,11 +2723,15 @@ Module Calculations
                         Cover.TerminationThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(6))
                         Cover.TerminationThreshold = Properties(7)
 
-                        Cover.CuttingIntermediateThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(8))
-                        Cover.CuttingIntermediateThreshold = Properties(10)
+                        If Properties(8) <> "" Then
+                            Cover.CuttingIntermediateThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(8))
+                            Cover.CuttingIntermediateThreshold = Properties(10)
+                        End If
 
-                        Cover.CuttingTerminationThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(9))
-                        Cover.CuttingTerminationThreshold = Properties(11)
+                        If Properties(9) <> "" Then
+                            Cover.CuttingTerminationThresholdType = [Enum].Parse(GetType(ThresholdType), Properties(9))
+                            Cover.CuttingTerminationThreshold = Properties(11)
+                        End If
 
                         Cover.SpringFrostTemperature = Properties(12)
                         Cover.KillingFrostTemperature = Properties(13)
