@@ -1,4 +1,4 @@
-﻿'            Copyright Clayton S. Lewis 2014-2015.
+﻿'            Copyright Clayton S. Lewis 2014-2018.
 '   Distributed under the Boost Software License, Version 1.0.
 '      (See accompanying file GridET License.rtf or copy at
 '            http://www.boost.org/LICENSE_1_0.txt)
@@ -57,11 +57,11 @@ Public Class Extract_by_Polygon
         End If
     End Sub
 
-    Sub CreateIntermediateDataset(InputPath As String, IntermediatePath As String, DatasetName As String, ByRef Names As List(Of String), ByRef UniqueCount As List(Of Long), BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
+    Sub CreateIntermediateDataset(ByVal InputPath As String, ByVal IntermediatePath As String, ByVal DatasetName As String, ByRef Names As List(Of String), ByRef UniqueCount As List(Of Long), ByVal BackgroundWorker As System.ComponentModel.BackgroundWorker, ByVal DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
         Try
             'Create Intermediate Dataset
             Dim SpatialReferenceSystem As OSR.SpatialReference
-            Using Raster As New Raster(MaskRasterPath)
+            Using Raster As New Raster(MaskRasterPath, GDAL.Access.GA_ReadOnly)
                 SpatialReferenceSystem = New OSR.SpatialReference(Raster.Projection)
             End Using
 
@@ -71,38 +71,36 @@ Public Class Extract_by_Polygon
             BackgroundWorker.ReportProgress(0)
 
             'Load Column Unique Value Counts
-            Using Connection = CreateConnection(IntermediatePolygonPath)
-                Connection.Open()
+            Using Connection = CreateConnection(IntermediatePolygonPath), Command = Connection.CreateCommand : Connection.Open()
 
-                Using Command = Connection.CreateCommand
-                    Names = New List(Of String)
-                    Command.CommandText = String.Format("PRAGMA table_info(""{0}"")", DatasetName)
-                    Using Reader = Command.ExecuteReader
-                        Do While Reader.Read
-                            Names.Add(Reader(1))
-                        Loop
-                    End Using
-
-                    UniqueCount = New List(Of Long)
-                    UniqueCount.Add(-1)
-                    UniqueCount.Add(-1)
-                    Dim CommandText As New System.Text.StringBuilder("SELECT")
-                    For I = 2 To Names.Count - 1
-                        If I <> 2 Then CommandText.Append(",")
-                        CommandText.Append(String.Format(" COUNT(DISTINCT ""{0}"")", Names(I)))
-                    Next
-                    CommandText.Append(String.Format(" FROM ""{0}""", DatasetName))
-
-                    Command.CommandText = CommandText.ToString
-                    Dim List As New List(Of Long)
-                    Using Reader = Command.ExecuteReader
-                        Reader.Read()
-
-                        For I = 0 To Reader.FieldCount - 1
-                            UniqueCount.Add(Reader.GetInt64(I))
-                        Next
-                    End Using
+                Names = New List(Of String)
+                Command.CommandText = String.Format("PRAGMA table_info(""{0}"")", DatasetName)
+                Using Reader = Command.ExecuteReader
+                    Do While Reader.Read
+                        Names.Add(Reader(1))
+                    Loop
                 End Using
+
+                UniqueCount = New List(Of Long)
+                UniqueCount.Add(-1)
+                UniqueCount.Add(-1)
+                Dim CommandText As New System.Text.StringBuilder("SELECT")
+                For I = 2 To Names.Count - 1
+                    If I <> 2 Then CommandText.Append(",")
+                    CommandText.Append(String.Format(" COUNT(DISTINCT ""{0}"")", Names(I)))
+                Next
+                CommandText.Append(String.Format(" FROM ""{0}""", DatasetName))
+
+                Command.CommandText = CommandText.ToString
+                Dim List As New List(Of Long)
+                Using Reader = Command.ExecuteReader
+                    Reader.Read()
+
+                    For I = 0 To Reader.FieldCount - 1
+                        UniqueCount.Add(Reader.GetInt64(I))
+                    Next
+                End Using
+
             End Using
         Catch Exception As Exception
             MsgBox(Exception.ToString)
@@ -284,6 +282,7 @@ Public Class Extract_by_Polygon
     Private Sub OutputPolygonSet_Click(sender As System.Object, e As System.EventArgs) Handles OutputPolygonSet.Click
         Dim SaveFileDialog As New SaveFileDialog
         SaveFileDialog.Title = "Location of output vector polygon file."
+        SaveFileDialog.Filter = "Shapefiles|*.shp"
 
         If Not SaveFileDialog.ShowDialog = Windows.Forms.DialogResult.OK Then Exit Sub
 

@@ -22,9 +22,9 @@ Partial Class Extract_by_Polygon
     'Do not modify it using the code editor.
     <System.Diagnostics.DebuggerStepThrough()> _
     Private Sub InitializeComponent()
-        Dim DataGridViewCellStyle13 As System.Windows.Forms.DataGridViewCellStyle = New System.Windows.Forms.DataGridViewCellStyle()
-        Dim DataGridViewCellStyle14 As System.Windows.Forms.DataGridViewCellStyle = New System.Windows.Forms.DataGridViewCellStyle()
-        Dim DataGridViewCellStyle15 As System.Windows.Forms.DataGridViewCellStyle = New System.Windows.Forms.DataGridViewCellStyle()
+        Dim DataGridViewCellStyle1 As System.Windows.Forms.DataGridViewCellStyle = New System.Windows.Forms.DataGridViewCellStyle()
+        Dim DataGridViewCellStyle2 As System.Windows.Forms.DataGridViewCellStyle = New System.Windows.Forms.DataGridViewCellStyle()
+        Dim DataGridViewCellStyle3 As System.Windows.Forms.DataGridViewCellStyle = New System.Windows.Forms.DataGridViewCellStyle()
         Me.CalculateButton = New System.Windows.Forms.Button()
         Me.ProgressText = New System.Windows.Forms.Label()
         Me.ProgressBar = New System.Windows.Forms.ProgressBar()
@@ -37,14 +37,14 @@ Partial Class Extract_by_Polygon
         Me.Label8 = New System.Windows.Forms.Label()
         Me.PolygonRasterRelationGroup = New System.Windows.Forms.GroupBox()
         Me.RelationGrid = New System.Windows.Forms.DataGridView()
+        Me.Column1 = New System.Windows.Forms.DataGridViewTextBoxColumn()
+        Me.Column2 = New System.Windows.Forms.DataGridViewComboBoxColumn()
         Me.Label2 = New System.Windows.Forms.Label()
         Me.CalculationPeriod = New System.Windows.Forms.ComboBox()
         Me.OutputPolygonGroup = New System.Windows.Forms.GroupBox()
         Me.OutputPolygonSet = New System.Windows.Forms.Button()
         Me.OutputPolygonPath = New System.Windows.Forms.TextBox()
         Me.Label3 = New System.Windows.Forms.Label()
-        Me.Column1 = New System.Windows.Forms.DataGridViewTextBoxColumn()
-        Me.Column2 = New System.Windows.Forms.DataGridViewComboBoxColumn()
         Me.InputPolygonGroup.SuspendLayout()
         Me.PolygonRasterRelationGroup.SuspendLayout()
         CType(Me.RelationGrid, System.ComponentModel.ISupportInitialize).BeginInit()
@@ -65,7 +65,7 @@ Partial Class Extract_by_Polygon
         'ProgressText
         '
         Me.ProgressText.Anchor = CType(((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.ProgressText.Location = New System.Drawing.Point(30, 466)
         Me.ProgressText.Margin = New System.Windows.Forms.Padding(3, 21, 3, 0)
         Me.ProgressText.Name = "ProgressText"
@@ -77,7 +77,7 @@ Partial Class Extract_by_Polygon
         'ProgressBar
         '
         Me.ProgressBar.Anchor = CType(((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.ProgressBar.Location = New System.Drawing.Point(30, 482)
         Me.ProgressBar.Maximum = 5
         Me.ProgressBar.Name = "ProgressBar"
@@ -100,7 +100,7 @@ Partial Class Extract_by_Polygon
         'InputPolygonGroup
         '
         Me.InputPolygonGroup.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.InputPolygonGroup.Controls.Add(Me.CoverRelateField)
         Me.InputPolygonGroup.Controls.Add(Me.Label5)
         Me.InputPolygonGroup.Controls.Add(Me.InputPolygonAdd)
@@ -116,7 +116,7 @@ Partial Class Extract_by_Polygon
         'CoverRelateField
         '
         Me.CoverRelateField.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.CoverRelateField.FormattingEnabled = True
         Me.CoverRelateField.Location = New System.Drawing.Point(18, 95)
         Me.CoverRelateField.Name = "CoverRelateField"
@@ -146,7 +146,7 @@ Partial Class Extract_by_Polygon
         'InputPolygonPath
         '
         Me.InputPolygonPath.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.InputPolygonPath.BackColor = System.Drawing.SystemColors.Window
         Me.InputPolygonPath.Location = New System.Drawing.Point(18, 44)
         Me.InputPolygonPath.Name = "InputPolygonPath"
@@ -167,8 +167,8 @@ Partial Class Extract_by_Polygon
         'PolygonRasterRelationGroup
         '
         Me.PolygonRasterRelationGroup.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
-            Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Left) _
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.PolygonRasterRelationGroup.Controls.Add(Me.RelationGrid)
         Me.PolygonRasterRelationGroup.Controls.Add(Me.Label2)
         Me.PolygonRasterRelationGroup.Controls.Add(Me.CalculationPeriod)
@@ -185,38 +185,39 @@ Partial Class Extract_by_Polygon
         Me.RelationGrid.AllowUserToDeleteRows = False
         Me.RelationGrid.AllowUserToResizeRows = False
         Me.RelationGrid.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
-            Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Left) _
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.RelationGrid.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.AllCells
         Me.RelationGrid.BackgroundColor = System.Drawing.SystemColors.Window
         Me.RelationGrid.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
-        DataGridViewCellStyle13.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleCenter
-        DataGridViewCellStyle13.BackColor = System.Drawing.SystemColors.Control
-        DataGridViewCellStyle13.Font = New System.Drawing.Font("Microsoft Sans Serif", 8.25!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        DataGridViewCellStyle13.ForeColor = System.Drawing.SystemColors.WindowText
-        DataGridViewCellStyle13.SelectionBackColor = System.Drawing.SystemColors.Highlight
-        DataGridViewCellStyle13.SelectionForeColor = System.Drawing.SystemColors.HighlightText
-        DataGridViewCellStyle13.WrapMode = System.Windows.Forms.DataGridViewTriState.[True]
-        Me.RelationGrid.ColumnHeadersDefaultCellStyle = DataGridViewCellStyle13
+        DataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleCenter
+        DataGridViewCellStyle1.BackColor = System.Drawing.SystemColors.Control
+        DataGridViewCellStyle1.Font = New System.Drawing.Font("Microsoft Sans Serif", 8.25!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        DataGridViewCellStyle1.ForeColor = System.Drawing.SystemColors.WindowText
+        DataGridViewCellStyle1.SelectionBackColor = System.Drawing.SystemColors.Highlight
+        DataGridViewCellStyle1.SelectionForeColor = System.Drawing.SystemColors.HighlightText
+        DataGridViewCellStyle1.WrapMode = System.Windows.Forms.DataGridViewTriState.[True]
+        Me.RelationGrid.ColumnHeadersDefaultCellStyle = DataGridViewCellStyle1
         Me.RelationGrid.ColumnHeadersHeight = 28
         Me.RelationGrid.Columns.AddRange(New System.Windows.Forms.DataGridViewColumn() {Me.Column1, Me.Column2})
-        DataGridViewCellStyle14.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft
-        DataGridViewCellStyle14.BackColor = System.Drawing.SystemColors.Window
-        DataGridViewCellStyle14.Font = New System.Drawing.Font("Microsoft Sans Serif", 8.25!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        DataGridViewCellStyle14.ForeColor = System.Drawing.SystemColors.ControlText
-        DataGridViewCellStyle14.SelectionBackColor = System.Drawing.SystemColors.Highlight
-        DataGridViewCellStyle14.SelectionForeColor = System.Drawing.SystemColors.HighlightText
-        DataGridViewCellStyle14.WrapMode = System.Windows.Forms.DataGridViewTriState.[False]
-        Me.RelationGrid.DefaultCellStyle = DataGridViewCellStyle14
+        DataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft
+        DataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Window
+        DataGridViewCellStyle2.Font = New System.Drawing.Font("Microsoft Sans Serif", 8.25!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        DataGridViewCellStyle2.ForeColor = System.Drawing.SystemColors.ControlText
+        DataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight
+        DataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText
+        DataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.[False]
+        Me.RelationGrid.DefaultCellStyle = DataGridViewCellStyle2
         Me.RelationGrid.Location = New System.Drawing.Point(18, 72)
         Me.RelationGrid.Name = "RelationGrid"
-        DataGridViewCellStyle15.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleRight
-        DataGridViewCellStyle15.BackColor = System.Drawing.SystemColors.Control
-        DataGridViewCellStyle15.Font = New System.Drawing.Font("Microsoft Sans Serif", 8.25!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        DataGridViewCellStyle15.ForeColor = System.Drawing.SystemColors.WindowText
-        DataGridViewCellStyle15.SelectionBackColor = System.Drawing.SystemColors.Highlight
-        DataGridViewCellStyle15.SelectionForeColor = System.Drawing.SystemColors.HighlightText
-        DataGridViewCellStyle15.WrapMode = System.Windows.Forms.DataGridViewTriState.[True]
-        Me.RelationGrid.RowHeadersDefaultCellStyle = DataGridViewCellStyle15
+        DataGridViewCellStyle3.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleRight
+        DataGridViewCellStyle3.BackColor = System.Drawing.SystemColors.Control
+        DataGridViewCellStyle3.Font = New System.Drawing.Font("Microsoft Sans Serif", 8.25!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        DataGridViewCellStyle3.ForeColor = System.Drawing.SystemColors.WindowText
+        DataGridViewCellStyle3.SelectionBackColor = System.Drawing.SystemColors.Highlight
+        DataGridViewCellStyle3.SelectionForeColor = System.Drawing.SystemColors.HighlightText
+        DataGridViewCellStyle3.WrapMode = System.Windows.Forms.DataGridViewTriState.[True]
+        Me.RelationGrid.RowHeadersDefaultCellStyle = DataGridViewCellStyle3
         Me.RelationGrid.RowHeadersWidth = 65
         Me.RelationGrid.RowHeadersWidthSizeMode = System.Windows.Forms.DataGridViewRowHeadersWidthSizeMode.DisableResizing
         Me.RelationGrid.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.CellSelect
@@ -225,6 +226,20 @@ Partial Class Extract_by_Polygon
         Me.RelationGrid.ShowRowErrors = False
         Me.RelationGrid.Size = New System.Drawing.Size(443, 121)
         Me.RelationGrid.TabIndex = 28
+        '
+        'Column1
+        '
+        Me.Column1.HeaderText = "Cover Relate Field Unique Values"
+        Me.Column1.Name = "Column1"
+        Me.Column1.ReadOnly = True
+        Me.Column1.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable
+        Me.Column1.Width = 172
+        '
+        'Column2
+        '
+        Me.Column2.HeaderText = "Calculation Period Variables"
+        Me.Column2.Name = "Column2"
+        Me.Column2.Width = 144
         '
         'Label2
         '
@@ -239,7 +254,7 @@ Partial Class Extract_by_Polygon
         'CalculationPeriod
         '
         Me.CalculationPeriod.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.CalculationPeriod.FormattingEnabled = True
         Me.CalculationPeriod.Location = New System.Drawing.Point(18, 44)
         Me.CalculationPeriod.Name = "CalculationPeriod"
@@ -249,7 +264,7 @@ Partial Class Extract_by_Polygon
         'OutputPolygonGroup
         '
         Me.OutputPolygonGroup.Anchor = CType(((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.OutputPolygonGroup.Controls.Add(Me.OutputPolygonSet)
         Me.OutputPolygonGroup.Controls.Add(Me.OutputPolygonPath)
         Me.OutputPolygonGroup.Controls.Add(Me.Label3)
@@ -273,7 +288,7 @@ Partial Class Extract_by_Polygon
         'OutputPolygonPath
         '
         Me.OutputPolygonPath.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.OutputPolygonPath.BackColor = System.Drawing.SystemColors.Window
         Me.OutputPolygonPath.Location = New System.Drawing.Point(18, 44)
         Me.OutputPolygonPath.Name = "OutputPolygonPath"
@@ -290,20 +305,6 @@ Partial Class Extract_by_Polygon
         Me.Label3.Size = New System.Drawing.Size(85, 13)
         Me.Label3.TabIndex = 21
         Me.Label3.Text = "Path (Shapefile) "
-        '
-        'Column1
-        '
-        Me.Column1.HeaderText = "Cover Relate Field Unique Values"
-        Me.Column1.Name = "Column1"
-        Me.Column1.ReadOnly = True
-        Me.Column1.SortMode = System.Windows.Forms.DataGridViewColumnSortMode.NotSortable
-        Me.Column1.Width = 175
-        '
-        'Column2
-        '
-        Me.Column2.HeaderText = "Calculation Period Variables"
-        Me.Column2.Name = "Column2"
-        Me.Column2.Width = 175
         '
         'Extract_by_Polygon
         '

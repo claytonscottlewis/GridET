@@ -1,4 +1,4 @@
-﻿'            Copyright Clayton S. Lewis 2014-2015.
+﻿'            Copyright Clayton S. Lewis 2014-2018.
 '   Distributed under the Boost Software License, Version 1.0.
 '      (See accompanying file GridET License.rtf or copy at
 '            http://www.boost.org/LICENSE_1_0.txt)
@@ -7,7 +7,7 @@ Public Class Calculate_Reference_Evapotranspiration
 
 #Region "Climate Dataset Selection"
 
-    Private Sub CheckAll_Click(sender As System.Object, e As System.EventArgs) Handles CheckAll.Click
+    Private Sub CheckAll_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles CheckAll.Click
         RemoveHandler DatasetList.ItemChecked, AddressOf DatasetList_ItemChecked
 
         For Item = 0 To DatasetList.Items.Count - 1
@@ -19,7 +19,7 @@ Public Class Calculate_Reference_Evapotranspiration
         DatasetList_ItemChecked(Nothing, Nothing)
     End Sub
 
-    Private Sub UncheckAll_Click(sender As System.Object, e As System.EventArgs) Handles UncheckAll.Click
+    Private Sub UncheckAll_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles UncheckAll.Click
         RemoveHandler DatasetList.ItemChecked, AddressOf DatasetList_ItemChecked
 
         For Item = 0 To DatasetList.Items.Count - 1
@@ -35,55 +35,89 @@ Public Class Calculate_Reference_Evapotranspiration
 
 #Region "Dates"
 
-    Private Connection As System.Data.SQLite.SQLiteConnection
-    Private Command As System.Data.SQLite.SQLiteCommand
+    Private ClimateModelPaths() As String = {DAYMETRastersPath, NLDAS_2ARastersPath, PRISMRastersPath}
+    Private DatasetMinDate(ClimateModelPaths.Length - 1) As DateTime
+    Private DatasetMaxDate(ClimateModelPaths.Length - 1) As DateTime
+    Private CalculationPaths() As String = {DAYMETPrecipitationPath, NLDAS_2AGrowingDegreeDays8650Path, ""}
+    Private CalculationMinDate(ClimateModelPaths.Length - 1) As DateTime
+    Private CalculationMaxDate(ClimateModelPaths.Length - 1) As DateTime
     Private DateFormat As String = "MMMM dd, yyyy"
-    Private DatasetMinDate As New List(Of DateTime)
-    Private DatasetMaxDate As New List(Of DateTime)
-    Dim CalculationMinDate As New List(Of DateTime)
-    Dim CalculationMaxDate As New List(Of DateTime)
 
-    Private Sub Calculate_Evapotranspiration_Load(sender As System.Object, e As System.EventArgs) Handles MyBase.Load
+    Private Sub Calculate_Evapotranspiration_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
         For Each Control In Me.Controls
             GetType(Control).InvokeMember("DoubleBuffered", Reflection.BindingFlags.NonPublic Or Reflection.BindingFlags.Instance Or Reflection.BindingFlags.SetProperty, Nothing, Control, New Object() {True})
         Next
 
-        If IO.Directory.Exists(ClimateModelDirectory) And IO.File.Exists(ProjectDetailsPath) Then
+        If IO.Directory.Exists(ClimateModelDirectory) AndAlso IO.File.Exists(ProjectDetailsPath) Then
             ClimateDatasetGroup.Enabled = True
             DatesGroup.Enabled = True
 
-            For Each FileName In {DAYMETRastersPath, NLDAS_2ARastersPath, PRISMRastersPath}
-                Dim Path = FileName
+            Dim Tasks As New List(Of Task)
 
+            Dim J = -1
+            For P = 0 To ClimateModelPaths.Length - 1 : Dim Path = ClimateModelPaths(P)
                 If IO.File.Exists(Path) Then
-                    Dim MinDate = DateTime.MinValue
-                    Dim MaxDate = DateTime.MaxValue
-
-                    If IO.File.Exists(Path) Then GetMaxAndMinDates({Path}, MaxDate, MinDate)
-                    If MaxDate.Hour <> 13 And MaxDate <> DateTime.MaxValue Then MaxDate = MaxDate.AddDays(-1)
-
-                    DatasetMinDate.Add(MinDate)
-                    DatasetMaxDate.Add(MaxDate)
-
+                    j += 1
+                    Dim I = j
                     DatasetList.Items.Add(IO.Path.GetFileNameWithoutExtension(Path))
 
-                    MinDate = DateTime.MinValue
-                    MaxDate = DateTime.MaxValue
+                    'Load Climate Model Date Ranges
+                    Tasks.Add(Task.Factory.StartNew(
+                    Sub()
+                        Dim MinDate = DateTime.MinValue
+                        Dim MaxDate = DateTime.MaxValue
 
-                    Dim Paths = IO.Directory.GetFiles(InputVariablesDirectory, "*" & IO.Path.GetFileName(FileName))
-                    If Paths.Length > 0 Then GetMaxAndMinDates({Paths(0)}, MaxDate, MinDate)
-                    If MaxDate.Hour <> 13 And MaxDate <> DateTime.MaxValue Then MaxDate = MaxDate.AddDays(-1)
+                        Using Connection = CreateConnection(Path), Command = Connection.CreateCommand : Connection.Open()
 
-                    CalculationMinDate.Add(MinDate)
-                    CalculationMaxDate.Add(MaxDate)
+                            Command.CommandText = String.Format("SELECT MIN(Date) FROM Rasters UNION ALL SELECT MAX(Date) FROM Rasters")
+                            Using Reader = Command.ExecuteReader
+                                Reader.Read()
+                                If Not Reader.IsDBNull(0) Then MinDate = Reader.GetDateTime(0)
+
+                                Reader.Read()
+                                If Not Reader.IsDBNull(0) Then MaxDate = Reader.GetDateTime(0)
+                            End Using
+
+                            If MaxDate.Hour <> 13 AndAlso MaxDate <> DateTime.MaxValue Then MaxDate = MaxDate.AddDays(-1)
+
+                        End Using
+
+                        DatasetMinDate(I) = MinDate
+                        DatasetMaxDate(I) = MaxDate
+                    End Sub))
+
+                    'Load Calculation Date Ranges
+                    Tasks.Add(Task.Factory.StartNew(
+                    Sub()
+                        Dim MinDate = DateTime.MinValue
+                        Dim MaxDate = DateTime.MaxValue
+
+                        If Not String.IsNullOrWhiteSpace(CalculationPaths(I)) Then
+                            Using RasterArray As New RasterArray(CalculationPaths(I))
+                                RasterArray.GetMinAndMaxDates(RasterType.Raster, MinDate, MaxDate)
+                            End Using
+
+                            If MaxDate.Hour <> 13 AndAlso MaxDate <> DateTime.MaxValue Then MaxDate = MaxDate.AddDays(-1)
+                        End If
+
+                        CalculationMinDate(I) = MinDate
+                        CalculationMaxDate(I) = MaxDate
+                    End Sub))
                 End If
             Next
+
+            Task.WaitAll(Tasks.ToArray)
+
+            ReDim Preserve DatasetMinDate(J)
+            ReDim Preserve DatasetMaxDate(J)
+            ReDim Preserve CalculationMinDate(J)
+            ReDim Preserve CalculationMaxDate(J)
 
             If DatasetList.Items.Count > 0 Then
                 Dim ClimateDatasetMinDate = DatasetMinDate.Max
                 Dim ClimateDatasetMaxDate = DatasetMaxDate.Min
 
-                If Not ClimateDatasetMaxDate = DateTime.MaxValue Then
+                If ClimateDatasetMaxDate <> DateTime.MaxValue Then
                     ClimateDatasetStartDate.Text = ClimateDatasetMinDate.ToString(DateFormat)
                     ClimateDatasetEndDate.Text = ClimateDatasetMaxDate.ToString(DateFormat)
 
@@ -113,21 +147,16 @@ Public Class Calculate_Reference_Evapotranspiration
         End If
     End Sub
 
-    Private Sub Calculate_Evapotranspiration_FormClosing(sender As Object, e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
+    Private Sub Calculate_Evapotranspiration_FormClosing(ByVal sender As Object, ByVal e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
         e.Cancel = BackgroundWorker.IsBusy
         Cancel_Button_Click(Nothing, Nothing)
     End Sub
 
-    Private Sub Calculate_Evapotranspiration_FormClosed(sender As Object, e As System.Windows.Forms.FormClosedEventArgs) Handles Me.FormClosed
-        If Not Command Is Nothing Then Command.Dispose()
-        If Not Connection Is Nothing Then Connection.Dispose()
-    End Sub
-
-    Private Sub Calculate_Evapotranspiration_Resize(sender As Object, e As System.EventArgs) Handles Me.Resize
+    Private Sub Calculate_Evapotranspiration_Resize(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Resize
         DatasetList.Columns(0).Width = DatasetList.Width - SystemInformation.VerticalScrollBarWidth - 5
     End Sub
 
-    Private Sub DatasetList_ItemChecked(sender As Object, e As System.Windows.Forms.ItemCheckedEventArgs) Handles DatasetList.ItemChecked
+    Private Sub DatasetList_ItemChecked(ByVal sender As Object, ByVal e As System.Windows.Forms.ItemCheckedEventArgs) Handles DatasetList.ItemChecked
         Dim CalculationExists = DatasetList.CheckedItems.Count > 0
         DatesGroup.Enabled = CalculationExists
         CalculateButton.Enabled = CalculationExists
@@ -159,6 +188,7 @@ Public Class Calculate_Reference_Evapotranspiration
                 PreviousCalculationStartDate.Text = MinDateCalculation.ToString(DateFormat)
                 PreviousCalculationEndDate.Text = MaxDateCalculation.ToString(DateFormat)
 
+                CalculationEndDate.Value = CalculationEndDate.MaxDate
                 CalculationStartDate.Value = MaxDateCalculation
                 If Not CalculationStartDate.Value = CalculationStartDate.MaxDate Then
                     CalculationStartDate.Value = CalculationStartDate.Value.AddDays(1)
@@ -166,7 +196,6 @@ Public Class Calculate_Reference_Evapotranspiration
                     ProgressText.Text = "Dataset is up-to-date."
                     ProgressText.Visible = True
                 End If
-                CalculationEndDate.Value = CalculationEndDate.MaxDate
             Else
                 PreviousCalculationStartDate.Text = "-"
                 PreviousCalculationEndDate.Text = "-"
@@ -177,11 +206,11 @@ Public Class Calculate_Reference_Evapotranspiration
         End If
     End Sub
 
-    Private Sub DateTimePicker_ValueChanged(sender As Object, e As System.EventArgs) Handles CalculationStartDate.ValueChanged, CalculationEndDate.ValueChanged
+    Private Sub DateTimePicker_ValueChanged(ByVal sender As Object, ByVal e As System.EventArgs) Handles CalculationStartDate.ValueChanged, CalculationEndDate.ValueChanged
         If CalculationStartDate.Value > CalculationEndDate.Value Then CalculationStartDate.Value = CalculationEndDate.Value
     End Sub
 
-    Private Sub CalculateButton_Click(sender As System.Object, e As System.EventArgs) Handles CalculateButton.Click
+    Private Sub CalculateButton_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles CalculateButton.Click
         If Cancel_Button.Enabled = False Then
             Me.DialogResult = System.Windows.Forms.DialogResult.OK
             Me.Close()
@@ -244,9 +273,9 @@ Public Class Calculate_Reference_Evapotranspiration
 
     WithEvents BackgroundWorker As New System.ComponentModel.BackgroundWorker
     Private Timer As Stopwatch
-    Private SelectedClimateDatasets As New List(Of String)
+    Private SelectedClimateDatasets As New HashSet(Of String)
 
-    Private Sub BackgroundWorker_DoWork(sender As System.Object, e As System.ComponentModel.DoWorkEventArgs) Handles BackgroundWorker.DoWork
+    Private Sub BackgroundWorker_DoWork(ByVal sender As System.Object, ByVal e As System.ComponentModel.DoWorkEventArgs) Handles BackgroundWorker.DoWork
         Dim StartDate = New DateTime(CalculationStartDate.Value.Year, CalculationStartDate.Value.Month, CalculationStartDate.Value.Day).AddHours(13)
         Dim EndDate = New DateTime(CalculationEndDate.Value.Year, CalculationEndDate.Value.Month, CalculationEndDate.Value.Day).AddHours(12)
 
@@ -254,7 +283,7 @@ Public Class Calculate_Reference_Evapotranspiration
         If SelectedClimateDatasets.Contains("DAYMET") Then CalculateReferenceEvapotranspirationDAYMET(StartDate, EndDate, BackgroundWorker, e)
     End Sub
 
-    Private Sub BackgroundWorker_ProgressChanged(sender As Object, e As System.ComponentModel.ProgressChangedEventArgs) Handles BackgroundWorker.ProgressChanged
+    Private Sub BackgroundWorker_ProgressChanged(ByVal sender As Object, ByVal e As System.ComponentModel.ProgressChangedEventArgs) Handles BackgroundWorker.ProgressChanged
         If ProgressBar.Value < ProgressBar.Maximum Then
             ProgressBar.Value += 1
             Dim Timespan As TimeSpan = New TimeSpan(Timer.Elapsed.Ticks * (ProgressBar.Maximum / ProgressBar.Value - 1))
@@ -262,7 +291,7 @@ Public Class Calculate_Reference_Evapotranspiration
         End If
     End Sub
 
-    Private Sub BackgroundWorker_RunWorkerCompleted(sender As Object, e As System.ComponentModel.RunWorkerCompletedEventArgs) Handles BackgroundWorker.RunWorkerCompleted
+    Private Sub BackgroundWorker_RunWorkerCompleted(ByVal sender As Object, ByVal e As System.ComponentModel.RunWorkerCompletedEventArgs) Handles BackgroundWorker.RunWorkerCompleted
         If e.Cancelled Then
             ProgressText.Text = "Reference evapotranspiration calculations cancelled"
         ElseIf e.Error IsNot Nothing Then
@@ -306,7 +335,7 @@ Public Class Calculate_Reference_Evapotranspiration
         Cancel_Button_Click(Nothing, Nothing)
     End Sub
 
-    Private Sub ProcessTimer_Tick(sender As Object, e As System.EventArgs) Handles ProcessTimer.Tick
+    Private Sub ProcessTimer_Tick(ByVal sender As Object, ByVal e As System.EventArgs) Handles ProcessTimer.Tick
         ProcessTimerContinue()
     End Sub
 

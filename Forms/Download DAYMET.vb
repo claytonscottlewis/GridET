@@ -1,4 +1,4 @@
-﻿'            Copyright Clayton S. Lewis 2014-2015.
+﻿'            Copyright Clayton S. Lewis 2014-2018.
 '   Distributed under the Boost Software License, Version 1.0.
 '      (See accompanying file GridET License.rtf or copy at
 '            http://www.boost.org/LICENSE_1_0.txt)
@@ -16,81 +16,84 @@ Public Class Download_DAYMET
             GetType(Control).InvokeMember("DoubleBuffered", Reflection.BindingFlags.NonPublic Or Reflection.BindingFlags.Instance Or Reflection.BindingFlags.SetProperty, Nothing, Control, New Object() {True})
         Next
 
-        If IO.Directory.Exists(ClimateModelDirectory) Then
-            DatesGroup.Enabled = True
-
-            Using Connection = CreateConnection(DAYMETRastersPath, False)
-                Connection.Open()
-
-                Using Command = Connection.CreateCommand
-                    Command.CommandText = "CREATE TABLE IF NOT EXISTS Rasters (Date NUMERIC UNIQUE, Image BLOB)"
-                    Command.ExecuteNonQuery()
-
-                    'Determine DAYMET Date Span for Download
-                    Dim Files = DownloadFtpDirectory(BuildFtpStringDAYMET())
-                    Dim Variables As New List(Of String)
-                    Dim MaxYear As Integer = DAYMETStartDate.Year
-
-                    For Each File In Files
-                        If Not File = "" Then
-                            Dim Parts = File.Replace(".nc4", "").Split("_")
-
-                            If Not Variables.Contains(Parts(0)) Then Variables.Add(Parts(0))
-                            If Parts(1) > MaxYear Then MaxYear = Parts(1)
-                        End If
-                    Next
-
-                    Me.Variables = Variables.ToArray
-                    Dim ModelEndDate = New DateTime(MaxYear, 12, 31).AddHours(13)
-
-                    WebsiteStartDate.Text = DAYMETStartDate.ToString(DateFormat)
-                    WebsiteEndDate.Text = ModelEndDate.ToString(DateFormat)
-
-                    Command.CommandText = "SELECT MIN(Date) FROM Rasters"
-                    Dim Value = Command.ExecuteScalar
-                    ParameterStartDate = DAYMETStartDate
-                    If Not IsDBNull(Value) Then ParameterStartDate = CDate(Value)
-
-                    Command.CommandText = "SELECT MAX(Date) FROM Rasters"
-                    Value = Command.ExecuteScalar
-                    ParameterEndDate = DAYMETStartDate
-                    If Not IsDBNull(Value) Then ParameterEndDate = CDate(Value)
-
-                    If IsDBNull(Value) Or ParameterEndDate < ParameterStartDate Then
-                        LocalStartDate.Text = "-"
-                        LocalEndDate.Text = "-"
-                    Else
-                        LocalStartDate.Text = ParameterStartDate.ToString(DateFormat)
-                        LocalEndDate.Text = ParameterEndDate.ToString(DateFormat)
-                    End If
-
-                    DownloadStartDate.MinDate = DAYMETStartDate
-                    DownloadStartDate.MaxDate = ModelEndDate
-                    DownloadEndDate.MinDate = DAYMETStartDate
-                    DownloadEndDate.MaxDate = ModelEndDate
-
-                    If ParameterEndDate = ModelEndDate Then
-                        DownloadStartDate.Value = ParameterEndDate
-                        DownloadEndDate.Value = ParameterEndDate
-
-                        ProgressText.Text = "Dataset is up-to-date."
-                        ProgressText.Visible = True
-                    ElseIf IsDBNull(Value) Then
-                        DownloadStartDate.Value = ParameterEndDate
-                        DownloadEndDate.Value = ModelEndDate
-                    Else
-                        DownloadStartDate.Value = ParameterEndDate.AddDays(1)
-                        DownloadEndDate.Value = ModelEndDate
-                    End If
-
-                End Using
-            End Using
-        Else
-            DatesGroup.Enabled = False
-            DownloadButton.Enabled = False
-        End If
+        DatesGroup.Enabled = False
+        DownloadButton.Enabled = False
+        Login.Visible = IO.Directory.Exists(ClimateModelDirectory)
     End Sub
 
+    Private Sub Login_EarthDataClientCancelled() Handles Login.EarthDataClientCancelled
+        Cancel_Button_Click(Nothing, Nothing)
+    End Sub
+
+    Private Sub Login_EarthDataClientLoaded() Handles Login.EarthDataClientLoaded
+        Using Connection = CreateConnection(DAYMETRastersPath, False), Command = Connection.CreateCommand : Connection.Open()
+
+            Command.CommandText = "CREATE TABLE IF NOT EXISTS Rasters (Date NUMERIC UNIQUE, Image BLOB)"
+            Command.ExecuteNonQuery()
+
+            'Determine DAYMET Date Span for Download
+            Dim Files = Login.EarthDataClient.DownloadFileNames(BuildStringDAYMET())
+            Dim Variables As New List(Of String)
+            Dim MaxYear As Integer = DAYMETStartDate.Year
+
+            For Each File In Files
+                If Not File = "" Then
+                    Dim Parts() As String = File.Replace("_na.nc4", "").Split("_")
+
+                    If Not Variables.Contains(Parts(2)) Then Variables.Add(Parts(2))
+                    If Parts(3) > MaxYear Then MaxYear = Parts(3)
+                End If
+            Next
+
+            Me.Variables = Variables.ToArray
+            Dim ModelEndDate = New DateTime(MaxYear, 12, 31).AddHours(13)
+
+            WebsiteStartDate.Text = DAYMETStartDate.ToString(DateFormat)
+            WebsiteEndDate.Text = ModelEndDate.ToString(DateFormat)
+
+            Command.CommandText = "SELECT MIN(Date) FROM Rasters"
+            Dim Value = Command.ExecuteScalar
+            ParameterStartDate = DAYMETStartDate
+            If Not IsDBNull(Value) Then ParameterStartDate = CDate(Value)
+
+            Command.CommandText = "SELECT MAX(Date) FROM Rasters"
+            Value = Command.ExecuteScalar
+            ParameterEndDate = DAYMETStartDate
+            If Not IsDBNull(Value) Then ParameterEndDate = CDate(Value)
+
+            If IsDBNull(Value) Or ParameterEndDate < ParameterStartDate Then
+                LocalStartDate.Text = "-"
+                LocalEndDate.Text = "-"
+            Else
+                LocalStartDate.Text = ParameterStartDate.ToString(DateFormat)
+                LocalEndDate.Text = ParameterEndDate.ToString(DateFormat)
+            End If
+
+            DownloadStartDate.MinDate = DAYMETStartDate
+            DownloadStartDate.MaxDate = ModelEndDate
+            DownloadEndDate.MinDate = DAYMETStartDate
+            DownloadEndDate.MaxDate = ModelEndDate
+
+            If ParameterEndDate = ModelEndDate Then
+                DownloadStartDate.Value = ParameterEndDate
+                DownloadEndDate.Value = ParameterEndDate
+
+                ProgressText.Text = "Dataset is up-to-date."
+                ProgressText.Visible = True
+            ElseIf IsDBNull(Value) Then
+                DownloadStartDate.Value = ParameterEndDate
+                DownloadEndDate.Value = ModelEndDate
+            Else
+                DownloadStartDate.Value = ParameterEndDate.AddDays(1)
+                DownloadEndDate.Value = ModelEndDate
+            End If
+
+        End Using
+
+        DatesGroup.Enabled = True
+        DownloadButton.Enabled = True
+        Login.Visible = False
+    End Sub
     Private Sub Form_Closing(sender As Object, e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
         e.Cancel = BackgroundWorker.IsBusy
         Cancel_Button_Click(Nothing, Nothing)
@@ -160,7 +163,7 @@ Public Class Download_DAYMET
     Private Variables() As String
 
     Private Sub BackgroundWorker_DoWork(sender As System.Object, e As System.ComponentModel.DoWorkEventArgs) Handles BackgroundWorker.DoWork
-        If DownloadStartDate.Value < DownloadEndDate.Value Then DownloadDAYMET(DAYMETRastersPath, DownloadStartDate.Value, DownloadEndDate.Value, Variables(1), BackgroundWorker, e)
+        If DownloadStartDate.Value < DownloadEndDate.Value Then DownloadDAYMET(Login.EarthDataClient, DAYMETRastersPath, DownloadStartDate.Value, DownloadEndDate.Value, Variables(1), BackgroundWorker, e)
     End Sub
 
     Private Sub BackgroundWorker_ProgressChanged(sender As Object, e As System.ComponentModel.ProgressChangedEventArgs) Handles BackgroundWorker.ProgressChanged

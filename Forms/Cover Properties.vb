@@ -1,4 +1,4 @@
-﻿'            Copyright Clayton S. Lewis 2014-2015.
+﻿'            Copyright Clayton S. Lewis 2014-2018.
 '   Distributed under the Boost Software License, Version 1.0.
 '      (See accompanying file GridET License.rtf or copy at
 '            http://www.boost.org/LICENSE_1_0.txt)
@@ -185,8 +185,6 @@ Public Class Cover_Properties
             Connection.Open()
 
             Command = Connection.CreateCommand
-            Command.CommandText = "CREATE TABLE IF NOT EXISTS Cover (Name TEXT UNIQUE, Properties TEXT)"
-            Command.ExecuteNonQuery()
 
             Command.CommandText = "SELECT Name FROM Cover ORDER BY ROWID"
             Using Reader = Command.ExecuteReader

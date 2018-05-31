@@ -1,4 +1,4 @@
-﻿'            Copyright Clayton S. Lewis 2014-2015.
+﻿'            Copyright Clayton S. Lewis 2014-2018.
 '   Distributed under the Boost Software License, Version 1.0.
 '      (See accompanying file GridET License.rtf or copy at
 '            http://www.boost.org/LICENSE_1_0.txt)
@@ -35,15 +35,13 @@ Public Class Calculate_Potential_Evapotranspiration
 
 #Region "Dates"
 
-    Private Connection As System.Data.SQLite.SQLiteConnection
-    Private Command As System.Data.SQLite.SQLiteCommand
-    Private DateFormat As String = "MMMM dd, yyyy"
     Private CoverProperties() As CoverProperties
     Private CoverStartDate() As DateTime
     Private CoverEndDate() As DateTime
     Private ReferenceVariable As New List(Of String)
     Private ReferenceStartDate As New List(Of DateTime)
     Private ReferenceEndDate As New List(Of DateTime)
+    Private DateFormat As String = "MMMM dd, yyyy"
 
     Private Sub Calculate_Evapotranspiration_Load(sender As System.Object, e As System.EventArgs) Handles MyBase.Load
         For Each Control In Me.Controls
@@ -54,44 +52,55 @@ Public Class Calculate_Potential_Evapotranspiration
             CoverSelectionGroup.Enabled = True
             DatesGroup.Enabled = True
 
-            Connection = CreateConnection(ProjectDetailsPath, False)
-            Connection.Open()
-
-            Command = Connection.CreateCommand
-            Command.CommandText = "CREATE TABLE IF NOT EXISTS Cover (Name TEXT UNIQUE, Properties TEXT)"
-            Command.ExecuteNonQuery()
-
             CoverProperties = GetCoverProperties()
             ReDim CoverStartDate(CoverProperties.Length - 1)
             ReDim CoverEndDate(CoverProperties.Length - 1)
+            For I = 0 To CoverStartDate.Length - 1
+                CoverStartDate(I) = DateTime.MinValue
+                CoverEndDate(I) = DateTime.MaxValue
+            Next
+
+            Dim Tasks As New List(Of Task)
 
             RemoveHandler CoverList.ItemChecked, AddressOf CoverList_ItemChecked
-            For I = 0 To CoverProperties.Length - 1
-                Dim MinDate = DateTime.MinValue
-                Dim MaxDate = DateTime.MaxValue
-
+            For C = 0 To CoverProperties.Length - 1 : Dim I = C
                 Dim Path As String = IO.Path.Combine(PotentialEvapotranspirationDirectory, String.Format(IO.Path.GetFileName(PotentialEvapotranspirationPath), CoverProperties(I).Name))
-                If IO.File.Exists(Path) Then GetMaxAndMinDates({Path}, MaxDate, MinDate)
+                If IO.File.Exists(Path) Then
+                    Tasks.Add(Task.Factory.StartNew(
+                    Sub()
+                        Using RasterArray As New RasterArray(Path)
 
-                CoverStartDate(I) = MinDate
-                CoverEndDate(I) = MaxDate
+                            Dim MinDate = DateTime.MinValue
+                            Dim MaxDate = DateTime.MaxValue
+                            RasterArray.GetMinAndMaxDates(RasterType.Raster, MinDate, MaxDate)
+                            CoverStartDate(I) = MinDate
+                            CoverEndDate(I) = MaxDate
+
+                        End Using
+                    End Sub))
+                End If
 
                 CoverList.Items.Add(CoverProperties(I).Name)
-
                 ReferenceVariable.Add(CoverProperties(I).Variable)
             Next
             AddHandler CoverList.ItemChecked, AddressOf CoverList_ItemChecked
 
+            Task.WaitAll(Tasks.ToArray)
+
             ReferenceVariable = ReferenceVariable.Distinct.ToList()
             For I = 0 To ReferenceVariable.Count - 1
-                Dim MinDate = DateTime.MinValue
-                Dim MaxDate = DateTime.MaxValue
-
                 Dim Path As String = IO.Directory.GetFiles(IntermediateCalculationsDirectory, "*" & ReferenceVariable(I) & ".db", IO.SearchOption.AllDirectories)(0)
-                If IO.File.Exists(Path) Then GetMaxAndMinDates({Path}, MaxDate, MinDate)
+                If IO.File.Exists(Path) Then
+                    Using RasterArray As New RasterArray(Path)
 
-                ReferenceStartDate.Add(MinDate)
-                ReferenceEndDate.Add(MaxDate)
+                        Dim MinDate = DateTime.MinValue
+                        Dim MaxDate = DateTime.MaxValue
+                        RasterArray.GetMinAndMaxDates(RasterType.Raster, MinDate, MaxDate)
+                        ReferenceStartDate.Add(MinDate)
+                        ReferenceEndDate.Add(MaxDate)
+
+                    End Using
+                End If
             Next
 
             If CoverList.Items.Count > 0 Then
@@ -120,11 +129,6 @@ Public Class Calculate_Potential_Evapotranspiration
     Private Sub Calculate_Evapotranspiration_FormClosing(sender As Object, e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
         e.Cancel = BackgroundWorker.IsBusy
         Cancel_Button_Click(Nothing, Nothing)
-    End Sub
-
-    Private Sub Cover_Properties_FormClosed(sender As Object, e As System.Windows.Forms.FormClosedEventArgs) Handles Me.FormClosed
-        If Not Command Is Nothing Then Command.Dispose()
-        If Not Connection Is Nothing Then Connection.Dispose()
     End Sub
 
     Private Sub Calculate_Evapotranspiration_Resize(sender As Object, e As System.EventArgs) Handles Me.Resize
@@ -158,32 +162,40 @@ Public Class Calculate_Potential_Evapotranspiration
             If MaxDateReference <> DateTime.MaxValue Then If MaxDateReference.Month <> 12 And MaxDateReference.Day <> 31 Then MaxDateReference = New DateTime(MaxDateReference.Year - 1, 12, 31)
             MaxDateReference = MaxDateReference.AddHours(13 - MaxDateReference.Hour)
 
-            ReferenceDatasetStartDate.Text = MinDateReference.ToString(DateFormat)
-            ReferenceDatasetEndDate.Text = MaxDateReference.ToString(DateFormat)
+            If MaxDateReference > MinDateReference Then
+                ReferenceDatasetStartDate.Text = MinDateReference.ToString(DateFormat)
+                ReferenceDatasetEndDate.Text = MaxDateReference.ToString(DateFormat)
 
-            CalculationStartDate.MinDate = MinDateReference
-            CalculationStartDate.MaxDate = MaxDateReference
-            CalculationEndDate.MinDate = MinDateReference
-            CalculationEndDate.MaxDate = MaxDateReference
+                CalculationStartDate.MinDate = MinDateReference
+                CalculationStartDate.MaxDate = MaxDateReference
+                CalculationEndDate.MinDate = MinDateReference
+                CalculationEndDate.MaxDate = MaxDateReference
 
-            If NoCalculation Or MaxDateCover < MinDateCover Then
-                PreviousCalculationStartDate.Text = "-"
-                PreviousCalculationEndDate.Text = "-"
+                If NoCalculation Or MaxDateCover < MinDateCover Then
+                    PreviousCalculationStartDate.Text = "-"
+                    PreviousCalculationEndDate.Text = "-"
 
-                CalculationStartDate.Value = CalculationStartDate.MinDate
-                CalculationEndDate.Value = CalculationEndDate.MaxDate
-            Else
-                PreviousCalculationStartDate.Text = MinDateCover.ToString(DateFormat)
-                PreviousCalculationEndDate.Text = MaxDateCover.ToString(DateFormat)
-
-                CalculationStartDate.Value = MaxDateCover
-                If Not CalculationStartDate.Value = CalculationStartDate.MaxDate Then
-                    CalculationStartDate.Value = CalculationStartDate.Value.AddDays(1)
+                    CalculationStartDate.Value = CalculationStartDate.MinDate
+                    CalculationEndDate.Value = CalculationEndDate.MaxDate
                 Else
-                    ProgressText.Text = "Dataset is up-to-date."
-                    ProgressText.Visible = True
+                    PreviousCalculationStartDate.Text = MinDateCover.ToString(DateFormat)
+                    PreviousCalculationEndDate.Text = MaxDateCover.ToString(DateFormat)
+
+                    CalculationStartDate.Value = MaxDateCover
+                    If Not CalculationStartDate.Value = CalculationStartDate.MaxDate Then
+                        CalculationStartDate.Value = CalculationStartDate.Value.AddDays(1)
+                    Else
+                        ProgressText.Text = "Dataset is up-to-date."
+                        ProgressText.Visible = True
+                    End If
+                    CalculationEndDate.Value = CalculationEndDate.MaxDate
                 End If
-                CalculationEndDate.Value = CalculationEndDate.MaxDate
+            Else
+                CoverSelectionGroup.Enabled = False
+                DatesGroup.Enabled = False
+                CalculateButton.Enabled = False
+                ProgressText.Text = "There is insufficient reference data for potential evapotranspiration calculations."
+                ProgressText.Visible = True
             End If
         End If
     End Sub

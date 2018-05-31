@@ -1,4 +1,4 @@
-﻿'            Copyright Clayton S. Lewis 2014-2015.
+﻿'            Copyright Clayton S. Lewis 2014-2018.
 '   Distributed under the Boost Software License, Version 1.0.
 '      (See accompanying file GridET License.rtf or copy at
 '            http://www.boost.org/LICENSE_1_0.txt)
@@ -7,7 +7,7 @@ Public Class Calculate_Raster_Period_Average
 
 #Region "Cover Selection"
 
-    Private Sub CheckAll_Click(sender As System.Object, e As System.EventArgs) Handles CheckAll.Click
+    Private Sub CheckAll_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles CheckAll.Click
         RemoveHandler ParameterList.ItemChecked, AddressOf ParameterList_ItemChecked
 
         For Item = 0 To ParameterList.Items.Count - 1
@@ -19,7 +19,7 @@ Public Class Calculate_Raster_Period_Average
         ParameterList_ItemChecked(Nothing, Nothing)
     End Sub
 
-    Private Sub UncheckAll_Click(sender As System.Object, e As System.EventArgs) Handles UncheckAll.Click
+    Private Sub UncheckAll_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles UncheckAll.Click
         RemoveHandler ParameterList.ItemChecked, AddressOf ParameterList_ItemChecked
 
         For Item = 0 To ParameterList.Items.Count - 1
@@ -35,13 +35,13 @@ Public Class Calculate_Raster_Period_Average
 
 #Region "Dates"
 
-    Private DateFormat As String = "yyyy"
     Private ParameterStartDate As New List(Of DateTime)
     Private ParameterEndDate As New List(Of DateTime)
     Private ParameterPath As New List(Of String)
-    Private ParameterTableType As New List(Of DatabaseTableName)
+    Private ParameterTableType As New List(Of RasterType)
+    Private DateFormat As String = "yyyy"
 
-    Private Sub Calculate_Load(sender As System.Object, e As System.EventArgs) Handles MyBase.Load
+    Private Sub Calculate_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
         For Each Control In Me.Controls
             GetType(Control).InvokeMember("DoubleBuffered", Reflection.BindingFlags.NonPublic Or Reflection.BindingFlags.Instance Or Reflection.BindingFlags.SetProperty, Nothing, Control, New Object() {True})
         Next
@@ -50,37 +50,51 @@ Public Class Calculate_Raster_Period_Average
             ParameterSelectionGroup.Enabled = True
             DatesGroup.Enabled = True
 
-            RemoveHandler ParameterList.ItemChecked, AddressOf ParameterList_ItemChecked
-            For Each Path In IO.Directory.GetFiles(InputVariablesDirectory, "*.db").Concat(IO.Directory.GetFiles(DateVariablesDirectory, "*.db")).Concat(IO.Directory.GetFiles(ReferenceEvapotranspirationDirectory, "*.db")).Concat(IO.Directory.GetFiles(PotentialEvapotranspirationDirectory, "*.db"))
-                Dim ParameterName = IO.Path.GetFileNameWithoutExtension(Path)
+            Dim Tasks As New List(Of Task)
+            Dim List As New Concurrent.ConcurrentBag(Of Object())
 
-                Dim MinDate = DateTime.MinValue
-                Dim MaxDate = DateTime.MaxValue
-                GetMaxAndMinDates({Path}, MaxDate, MinDate, DatabaseTableName.Statistics)
+            Dim Paths = NLDAS_2APaths.Concat(IO.Directory.GetFiles(ReferenceEvapotranspirationDirectory, "*.db").Concat(IO.Directory.GetFiles(PotentialEvapotranspirationDirectory, "*.db"))).ToArray
+            Dim Types = NLDAS_2AStatistics.Concat(Enumerable.Repeat(RasterType.Sum, Paths.Length - NLDAS_2APaths.Length)).ToArray
 
-                If Not MaxDate = DateTime.MaxValue Then
-                    ParameterStartDate.Add(MinDate)
-                    ParameterEndDate.Add(MaxDate)
+            For P = 0 To Paths.Length - 1
+                Dim Path = Paths(P)
+                Dim Type = Types(P)
 
-                    ParameterList.Items.Add(ParameterName)
-                    ParameterPath.Add(Path)
-                    ParameterTableType.Add(DatabaseTableName.Statistics)
+                Tasks.Add(Task.Factory.StartNew(
+                Sub()
+                    Using RasterArray As New RasterArray(Path)
 
-                    If ParameterName.EndsWith(" Potential Evapotranspiration") Then
-                        MinDate = DateTime.MinValue
-                        MaxDate = DateTime.MaxValue
-                        GetMaxAndMinDates({Path}, MaxDate, MinDate, DatabaseTableName.Net)
+                        Dim MinDate = DateTime.MinValue
+                        Dim MaxDate = DateTime.MaxValue
+                        RasterArray.GetMinAndMaxDates(Type, MinDate, MaxDate)
 
-                        If Not MaxDate = DateTime.MaxValue Then
-                            ParameterStartDate.Add(MinDate)
-                            ParameterEndDate.Add(MaxDate)
+                        If MaxDate <> DateTime.MaxValue Then
+                            Dim ParameterName = IO.Path.GetFileNameWithoutExtension(Path)
+                            List.Add(New Object() {ParameterName, MinDate, MaxDate, Path, Type})
 
-                            ParameterList.Items.Add(ParameterName.Insert(ParameterName.Length - 29, " Net"))
-                            ParameterPath.Add(Path)
-                            ParameterTableType.Add(DatabaseTableName.Net)
+                            If ParameterName.EndsWith(" Potential Evapotranspiration") Then
+                                MinDate = DateTime.MinValue
+                                MaxDate = DateTime.MaxValue
+                                RasterArray.GetMinAndMaxDates(RasterType.Net, MinDate, MaxDate)
+
+                                If MaxDate <> DateTime.MaxValue Then
+                                    List.Add(New Object() {ParameterName.Insert(ParameterName.Length - 29, " Net"), MinDate, MaxDate, Path, RasterType.Net})
+                                End If
+                            End If
                         End If
-                    End If
-                End If
+                    End Using
+                End Sub))
+            Next
+
+            Task.WaitAll(Tasks.ToArray)
+
+            RemoveHandler ParameterList.ItemChecked, AddressOf ParameterList_ItemChecked
+            For Each Item In List.OrderBy(Function(I) I(0))
+                ParameterList.Items.Add(Item(0))
+                ParameterStartDate.Add(Item(1))
+                ParameterEndDate.Add(Item(2))
+                ParameterPath.Add(Item(3))
+                ParameterTableType.Add(Item(4))
             Next
             AddHandler ParameterList.ItemChecked, AddressOf ParameterList_ItemChecked
 
@@ -116,16 +130,16 @@ Public Class Calculate_Raster_Period_Average
         End If
     End Sub
 
-    Private Sub Calculate_FormClosing(sender As Object, e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
+    Private Sub Calculate_FormClosing(ByVal sender As Object, ByVal e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
         e.Cancel = BackgroundWorker.IsBusy
         Cancel_Button_Click(Nothing, Nothing)
     End Sub
 
-    Private Sub Calculate_Resize(sender As Object, e As System.EventArgs) Handles Me.Resize
+    Private Sub Calculate_Resize(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Resize
         ParameterList.Columns(0).Width = ParameterList.Width - SystemInformation.VerticalScrollBarWidth - 5
     End Sub
 
-    Private Sub ParameterList_ItemChecked(sender As Object, e As System.Windows.Forms.ItemCheckedEventArgs) Handles ParameterList.ItemChecked
+    Private Sub ParameterList_ItemChecked(ByVal sender As Object, ByVal e As System.Windows.Forms.ItemCheckedEventArgs) Handles ParameterList.ItemChecked
         Dim CalculationExists = ParameterList.CheckedItems.Count > 0
         DatesGroup.Enabled = CalculationExists
         CalculateButton.Enabled = CalculationExists
@@ -167,11 +181,11 @@ Public Class Calculate_Raster_Period_Average
         End If
     End Sub
 
-    Private Sub DateTimePicker_ValueChanged(sender As Object, e As System.EventArgs) Handles CalculationStartDate.ValueChanged, CalculationEndDate.ValueChanged
+    Private Sub DateTimePicker_ValueChanged(ByVal sender As Object, ByVal e As System.EventArgs) Handles CalculationStartDate.ValueChanged, CalculationEndDate.ValueChanged
         If CalculationStartDate.Value > CalculationEndDate.Value Then CalculationStartDate.Value = CalculationEndDate.Value
     End Sub
 
-    Private Sub CalculateButton_Click(sender As System.Object, e As System.EventArgs) Handles CalculateButton.Click
+    Private Sub CalculateButton_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles CalculateButton.Click
         If Cancel_Button.Enabled = False Then
             Me.DialogResult = System.Windows.Forms.DialogResult.OK
             Me.Close()
@@ -220,7 +234,7 @@ Public Class Calculate_Raster_Period_Average
 
             ProgressText.Text = "Initializing calculation datasets..."
             ProgressBar.Minimum = 0
-            ProgressBar.Maximum = DatabasePaths.Length * 14
+            ProgressBar.Maximum = DatabasePaths.Length * 13
             ProgressBar.Value = 0
             ProgressText.Visible = True
             ProgressBar.Visible = True
@@ -253,14 +267,14 @@ Public Class Calculate_Raster_Period_Average
     WithEvents BackgroundWorker As New System.ComponentModel.BackgroundWorker
     Private Timer As Stopwatch
     Private DatabasePaths() As String
-    Private TableNames() As DatabaseTableName
+    Private TableNames() As RasterType
     Private OutputDirectory As String = ""
 
-    Private Sub BackgroundWorker_DoWork(sender As System.Object, e As System.ComponentModel.DoWorkEventArgs) Handles BackgroundWorker.DoWork
+    Private Sub BackgroundWorker_DoWork(ByVal sender As System.Object, ByVal e As System.ComponentModel.DoWorkEventArgs) Handles BackgroundWorker.DoWork
         CalculateRasterPeriodAverages(DatabasePaths, TableNames, OutputDirectory, CalculationStartDate.Value.Year, CalculationEndDate.Value.Year, BackgroundWorker, e)
     End Sub
 
-    Private Sub BackgroundWorker_ProgressChanged(sender As Object, e As System.ComponentModel.ProgressChangedEventArgs) Handles BackgroundWorker.ProgressChanged
+    Private Sub BackgroundWorker_ProgressChanged(ByVal sender As Object, ByVal e As System.ComponentModel.ProgressChangedEventArgs) Handles BackgroundWorker.ProgressChanged
         If ProgressBar.Value < ProgressBar.Maximum Then
             ProgressBar.Value += 1
             Dim Timespan As TimeSpan = New TimeSpan(Timer.Elapsed.Ticks * (ProgressBar.Maximum / ProgressBar.Value - 1))
@@ -268,7 +282,7 @@ Public Class Calculate_Raster_Period_Average
         End If
     End Sub
 
-    Private Sub BackgroundWorker_RunWorkerCompleted(sender As Object, e As System.ComponentModel.RunWorkerCompletedEventArgs) Handles BackgroundWorker.RunWorkerCompleted
+    Private Sub BackgroundWorker_RunWorkerCompleted(ByVal sender As Object, ByVal e As System.ComponentModel.RunWorkerCompletedEventArgs) Handles BackgroundWorker.RunWorkerCompleted
         If e.Cancelled Then
             ProgressText.Text = "Raster period average calculations cancelled"
         ElseIf e.Error IsNot Nothing Then

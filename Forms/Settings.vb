@@ -1,4 +1,4 @@
-﻿'            Copyright Clayton S. Lewis 2014-2015.
+﻿'            Copyright Clayton S. Lewis 2014-2018.
 '   Distributed under the Boost Software License, Version 1.0.
 '      (See accompanying file GridET License.rtf or copy at
 '            http://www.boost.org/LICENSE_1_0.txt)
@@ -13,31 +13,37 @@ Class Settings
         Next
 
         If IO.File.Exists(ProjectDetailsPath) Then
-            ClimateModelDirectory.Text = Global_Variables.ClimateModelDirectory
+            ClimateModelBox.Text = Global_Variables.ClimateModelDirectory
         Else
             OK_Button.Enabled = False
             FileLocationsGroup.Enabled = False
         End If
     End Sub
 
-    Private Sub ClimateModelSet_Click(sender As System.Object, e As System.EventArgs) Handles ClimateModelSet.Click
+    Private Sub ClimateModelSet_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ClimateModelSet.Click
         Dim FolderBrowserDialog As New FolderBrowserDialog
         FolderBrowserDialog.Description = "Set climate model location as..."
 
         If Not FolderBrowserDialog.ShowDialog = Windows.Forms.DialogResult.OK Then Exit Sub
 
-        ClimateModelDirectory.Text = FolderBrowserDialog.SelectedPath
+        ClimateModelBox.Text = FolderBrowserDialog.SelectedPath
     End Sub
 
     Private Sub OK_Button_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles OK_Button.Click
-        If Not IO.Directory.Exists(ClimateModelDirectory.Text) Then
+        If Not IO.Directory.Exists(ClimateModelBox.Text) Then
             MsgBox("Please specify a valid directory.")
             Exit Sub
         End If
 
-        Global_Variables.ClimateModelDirectory = ClimateModelDirectory.Text
+        ClimateModelDirectory = ClimateModelBox.Text
 
-        Main.UpdateSettings()
+        Using Connection = CreateConnection(ProjectDetailsPath, False), Command = Connection.CreateCommand : Connection.Open()
+
+            Command.CommandText = "UPDATE OR IGNORE Settings SET Value = @Directory WHERE Name = 'Climate Model Directory'"
+            Command.Parameters.Add("@Directory", DbType.String).Value = ClimateModelDirectory
+            Command.ExecuteNonQuery()
+
+        End Using
 
         Me.DialogResult = System.Windows.Forms.DialogResult.OK
         Me.Close()

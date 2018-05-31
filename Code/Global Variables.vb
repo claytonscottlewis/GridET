@@ -1,4 +1,4 @@
-﻿'            Copyright Clayton S. Lewis 2014-2015.
+﻿'            Copyright Clayton S. Lewis 2014-2018.
 '   Distributed under the Boost Software License, Version 1.0.
 '      (See accompanying file GridET License.rtf or copy at
 '            http://www.boost.org/LICENSE_1_0.txt)
@@ -8,23 +8,43 @@ Module Global_Variables
 #Region "Constants"
 
     Public Const π As Double = Math.PI
-    Public Const LapseRate As Double = -0.003566167 'Fahrenheit/Foot (From -6.5 Celsius/Kilometer)
+
+    'Derived from Strong, C., Khatri, K. B., Kochanski, A. K., Lewis, C. S., & Allen, L. N. (2017). Reference evapotranspiration from coarse-scale and dynamically downscaled data in complex terrain: Sensitivity to interpolation and resolution. Journal of Hydrology, 548, 406-418.
+    Public MonthlyLapseRate() As Double = {-0.001742, -0.002699, -0.003064, -0.003432, -0.003262, -0.00319, -0.003046, -0.002941, -0.002659, -0.002622, -0.002247, -0.002132} 'Fahrenheit/Foot
 
     Public AirTemperatureCorrectionCoefficients As Double() = {1.58, 0.59, -1.53, -3.73, 1.4, 0.0551}
     Public HumidityCorrectionCoefficients As Double() = {-21.9, 0.78, 3.55, 11.6, -5.05, 0.274}
 
-    Public DAYMETStartDate As DateTime = New DateTime(1980, 1, 1).AddHours(13)
-    Public NLDAS_2AStartDate As DateTime = New DateTime(1979, 1, 1).AddHours(13)
+    Public DAYMETStartDate As DateTime = New DateTime(1980, 1, 1, 13, 0, 0, 0, DateTimeKind.Utc)
+    Public NLDAS_2AStartDate As DateTime = New DateTime(1979, 1, 1, 13, 0, 0, 0, DateTimeKind.Utc)
     Public PRISMStartDate As DateTime = New DateTime(19, 1, 1)
 
+    Public Const SingleMinValue = "-0.0000000000000000000000000000000000000340282347"
+
     Public MonthAndAnnualNames() As String = {"Month1", "Month2", "Month3", "Month4", "Month5", "Month6", "Month7", "Month8", "Month9", "Month10", "Month11", "Month12", "Annual"}
+
+    Public NLDAS_2APaths() As String = {NLDAS_2AMeanAirTemperaturePath, NLDAS_2AMaximumAirTemperaturePath, NLDAS_2AMinimumAirTemperaturePath, NLDAS_2ADewpointTemperaturePath, NLDAS_2ASolarRadiationPath, NLDAS_2AWindSpeedPath, NLDAS_2APrecipitationPath, NLDAS_2AEvapotranspirationASCEPath, NLDAS_2AEvapotranspirationHargreavesPath, NLDAS_2AEvapotranspirationAerodynamicPath, NLDAS_2AGrowingDegreeDays32Path, NLDAS_2AGrowingDegreeDays41Path, NLDAS_2AGrowingDegreeDays8650Path}
+    Public NLDAS_2AStatistics() As RasterType = {RasterType.Average, RasterType.Average, RasterType.Average, RasterType.Average, RasterType.Average, RasterType.Average, RasterType.Sum, RasterType.Sum, RasterType.Sum, RasterType.Sum, RasterType.Sum, RasterType.Sum, RasterType.Sum}
+
+    Public Property ClimateModelDirectory As String = ""
+    Public Property PixelCount As Int64 = -1
+    Public Property ProjectMask As Byte()
+    Public Property ProjectProjection As String
+    Public Property ProjectGeoTransform As Double()
+    Public Property ProjectExtent As Extent
+    Public Property ProjectXCount As Integer
+    Public Property ProjectYCount As Integer
 
 #End Region
 
 #Region "Project Paths"
 
     'Level 1
-    Public Property ProjectDirectory As String = ""
+    Public ReadOnly Property ProjectDirectory As String
+        Get
+            Return My.Settings.LastProjectDirectory
+        End Get
+    End Property
 
     Public ReadOnly Property ProjectDetailsPath As String
         Get
@@ -54,6 +74,19 @@ Module Global_Variables
     Public ReadOnly Property AreaFeaturesDirectory As String
         Get
             Return IO.Path.Combine(ProjectDirectory, "Area Features")
+        End Get
+    End Property
+
+    'Level 3
+    Public ReadOnly Property AttributesDirectory As String
+        Get
+            Return IO.Path.Combine(AreaFeaturesDirectory, "Attributes")
+        End Get
+    End Property
+
+    Public ReadOnly Property MaskAttributesPath As String
+        Get
+            Return IO.Path.Combine(AttributesDirectory, "Attributes.db")
         End Get
     End Property
 
@@ -271,8 +304,6 @@ Module Global_Variables
     End Property
 
     'Level 1
-    Public Property ClimateModelDirectory As String = ""
-
     Public ReadOnly Property NLDAS_2ARastersPath As String
         Get
             Return IO.Path.Combine(ClimateModelDirectory, "NLDAS_2A.db")

@@ -1,4 +1,4 @@
-﻿'            Copyright Clayton S. Lewis 2014-2015.
+﻿'            Copyright Clayton S. Lewis 2014-2018.
 '   Distributed under the Boost Software License, Version 1.0.
 '      (See accompanying file GridET License.rtf or copy at
 '            http://www.boost.org/LICENSE_1_0.txt)
@@ -83,7 +83,7 @@ Public Class MapViewer
         If SubDirectoryBox.Text <> "" Then
             RemoveHandler FileBox.SelectedValueChanged, AddressOf LoadRasters
 
-            For Each File In IO.Directory.GetFiles(IO.Path.Combine(ProjectDirectory, ProjectDirectoryBox.Text, SubDirectoryBox.Text), "*", IO.SearchOption.TopDirectoryOnly).Where(Function(F) F.EndsWith(".tif") Or F.EndsWith(".db")).ToArray
+            For Each File In IO.Directory.GetFiles(IO.Path.Combine(ProjectDirectory, ProjectDirectoryBox.Text, SubDirectoryBox.Text), "*", IO.SearchOption.TopDirectoryOnly).Where(Function(F) F.EndsWith(".tif") Or F.EndsWith(".db")).OrderBy(Function(Item) Item).ToArray
                 FileBox.Items.Add(IO.Path.GetFileName(File))
             Next
 
@@ -108,22 +108,18 @@ Public Class MapViewer
             Dim FilePath = IO.Path.Combine(ProjectDirectory, ProjectDirectoryBox.Text, SubDirectoryBox.Text, FileBox.Text)
             Select Case IO.Path.GetExtension(FilePath)
                 Case ".db"
-                    Using Connection = CreateConnection(FilePath)
-                        Connection.Open()
+                    Using Connection = CreateConnection(FilePath), Command = Connection.CreateCommand : Connection.Open()
 
-                        Using Command = Connection.CreateCommand
-                            Command.CommandText = "SELECT Date FROM Rasters"
-
-                            Using Reader = Command.ExecuteReader
-                                While Reader.Read
-                                    RasterBox.Items.Add(Reader.GetDateTime(0).ToString)
-                                End While
-                            End Using
+                        Command.CommandText = "SELECT Date FROM Rasters"
+                        Using Reader = Command.ExecuteReader
+                            While Reader.Read
+                                RasterBox.Items.Add(Reader.GetDateTime(0).ToString)
+                            End While
                         End Using
+
                     End Using
                 Case ".tif"
-                    Using Raster As New Raster(FilePath)
-                        Raster.Open(GDAL.Access.GA_ReadOnly)
+                    Using Raster As New Raster(FilePath, GDAL.Access.GA_ReadOnly)
 
                         For I = 1 To Raster.BandCount
                             Using Band = Raster.Dataset.GetRasterBand(I)
@@ -132,6 +128,7 @@ Public Class MapViewer
                                 RasterBox.Items.Add(BandDescription)
                             End Using
                         Next
+
                     End Using
             End Select
 
@@ -147,14 +144,14 @@ Public Class MapViewer
         End If
     End Sub
 
-    Private Sub LoadRasterBand(sender As Object, e As System.EventArgs) Handles RasterBox.SelectedValueChanged
+    Private Sub LoadRasterBand(ByVal sender As Object, ByVal e As System.EventArgs) Handles RasterBox.SelectedValueChanged
         If RasterBox.Text <> "" Then
             Dim FilePath = IO.Path.Combine(ProjectDirectory, ProjectDirectoryBox.Text, SubDirectoryBox.Text, FileBox.Text)
 
             If IO.File.Exists(MapServerRasterPath) Then
-                MapServerRaster = New Raster(MapServerRasterPath)
+                MapServerRaster = New Raster(MapServerRasterPath, GDAL.Access.GA_Update)
             Else
-                Using MaskRaster As New Raster(MaskRasterPath)
+                Using MaskRaster As New Raster(MaskRasterPath, GDAL.Access.GA_ReadOnly)
                     MapServerRaster = CreateNewRaster(MapServerRasterPath, MaskRaster, {Single.MinValue})
                 End Using
             End If
@@ -165,27 +162,20 @@ Public Class MapViewer
 
             Select Case IO.Path.GetExtension(FilePath)
                 Case ".db"
-                    Using Connection = CreateConnection(FilePath)
-                        Connection.Open()
+                    Using RasterArray As New RasterArray(FilePath)
 
-                        Using Command = Connection.CreateCommand
-                            Command.CommandText = "SELECT Image FROM Rasters WHERE Date = @Date"
-                            Command.Parameters.Add("@Date", DbType.DateTime).Value = DateTime.Parse(RasterBox.Text)
+                        RasterPath = "/vsimem/MapServerTemporaryRaster" & RasterBox.Text
+                        Dim Time = DateTime.Parse(RasterBox.Text)
+                        RasterArray.ExportRaster(RasterPath, Time.Year, Time.Month, Time.Day)
 
-                            RasterPath = "/vsimem/MapServerTemporaryRaster" & RasterBox.Text
-                            GDAL.Gdal.FileFromMemBuffer(RasterPath, Command.ExecuteScalar)
-                        End Using
                     End Using
                 Case ".tif"
                     RasterPath = FilePath
                     Band = RasterBox.SelectedIndex + 1
             End Select
 
-            Using Raster As New Raster(RasterPath)
-                Raster.Open(GDAL.Access.GA_ReadOnly)
-
-                MapServerRaster = New Raster(MapServerRasterPath)
-                MapServerRaster.Open(GDAL.Access.GA_Update)
+            Using Raster As New Raster(RasterPath, GDAL.Access.GA_ReadOnly)
+                MapServerRaster = New Raster(MapServerRasterPath, GDAL.Access.GA_Update)
 
                 Do Until Raster.BlocksProcessed
                     Dim RasterPixels = Raster.Read({Band})
@@ -427,7 +417,7 @@ Public Class MapViewer
             Writer.WriteLine("  DEFRESOLUTION 96")
             Writer.WriteLine(String.Format("  SIZE {0} {1}", Map.Width, Map.Height))
 
-            Using Raster As New Raster(MaskRasterPath)
+            Using Raster As New Raster(MaskRasterPath, GDAL.Access.GA_ReadOnly)
                 Writer.WriteLine(String.Format("  EXTENT {0} {1} {2} {3}", Raster.Extent.Xmin, Raster.Extent.Ymin, Raster.Extent.Xmax, Raster.Extent.Ymax))
                 Writer.Write("  UNITS " & GetUnits(Raster.Projection))
 

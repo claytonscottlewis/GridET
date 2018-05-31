@@ -1,4 +1,4 @@
-﻿'            Copyright Clayton S. Lewis 2014-2015.
+﻿'            Copyright Clayton S. Lewis 2014-2018.
 '   Distributed under the Boost Software License, Version 1.0.
 '      (See accompanying file GridET License.rtf or copy at
 '            http://www.boost.org/LICENSE_1_0.txt)
@@ -19,7 +19,7 @@ Module GIS
     ''' <param name="NoDataValue">Output Mask or No Data Value for All Bands</param>
     ''' <param name="Scale">Unit Multiplier (Scale*Data+Offset)</param>
     ''' <param name="Offset">Unit Offset (Scale*Data+Offset)</param>
-    Sub MergeRasters(InputRasterPaths() As String, ProjectionRasterPath As String, OutputRasterPath As String, Optional OutputRasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff, Optional OutputCompression As GDALProcess.Compression = GDALProcess.Compression.DEFLATE, Optional ResamplingMethod As GDALProcess.ResamplingMethod = GDALProcess.ResamplingMethod.Cubic, Optional NoDataValue As String = "-9999", Optional Scale As Double = 1, Optional Offset As Double = 0, Optional ByRef GDALProcess As GDALProcess = Nothing)
+    Sub MergeRasters(ByVal InputRasterPaths() As String, ByVal ProjectionRasterPath As String, ByVal OutputRasterPath As String, Optional ByVal OutputRasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff, Optional ByVal OutputCompression As GDALProcess.Compression = GDALProcess.Compression.DEFLATE, Optional ByVal ResamplingMethod As GDALProcess.ResamplingMethod = GDALProcess.ResamplingMethod.Cubic, Optional ByVal NoDataValue As String = SingleMinValue, Optional ByVal Scale As Double = 1, Optional ByVal Offset As Double = 0, Optional ByRef GDALProcess As GDALProcess = Nothing)
         Try
             'Open Each Input Raster and Categorize by Projection
             Dim Projections As New List(Of String)
@@ -90,62 +90,62 @@ Module GIS
     ''' <param name="ResamplingMethod">Resampling Method Type</param>
     ''' <param name="InNoDataValue">Input Mask or No Data Value for All Bands</param>
     ''' <param name="OutNoDataValue">Output Mask or No Data Value for All Bands</param>
-    Sub SnapToRaster(InputRasterPath As String, SnapRasterPath As String, OutputRasterPath As String, Optional UseSnapRasterExtent As Boolean = True, Optional MaskNoData As Boolean = True, Optional OutputRasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff, Optional OutputCompression As GDALProcess.Compression = GDALProcess.Compression.DEFLATE, Optional ResamplingMethod As GDALProcess.ResamplingMethod = GDALProcess.ResamplingMethod.Average, Optional InNoDataValue As String = "-9999", Optional OutNoDataValue As String = "-9999", Optional OutputDataType As GDAL.DataType = GDAL.DataType.GDT_Unknown, Optional ByRef GDALProcess As GDALProcess = Nothing)
+    Sub SnapToRaster(ByVal InputRasterPath As String, ByVal SnapRasterPath As String, ByVal OutputRasterPath As String, Optional ByVal UseSnapRasterExtent As Boolean = True, Optional ByVal MaskNoData As Boolean = True, Optional ByVal OutputRasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff, Optional ByVal OutputCompression As GDALProcess.Compression = GDALProcess.Compression.DEFLATE, Optional ByVal ResamplingMethod As GDALProcess.ResamplingMethod = GDALProcess.ResamplingMethod.Average, Optional ByVal InNoDataValue As String = SingleMinValue, Optional ByVal OutNoDataValue As String = SingleMinValue, Optional ByVal OutputDataType As GDAL.DataType = GDAL.DataType.GDT_Unknown, Optional ByRef GDALProcess As GDALProcess = Nothing)
         Try
             'Get Raster Properties of Input and Snap Rasters
-            Dim InputRaster As New Raster(InputRasterPath)
-            Dim SnapRaster As New Raster(SnapRasterPath)
+            Using InputRaster As New Raster(InputRasterPath, GDAL.Access.GA_ReadOnly),
+                  SnapRaster As New Raster(SnapRasterPath, GDAL.Access.GA_ReadOnly)
 
-            'Prepare Intermediate Calculation Files
-            Dim ProjectionRasterPath As String = IO.Path.GetTempFileName
-            IO.File.WriteAllText(ProjectionRasterPath, SnapRaster.Projection)
-            Dim IntermediateRasterPath As String = IO.Path.Combine(IO.Path.GetDirectoryName(OutputRasterPath), IO.Path.GetFileNameWithoutExtension(OutputRasterPath) & "-Intermediate" & IO.Path.GetExtension(OutputRasterPath))
+                'Prepare Intermediate Calculation Files
+                Dim ProjectionRasterPath As String = IO.Path.GetTempFileName
+                IO.File.WriteAllText(ProjectionRasterPath, SnapRaster.Projection)
+                Dim IntermediateRasterPath As String = IO.Path.Combine(IO.Path.GetDirectoryName(OutputRasterPath), IO.Path.GetFileNameWithoutExtension(OutputRasterPath) & "-Intermediate" & IO.Path.GetExtension(OutputRasterPath))
 
-            'Warp Input Image to Match Extent and Resolution of Snap Raster
-            GDALProcess = New GDALProcess
-            Dim Extent = SnapRaster.Extent
-            If Not UseSnapRasterExtent Then Extent = GetMaskedExtent(InputRaster.Extent, SnapRaster)
+                'Warp Input Image to Match Extent and Resolution of Snap Raster
+                GDALProcess = New GDALProcess
+                Dim Extent = SnapRaster.Extent
+                If Not UseSnapRasterExtent Then Extent = GetMaskedExtent(InputRaster.Extent, SnapRaster)
 
-            GDALProcess.Warp(InputRasterPath, IntermediateRasterPath, ProjectionRasterPath, , Extent, SnapRaster.XResolution, SnapRaster.YResolution, ResamplingMethod, OutputRasterFormat, OutputCompression, {InNoDataValue}, {OutNoDataValue}, True, OutputDataType)
+                GDALProcess.Warp(InputRasterPath, IntermediateRasterPath, ProjectionRasterPath, , Extent, SnapRaster.XResolution, SnapRaster.YResolution, ResamplingMethod, OutputRasterFormat, OutputCompression, {InNoDataValue}, {OutNoDataValue}, True, OutputDataType)
 
-            'Mask Snap Raster No Data Regions in Output if Option Selected
-            If MaskNoData And UseSnapRasterExtent Then
-                Dim SnapNoDataValue As Byte = SnapRaster.BandNoDataValue(0)
-                SnapRaster.Open(GDAL.Access.GA_ReadOnly)
+                'Mask Snap Raster No Data Regions in Output if Option Selected
+                If MaskNoData And UseSnapRasterExtent Then
+                    Dim SnapNoDataValue As Byte = SnapRaster.BandNoDataValue(0)
 
-                'Get Intermediate Output Raster Properties
-                Dim IntermediateRaster As New Raster(IntermediateRasterPath)
-                IntermediateRaster.Open(GDAL.Access.GA_Update)
+                    'Get Intermediate Output Raster Properties
+                    Using IntermediateRaster As New Raster(IntermediateRasterPath, GDAL.Access.GA_Update)
 
-                'Load Pixel Blocks
-                Do Until SnapRaster.BlocksProcessed
-                    Dim SnapValues = SnapRaster.Read({1})
+                        'Load Pixel Blocks
+                        Do Until SnapRaster.BlocksProcessed
+                            Dim SnapValues = SnapRaster.Read({1})
 
-                    For B = 1 To IntermediateRaster.BandCount
-                        Dim IntermediateValues = IntermediateRaster.Read({B})
-                        Dim IntermediateNoDataValue = IntermediateRaster.BandNoDataValue(B - 1)
+                            For B = 1 To IntermediateRaster.BandCount
+                                Dim IntermediateValues = IntermediateRaster.Read({B})
+                                Dim IntermediateNoDataValue = IntermediateRaster.BandNoDataValue(B - 1)
 
-                        'Mask Output Values where Snap Raster has No Data
-                        For I = 0 To SnapValues.Length - 1
-                            If SnapValues(I) = SnapNoDataValue Then IntermediateValues(I) = IntermediateNoDataValue
-                        Next
+                                'Mask Output Values where Snap Raster has No Data
+                                For I = 0 To SnapValues.Length - 1
+                                    If SnapValues(I) = SnapNoDataValue Then IntermediateValues(I) = IntermediateNoDataValue
+                                Next
 
-                        IntermediateRaster.Write({B}, IntermediateValues)
-                    Next
+                                IntermediateRaster.Write({B}, IntermediateValues)
+                            Next
 
-                    SnapRaster.AdvanceBlock()
-                    IntermediateRaster.AdvanceBlock()
-                Loop
-                SnapRaster.Close()
-                IntermediateRaster.Close()
-            End If
+                            SnapRaster.AdvanceBlock()
+                            IntermediateRaster.AdvanceBlock()
+                        Loop
 
-            'Compress Output
-            GDALProcess.Translate({IntermediateRasterPath}, OutputRasterPath, OutputRasterFormat, OutputCompression, , OutNoDataValue)
+                    End Using
+                End If
 
-            'Delete Temporary Files
-            GDALProcess.DeleteRaster(IntermediateRasterPath)
-            IO.File.Delete(ProjectionRasterPath)
+                'Compress Output
+                GDALProcess.Translate({IntermediateRasterPath}, OutputRasterPath, OutputRasterFormat, OutputCompression, , OutNoDataValue)
+
+                'Delete Temporary Files
+                GDALProcess.DeleteRaster(IntermediateRasterPath)
+                IO.File.Delete(ProjectionRasterPath)
+
+            End Using
         Catch Exception As Exception
             MsgBox(Exception.Message)
         End Try
@@ -159,68 +159,62 @@ Module GIS
     ''' <param name="LongitudeRasterPath">Output File Location for Calculated Longitude Raster</param>
     ''' <param name="OutputRasterFormat">Output Raster Format Type</param>
     ''' <param name="CreationOptions">Output Raster Structure Settings</param>
-    Sub CreateCoordinateRasters(BaseRasterPath As String, LatitudeRasterPath As String, LongitudeRasterPath As String, Optional OutputRasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff, Optional CreationOptions() As String = Nothing)
+    Sub CreateCoordinateRasters(ByVal BaseRasterPath As String, ByVal LatitudeRasterPath As String, ByVal LongitudeRasterPath As String, Optional ByVal OutputRasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff, Optional ByVal CreationOptions() As String = Nothing)
         Try
             'Get Base Raster Properties
-            Dim BaseRaster As New Raster(BaseRasterPath)
-            Dim BaseNoDataValue As Single = BaseRaster.BandNoDataValue(0)
+            Using BaseRaster As New Raster(BaseRasterPath, GDAL.Access.GA_ReadOnly)
+                Dim BaseNoDataValue As Single = BaseRaster.BandNoDataValue(0)
 
-            'Setup Transformation from Projected to Geographic Coordinate System Units (Latitude and Longitude Degrees)
-            Dim SpatialReferenceSystem = New OSR.SpatialReference(BaseRaster.Projection)
-            Dim GeographicCoordinateSystem = SpatialReferenceSystem.CloneGeogCS
-            Dim CoordinateTransformation = New OSR.CoordinateTransformation(SpatialReferenceSystem, GeographicCoordinateSystem)
+                'Setup Transformation from Projected to Geographic Coordinate System Units (Latitude and Longitude Degrees)
+                Using SpatialReferenceSystem = New OSR.SpatialReference(BaseRaster.Projection),
+                      GeographicCoordinateSystem = SpatialReferenceSystem.CloneGeogCS,
+                      CoordinateTransformation = New OSR.CoordinateTransformation(SpatialReferenceSystem, GeographicCoordinateSystem)
 
-            'Create Output Datasets
-            Dim OutputNoDataValue As Single = -9999
-            Dim LongitudeRaster = CreateNewRaster(LongitudeRasterPath, BaseRaster, {OutputNoDataValue}, , CreationOptions, , OutputRasterFormat)
-            Dim LatitudeRaster = CreateNewRaster(LatitudeRasterPath, BaseRaster, {OutputNoDataValue}, , CreationOptions, , OutputRasterFormat)
+                    'Create Output Datasets
+                    Dim OutputNoDataValue As Single = Single.MinValue
+                    Using LongitudeRaster = CreateNewRaster(LongitudeRasterPath, BaseRaster, {OutputNoDataValue}, , CreationOptions, , OutputRasterFormat),
+                          LatitudeRaster = CreateNewRaster(LatitudeRasterPath, BaseRaster, {OutputNoDataValue}, , CreationOptions, , OutputRasterFormat)
 
-            'Open Rasters and Prepare Pixel Block Arrays
-            BaseRaster.Open(GDAL.Access.GA_ReadOnly)
-            LongitudeRaster.Open(GDAL.Access.GA_Update)
-            LatitudeRaster.Open(GDAL.Access.GA_Update)
+                        Do Until BaseRaster.BlocksProcessed
+                            Dim BaseValues = BaseRaster.Read({1})
+                            Dim LongitudeValues = LongitudeRaster.GetValuesArray({1})
+                            Dim LatitudeValues = LatitudeRaster.GetValuesArray({1})
 
-            Do Until BaseRaster.BlocksProcessed
-                Dim BaseValues = BaseRaster.Read({1})
-                Dim LongitudeValues = LongitudeRaster.GetValuesArray({1})
-                Dim LatitudeValues = LatitudeRaster.GetValuesArray({1})
+                            'Calculate Affine and Coordinate Transformations to Ouput Latitude and Longitude Degrees
+                            Dim I As Integer = 0
+                            For Y = 0 To BaseRaster.BlockYSize - 1
+                                For X = 0 To BaseRaster.XCount - 1
+                                    If BaseValues(I) = BaseNoDataValue Then
+                                        LongitudeValues(I) = OutputNoDataValue
+                                        LatitudeValues(I) = OutputNoDataValue
+                                    Else
+                                        Dim ProjectedCoordinate = BaseRaster.PixelLocationToCoordinate(New Point64(X, Y + BaseRaster.BlockYOffset))
 
-                'Calculate Affine and Coordinate Transformations to Ouput Latitude and Longitude Degrees
-                Dim I As Integer = 0
-                For Y = 0 To BaseRaster.BlockYSize - 1
-                    For X = 0 To BaseRaster.XCount - 1
-                        If BaseValues(I) = BaseNoDataValue Then
-                            LongitudeValues(I) = OutputNoDataValue
-                            LatitudeValues(I) = OutputNoDataValue
-                        Else
-                            Dim ProjectedCoordinate = BaseRaster.PixelLocationToCoordinate(New Point64(X, Y + BaseRaster.BlockYOffset))
+                                        Dim GeographicCoordinate(2) As Double
+                                        CoordinateTransformation.TransformPoint(GeographicCoordinate, ProjectedCoordinate.X, ProjectedCoordinate.Y, 0)
 
-                            Dim GeographicCoordinate(2) As Double
-                            CoordinateTransformation.TransformPoint(GeographicCoordinate, ProjectedCoordinate.X, ProjectedCoordinate.Y, 0)
+                                        LongitudeValues(I) = GeographicCoordinate(0)
+                                        LatitudeValues(I) = GeographicCoordinate(1)
+                                    End If
+                                    I += 1
+                                Next
+                            Next
 
-                            LongitudeValues(I) = GeographicCoordinate(0)
-                            LatitudeValues(I) = GeographicCoordinate(1)
-                        End If
-                        I += 1
-                    Next
-                Next
+                            'Write Calculated Values to Output
+                            LongitudeRaster.Write({1}, LongitudeValues)
+                            LatitudeRaster.Write({1}, LatitudeValues)
 
-                'Write Calculated Values to Output
-                LongitudeRaster.Write({1}, LongitudeValues)
-                LatitudeRaster.Write({1}, LatitudeValues)
+                            BaseRaster.AdvanceBlock()
+                            LongitudeRaster.AdvanceBlock()
+                            LatitudeRaster.AdvanceBlock()
+                        Loop
 
-                BaseRaster.AdvanceBlock()
-                LongitudeRaster.AdvanceBlock()
-                LatitudeRaster.AdvanceBlock()
-            Loop
 
-            'Release Memory
-            BaseRaster.Close()
-            LongitudeRaster.Close()
-            LatitudeRaster.Close()
-            SpatialReferenceSystem.Dispose()
-            GeographicCoordinateSystem.Dispose()
-            CoordinateTransformation.Dispose()
+                    End Using
+
+                End Using
+
+            End Using
         Catch Exception As Exception
             MsgBox(Exception.Message)
         End Try
@@ -232,24 +226,22 @@ Module GIS
     ''' <param name="InputRasterPath">Raster File Location to Convert Pixels to Points</param>
     ''' <param name="OutputVectorPath">Output Point File Location to Store Pixel Center Coordinates</param>
     ''' <param name="VectorFormat">Output Vector Format Type</param>
-    Sub RasterPixelsToPoints(InputRasterPath As String, OutputVectorPath As String, Optional VectorFormat As GDALProcess.VectorFormat = GDALProcess.VectorFormat.ESRI_Shapefile)
+    Sub RasterPixelsToPoints(ByVal InputRasterPath As String, ByVal OutputVectorPath As String, Optional ByVal VectorFormat As GDALProcess.VectorFormat = GDALProcess.VectorFormat.ESRI_Shapefile)
         Try
             ' Get Input Raster Properties
-            Dim InputRaster As New Raster(InputRasterPath)
-            Dim InputNoDataValue = InputRaster.BandNoDataValue(0)
+            Using InputRaster As New Raster(InputRasterPath, GDAL.Access.GA_ReadOnly)
+                Dim InputNoDataValue = InputRaster.BandNoDataValue(0)
 
-            'Create Output Vector Dataset (Delete If Already Exists - Coded Specifically for Shapefiles)
-            Using Driver = OGR.Ogr.GetDriverByName(GetEnumName(VectorFormat))
-                If IO.File.Exists(OutputVectorPath) Then Driver.DeleteDataSource(OutputVectorPath)
-                Using DataSource = Driver.CreateDataSource(IO.Path.GetDirectoryName(OutputVectorPath), {})
-                    Using Layer = DataSource.CreateLayer(IO.Path.GetFileNameWithoutExtension(OutputVectorPath), New OSR.SpatialReference(InputRaster.Projection), OGR.wkbGeometryType.wkbPoint, {})
+                'Create Output Vector Dataset (Delete If Already Exists - Coded Specifically for Shapefiles)
+                Using Driver = OGR.Ogr.GetDriverByName(GetEnumName(VectorFormat))
+                    If IO.File.Exists(OutputVectorPath) Then Driver.DeleteDataSource(OutputVectorPath)
 
-                        'Create Default Geometries
-                        Dim Feature As New OGR.Feature(Layer.GetLayerDefn)
-                        Dim Geometery As New OGR.Geometry(OGR.wkbGeometryType.wkbPoint)
+                    Using DataSource = Driver.CreateDataSource(IO.Path.GetDirectoryName(OutputVectorPath), {}),
+                          Layer = DataSource.CreateLayer(IO.Path.GetFileNameWithoutExtension(OutputVectorPath), New OSR.SpatialReference(InputRaster.Projection), OGR.wkbGeometryType.wkbPoint, {}),
+                          Feature = New OGR.Feature(Layer.GetLayerDefn),
+                          Geometery = New OGR.Geometry(OGR.wkbGeometryType.wkbPoint)
 
-                        'Open Input Raster and Load Pixel Blocks
-                        InputRaster.Open(GDAL.Access.GA_ReadOnly)
+                        'Load Pixel Blocks
                         Do Until InputRaster.BlocksProcessed
                             Dim InputValues = InputRaster.Read({1})
 
@@ -271,12 +263,10 @@ Module GIS
                             InputRaster.AdvanceBlock()
                         Loop
 
-                        'Release Memory and Close Vector Dataset
-                        InputRaster.Close()
-                        Feature.Dispose()
-                        Geometery.Dispose()
                     End Using
+
                 End Using
+
             End Using
         Catch Exception As Exception
             MsgBox(Exception.Message)
@@ -290,75 +280,74 @@ Module GIS
     ''' <param name="OutputRasterPath">Output File Location for Scaled Raster</param>
     ''' <param name="OutputRasterFormat">Output Raster Format Type</param>
     ''' <param name="CreationOptions">Output Raster Structure Settings</param>
-    Sub ScaleRaster(InputRasterPath As String, OutputRasterPath As String, Optional OutputRasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff, Optional CreationOptions() As String = Nothing)
+    Sub ScaleRaster(ByVal InputRasterPath As String, ByVal OutputRasterPath As String, Optional ByVal OutputRasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff, Optional ByVal CreationOptions() As String = Nothing)
         Try
             'Get Input Raster Properties
-            Dim InputRaster As New Raster(InputRasterPath)
-            InputRaster.Open(GDAL.Access.GA_ReadOnly)
+            Using InputRaster As New Raster(InputRasterPath, GDAL.Access.GA_ReadOnly)
 
-            'Retrieve Minimum and Maximum Values for Each Band and Calculate the Multiplier and Offset Values
-            Dim Min(InputRaster.BandCount - 1) As Double
-            Dim Max(InputRaster.BandCount - 1) As Double
-            Dim Scale(InputRaster.BandCount - 1) As Double
-            Dim Offset(InputRaster.BandCount - 1) As Double
-            For B = 0 To InputRaster.BandCount - 1
-                Dim MinMax(1) As Double
-                Using Band = InputRaster.Dataset.GetRasterBand(B + 1)
-                    Band.ComputeRasterMinMax(MinMax, 0)
-                End Using
-                Min(B) = MinMax(0)
-                Max(B) = MinMax(1)
-                If Max(B) = Min(B) Then Max(B) = Min(B) + 1
+                'Retrieve Minimum and Maximum Values for Each Band and Calculate the Multiplier and Offset Values
+                Dim Min(InputRaster.BandCount - 1) As Double
+                Dim Max(InputRaster.BandCount - 1) As Double
+                Dim Scale(InputRaster.BandCount - 1) As Double
+                Dim Offset(InputRaster.BandCount - 1) As Double
+                For B = 0 To InputRaster.BandCount - 1
+                    Dim MinMax(1) As Double
+                    Using Band = InputRaster.Dataset.GetRasterBand(B + 1)
+                        Band.ComputeRasterMinMax(MinMax, 0)
+                    End Using
+                    Min(B) = MinMax(0)
+                    Max(B) = MinMax(1)
+                    If Max(B) = Min(B) Then Max(B) = Min(B) + 1
 
-                Scale(B) = (Max(B) - Min(B)) / (UInt16.MaxValue - 1)
-                Offset(B) = Min(B) - Scale(B)
-            Next
-
-            'Create Output Dataset
-            Using Driver = GDAL.Gdal.GetDriverByName(OutputRasterFormat.ToString)
-                Using Output = Driver.Create(OutputRasterPath, InputRaster.XCount, InputRaster.YCount, InputRaster.BandCount, GDAL.DataType.GDT_UInt16, CreationOptions)
-                    Output.SetProjection(InputRaster.Projection)
-                    Output.SetGeoTransform(InputRaster.GeoTransform)
-                    For B = 0 To Output.RasterCount - 1
-                        Using Band = Output.GetRasterBand(B + 1)
-                            Band.SetNoDataValue(0)
-                            Band.SetScale(Scale(B))
-                            Band.SetOffset(Offset(B))
-                        End Using
-                    Next
-                End Using
-            End Using
-            Dim OutputRaster As New Raster(OutputRasterPath)
-            OutputRaster.Open(GDAL.Access.GA_Update)
-
-            'Load Pixel Blocks from Input Raster for Each Band
-            Do Until InputRaster.BlocksProcessed
-                For B = 1 To InputRaster.BandCount
-                    Dim InputValues = InputRaster.Read({B})
-                    Dim OutputValues = OutputRaster.GetValuesArray({B})
-                    Dim NoDataValue = InputRaster.BandNoDataValue(B - 1)
-                    Dim ScaleValue = Scale(B - 1)
-                    Dim OffsetValue = Offset(B - 1)
-
-                    'Set No Data to 0 or Calculate Scaled Value
-                    For I = 0 To InputValues.Length - 1
-                        If InputValues(I) = NoDataValue Then
-                            OutputValues(I) = 0
-                        Else
-                            OutputValues(I) = Convert.ToUInt16((InputValues(I) - OffsetValue) / ScaleValue)
-                        End If
-                    Next
-
-                    OutputRaster.Write({B}, OutputValues)
+                    Scale(B) = (Max(B) - Min(B)) / (UInt16.MaxValue - 1)
+                    Offset(B) = Min(B) - Scale(B)
                 Next
 
-                InputRaster.AdvanceBlock()
-                OutputRaster.AdvanceBlock()
-            Loop
+                'Create Output Dataset
+                Using Driver = GDAL.Gdal.GetDriverByName(OutputRasterFormat.ToString)
+                    Using Output = Driver.Create(OutputRasterPath, InputRaster.XCount, InputRaster.YCount, InputRaster.BandCount, GDAL.DataType.GDT_UInt16, CreationOptions)
+                        Output.SetProjection(InputRaster.Projection)
+                        Output.SetGeoTransform(InputRaster.GeoTransform)
+                        For B = 0 To Output.RasterCount - 1
+                            Using Band = Output.GetRasterBand(B + 1)
+                                Band.SetNoDataValue(0)
+                                Band.SetScale(Scale(B))
+                                Band.SetOffset(Offset(B))
+                            End Using
+                        Next
+                    End Using
+                End Using
 
-            'Release Memory
-            InputRaster.Close()
-            OutputRaster.Close()
+                Using OutputRaster As New Raster(OutputRasterPath, GDAL.Access.GA_Update)
+
+                    'Load Pixel Blocks from Input Raster for Each Band
+                    Do Until InputRaster.BlocksProcessed
+                        For B = 1 To InputRaster.BandCount
+                            Dim InputValues = InputRaster.Read({B})
+                            Dim OutputValues = OutputRaster.GetValuesArray({B})
+                            Dim NoDataValue = InputRaster.BandNoDataValue(B - 1)
+                            Dim ScaleValue = Scale(B - 1)
+                            Dim OffsetValue = Offset(B - 1)
+
+                            'Set No Data to 0 or Calculate Scaled Value
+                            For I = 0 To InputValues.Length - 1
+                                If InputValues(I) = NoDataValue Then
+                                    OutputValues(I) = 0
+                                Else
+                                    OutputValues(I) = Convert.ToUInt16((InputValues(I) - OffsetValue) / ScaleValue)
+                                End If
+                            Next
+
+                            OutputRaster.Write({B}, OutputValues)
+                        Next
+
+                        InputRaster.AdvanceBlock()
+                        OutputRaster.AdvanceBlock()
+                    Loop
+
+                End Using
+
+            End Using
         Catch Exception As Exception
             MsgBox(Exception.Message)
         End Try
@@ -368,49 +357,11 @@ Module GIS
 
 #Region "Helper Functions"
 
-    Function BilinearInterpolation(QuadValues As QuadValues, FractionX As Single, FractionY As Single) As Single
-        Dim Value As Single
-
-        Dim Scenario As String = "1" & CByte(Single.IsNaN(QuadValues.TopLeft)) & CByte(Single.IsNaN(QuadValues.TopRight)) & CByte(Single.IsNaN(QuadValues.BottomLeft)) & CByte(Single.IsNaN(QuadValues.BottomRight))
-        Select Case CInt(Scenario)
-            Case 10000
-                Value = ((QuadValues.TopLeft - QuadValues.TopRight - QuadValues.BottomLeft + QuadValues.BottomRight) * FractionY - QuadValues.TopLeft + QuadValues.TopRight) * FractionX + (QuadValues.BottomLeft - QuadValues.TopLeft) * FractionY + QuadValues.TopLeft
-            Case 11000
-                Value = (((QuadValues.TopRight + QuadValues.BottomLeft - QuadValues.BottomRight) * FractionY - QuadValues.TopRight) * FractionX - QuadValues.BottomLeft * FractionY) / ((FractionY - 1) * FractionX - FractionY)
-            Case 10100
-                Value = (((QuadValues.TopLeft - QuadValues.BottomLeft + QuadValues.BottomRight) * FractionY - QuadValues.TopLeft) * FractionX + (QuadValues.BottomLeft - QuadValues.TopLeft) * FractionY + QuadValues.TopLeft) / (1 + (FractionY - 1) * FractionX)
-            Case 10010
-                Value = (((QuadValues.TopLeft - QuadValues.TopRight + QuadValues.BottomRight) * FractionY - QuadValues.TopLeft + QuadValues.TopRight) * FractionX - QuadValues.TopLeft * (FractionY - 1)) / (FractionX * FractionY + 1 - FractionY)
-            Case 10001
-                Value = (((-QuadValues.TopLeft + QuadValues.TopRight + QuadValues.BottomLeft) * FractionY + QuadValues.TopLeft - QuadValues.TopRight) * FractionX + (QuadValues.TopLeft - QuadValues.BottomLeft) * FractionY - QuadValues.TopLeft) / (FractionX * FractionY - 1)
-            Case 11010
-                Value = QuadValues.TopRight + (QuadValues.BottomRight - QuadValues.TopRight) * FractionY
-            Case 10101
-                Value = QuadValues.TopLeft + (QuadValues.BottomLeft - QuadValues.TopLeft) * FractionY
-            Case 10011
-                Value = QuadValues.TopLeft + (QuadValues.TopRight - QuadValues.TopLeft) * FractionX
-            Case 11100
-                Value = QuadValues.BottomLeft + (QuadValues.BottomRight - QuadValues.BottomLeft) * FractionX
-            Case 10111
-                Value = QuadValues.TopLeft
-            Case 11011
-                Value = QuadValues.TopRight
-            Case 11101
-                Value = QuadValues.BottomLeft
-            Case 11110
-                Value = QuadValues.BottomRight
-            Case Else
-                Value = Single.NaN
-        End Select
-
-        Return Value
-    End Function
-
-    Function GetEnumName(Enumeration As Object) As String
+    Function GetEnumName(ByVal Enumeration As Object) As String
         Return [Enum].GetName(Enumeration.GetType, Enumeration).Replace("_", " ")
     End Function
 
-    Function GetMaskedExtent(MaskExtent As Extent, InputRaster As Raster) As Extent
+    Function GetMaskedExtent(ByVal MaskExtent As Extent, ByVal InputRaster As Raster) As Extent
         Dim Output As New Extent
 
         Output.Xmin = InputRaster.Extent.Xmin + InputRaster.XResolution * Math.Floor((MaskExtent.Xmin - InputRaster.Extent.Xmin) / InputRaster.XResolution)
@@ -426,7 +377,7 @@ Module GIS
         Return Output
     End Function
 
-    Function CreateNewRaster(Path As String, XCount As Integer, YCount As Integer, Projection As String, GeoTransform() As Double, NoDataValue As Object(), Optional DataType As GDAL.DataType = GDAL.DataType.GDT_Float32, Optional Options() As String = Nothing, Optional BandCount As Integer = 1, Optional RasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff) As Raster
+    Function CreateNewRaster(ByVal Path As String, ByVal XCount As Integer, ByVal YCount As Integer, ByVal Projection As String, ByVal GeoTransform() As Double, ByVal NoDataValue As Object(), Optional ByVal DataType As GDAL.DataType = GDAL.DataType.GDT_Float32, Optional ByVal Options() As String = Nothing, Optional ByVal BandCount As Integer = 1, Optional ByVal RasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff) As Raster
         Using Driver = GDAL.Gdal.GetDriverByName(RasterFormat.ToString)
             Using Dataset = Driver.Create(Path, XCount, YCount, BandCount, DataType, Options)
                 Dataset.SetProjection(Projection)
@@ -434,17 +385,16 @@ Module GIS
 
                 For B = 1 To BandCount
                     Using Band = Dataset.GetRasterBand(B)
-                        Dim f = NoDataValue(Limit(B - 1, 0, NoDataValue.Length - 1))
                         Band.SetNoDataValue(NoDataValue(Limit(B - 1, 0, NoDataValue.Length - 1)))
                     End Using
                 Next
             End Using
         End Using
 
-        Return New Raster(Path)
+        Return New Raster(Path, GDAL.Access.GA_Update)
     End Function
 
-    Function CreateNewRaster(Path As String, TemplateRaster As Raster, NoDataValue As Object(), Optional DataType As GDAL.DataType = GDAL.DataType.GDT_Float32, Optional Options() As String = Nothing, Optional BandCount As Integer = 1, Optional RasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff) As Raster
+    Function CreateNewRaster(ByVal Path As String, ByVal TemplateRaster As Raster, ByVal NoDataValue As Object(), Optional ByVal DataType As GDAL.DataType = GDAL.DataType.GDT_Float32, Optional ByVal Options() As String = Nothing, Optional ByVal BandCount As Integer = 1, Optional ByVal RasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.ENVI) As Raster
         Return CreateNewRaster(Path, TemplateRaster.XCount, TemplateRaster.YCount, TemplateRaster.Projection, TemplateRaster.GeoTransform, NoDataValue, DataType, Options, BandCount, RasterFormat)
     End Function
 
@@ -464,11 +414,11 @@ Module GIS
             GC.SuppressFinalize(Me)
         End Sub
 
-        Protected Overridable Sub Dispose(Disposing As Boolean)
+        Protected Overridable Sub Dispose(ByVal Disposing As Boolean)
             If Disposed Then Return
 
             If Disposing Then
-                Close()
+                Dataset.Dispose()
                 GeoTransform = Nothing
                 InverseGeoTransform = Nothing
                 BandNoDataValue = Nothing
@@ -518,7 +468,7 @@ Module GIS
         Private Property BandValueMultiplier As Double()
         Private Property BandValueOffset As Double()
         Private Property FetchNoDataValue As Double()
-        Private Property BlockLength As Integer = 2 ^ 21 '2 MB * BytesPerPixel
+        Private Property BlockLength As Integer
         Private Property BlockYCount As Integer
         Private Property BlockCount As Integer
         Private Property FetchBlock As Integer
@@ -536,48 +486,49 @@ Module GIS
             Extent = New Extent
         End Sub
 
-        Sub New(RasterPath As String)
+        Sub New(ByVal RasterPath As String, ByVal Access As GDAL.Access)
             Try
-                Using Dataset = GDAL.Gdal.OpenShared(RasterPath, GDAL.Access.GA_ReadOnly)
-                    Projection = Dataset.GetProjection()
+                Dataset = GDAL.Gdal.OpenShared(RasterPath, Access)
+                Projection = Dataset.GetProjection()
 
-                    ReDim GeoTransform(5)
-                    Dataset.GetGeoTransform(GeoTransform)
-                    ReDim InverseGeoTransform(5)
-                    GDAL.Gdal.InvGeoTransform(GeoTransform, InverseGeoTransform)
+                ReDim GeoTransform(5)
+                Dataset.GetGeoTransform(GeoTransform)
+                ReDim InverseGeoTransform(5)
+                GDAL.Gdal.InvGeoTransform(GeoTransform, InverseGeoTransform)
 
-                    XCount = Dataset.RasterXSize
-                    YCount = Dataset.RasterYSize
+                XCount = Dataset.RasterXSize
+                YCount = Dataset.RasterYSize
 
-                    Dim Xmin = GeoTransform(0) + GeoTransform(2) * YCount
-                    Dim Ymin = GeoTransform(3) + GeoTransform(5) * YCount
-                    Dim Xmax = GeoTransform(0) + GeoTransform(1) * XCount
-                    Dim Ymax = GeoTransform(3) + GeoTransform(4) * XCount
-                    Extent = New Extent(Xmin, Xmax, Ymin, Ymax)
+                Dim Xmin = GeoTransform(0) + GeoTransform(2) * YCount
+                Dim Ymin = GeoTransform(3) + GeoTransform(5) * YCount
+                Dim Xmax = GeoTransform(0) + GeoTransform(1) * XCount
+                Dim Ymax = GeoTransform(3) + GeoTransform(4) * XCount
+                Extent = New Extent(Xmin, Xmax, Ymin, Ymax)
 
-                    XResolution = (Xmax - Xmin) / XCount
-                    YResolution = (Ymax - Ymin) / YCount
-                    XResolutionHalf = XResolution / 2
-                    YResolutionHalf = YResolution / 2
+                XResolution = (Xmax - Xmin) / XCount
+                YResolution = (Ymax - Ymin) / YCount
+                XResolutionHalf = XResolution / 2
+                YResolutionHalf = YResolution / 2
 
-                    BandCount = Dataset.RasterCount
-                    ReDim BandType(BandCount - 1)
-                    ReDim BandNoDataValue(BandCount - 1)
-                    ReDim FetchNoDataValue(BandCount - 1)
-                    ReDim BandValueMultiplier(BandCount - 1)
-                    ReDim BandValueOffset(BandCount - 1)
-                    For I = 1 To BandCount
-                        Using Band = Dataset.GetRasterBand(I)
-                            BandType(I - 1) = Band.DataType
-                            Band.GetNoDataValue(FetchNoDataValue(I - 1), True)
-                            BandNoDataValue(I - 1) = FetchNoDataValue(I - 1)
-                            Band.GetScale(BandValueMultiplier(I - 1), True)
-                            Band.GetOffset(BandValueOffset(I - 1), True)
-                        End Using
-                    Next
+                BandCount = Dataset.RasterCount
+                ReDim BandType(BandCount - 1)
+                ReDim BandNoDataValue(BandCount - 1)
+                ReDim FetchNoDataValue(BandCount - 1)
+                ReDim BandValueMultiplier(BandCount - 1)
+                ReDim BandValueOffset(BandCount - 1)
+                For I = 1 To BandCount
+                    Using Band = Dataset.GetRasterBand(I)
+                        BandType(I - 1) = Band.DataType
+                        Band.GetNoDataValue(FetchNoDataValue(I - 1), True)
+                        BandNoDataValue(I - 1) = FetchNoDataValue(I - 1)
+                        Band.GetScale(BandValueMultiplier(I - 1), True)
+                        Band.GetOffset(BandValueOffset(I - 1), True)
+                    End Using
+                Next
 
-                    Path = RasterPath
-                End Using
+                Path = RasterPath
+
+                Reset()
             Catch Exception As Exception
                 MsgBox(Exception)
             End Try
@@ -600,73 +551,79 @@ Module GIS
             Return Out
         End Function
 
-        Function GetPixelQuadFromCoordinate(Values()() As Single, Coordinate As Point64) As PixelQuad
-            Dim PixelQuad As New PixelQuad(Values.Length)
+        Function GetPixelQuadFromCoordinate(ByRef Values() As Single, ByVal NoDataValue As Single, ByVal X As Double, ByVal Y As Double) As PixelQuad
+            Dim PixelX = InverseGeoTransform(0) + InverseGeoTransform(1) * X + InverseGeoTransform(2) * Y - 0.5
+            Dim PixelY = InverseGeoTransform(3) + InverseGeoTransform(4) * X + InverseGeoTransform(5) * Y - 0.5
 
-            Dim PixelLocation = CoordinateToPixelLocation(Coordinate)
+            Dim XLeft As Integer = Math.Floor(PixelX)
+            Dim FractionX = PixelX - XLeft
+            Dim YTop As Integer = Math.Floor(PixelY)
+            Dim FractionY = PixelY - YTop
 
-            Dim XLeft As Integer = Int(PixelLocation.X)
-            PixelQuad.FractionX = PixelLocation.X - XLeft
-            Dim YTop As Integer = Int(PixelLocation.Y)
-            PixelQuad.FractionY = PixelLocation.Y - YTop
+            Dim TopLeft As Integer = XCount * YTop + XLeft
+            Dim TopRight As Integer = TopLeft + 1
+            Dim BottomLeft As Integer = TopLeft + XCount
+            Dim BottomRight As Integer = BottomLeft + 1
 
-            Dim ITopLeft As Integer = XCount * YTop + XLeft
-            Dim ITopRight As Integer = ITopLeft + 1
-            Dim IBottomLeft As Integer = ITopLeft + XCount
-            Dim IBottomRight As Integer = IBottomLeft + 1
-
-            Dim Scenario As Integer = 0
-            If Coordinate.X - Extent.Xmin < XResolutionHalf Or Extent.Xmax - Coordinate.X <= XResolutionHalf Then
-                If Coordinate.Y - Extent.Ymin < YResolutionHalf Then
-                    Scenario = 1
-                ElseIf Extent.Ymax - Coordinate.Y <= YResolutionHalf Then
-                    Scenario = 2
-                Else
-                    Scenario = 3
+            With Extent
+                If X < .Xmin OrElse X > .Xmax OrElse Y < .Ymin OrElse Y > .Ymax Then
+                    TopLeft = -1
+                    TopRight = -1
+                    BottomLeft = -1
+                    BottomRight = -1
+                ElseIf X - .Xmin < XResolutionHalf Then
+                    If Y - .Ymin < YResolutionHalf Then
+                        TopLeft = -1
+                        BottomLeft = -1
+                        BottomRight = -1
+                    ElseIf .Ymax - Y <= YResolutionHalf Then
+                        TopLeft = -1
+                        TopRight = -1
+                        BottomLeft = -1
+                    Else
+                        TopLeft = -1
+                        BottomLeft = -1
+                    End If
+                ElseIf .Xmax - X <= XResolutionHalf Then
+                    If Y - .Ymin < YResolutionHalf Then
+                        TopRight = -1
+                        BottomLeft = -1
+                        BottomRight = -1
+                    ElseIf .Ymax - Y <= YResolutionHalf Then
+                        TopLeft = -1
+                        TopRight = -1
+                        BottomRight = -1
+                    Else
+                        TopRight = -1
+                        BottomRight = -1
+                    End If
+                ElseIf Y - .Ymin < YResolutionHalf Then
+                    BottomLeft = -1
+                    BottomRight = -1
+                ElseIf .Ymax - Y <= YResolutionHalf Then
+                    TopLeft = -1
+                    TopRight = -1
                 End If
-            ElseIf Coordinate.Y - Extent.Ymin < YResolutionHalf Or Extent.Ymax - Coordinate.Y <= YResolutionHalf Then
-                Scenario = 4
-            End If
+            End With
 
-            For V = 0 To Values.Length - 1
-                Select Case Scenario
-                    Case 0
-                        PixelQuad.Band(V).TopLeft = Values(V)(ITopLeft)
-                        PixelQuad.Band(V).BottomLeft = Values(V)(IBottomLeft)
-                        PixelQuad.Band(V).TopRight = Values(V)(ITopRight)
-                        PixelQuad.Band(V).BottomRight = Values(V)(IBottomRight)
-                    Case 1
-                        PixelQuad.Band(V).BottomLeft = Values(V)(IBottomLeft)
-                    Case 2
-                        PixelQuad.Band(V).TopLeft = Values(V)(ITopLeft)
-                    Case 3
-                        PixelQuad.Band(V).TopLeft = Values(V)(ITopLeft)
-                        PixelQuad.Band(V).BottomLeft = Values(V)(IBottomLeft)
-                    Case 4
-                        PixelQuad.Band(V).TopLeft = Values(V)(ITopLeft)
-                        PixelQuad.Band(V).TopRight = Values(V)(ITopRight)
-                End Select
-            Next
+            If Values(TopLeft) = NoDataValue Then Values(TopLeft) = -1
+            If Values(TopRight) = NoDataValue Then Values(TopRight) = -1
+            If Values(BottomLeft) = NoDataValue Then Values(BottomLeft) = -1
+            If Values(BottomRight) = NoDataValue Then Values(BottomRight) = -1
 
-            Return PixelQuad
+            Return New PixelQuad(TopLeft, TopRight, BottomLeft, BottomRight, FractionX, FractionY)
         End Function
 
-        Sub Open(Access As GDAL.Access)
-            BlockLength = Math.Max(BlockLength, XCount)
+        Sub Reset()
+            BlockLength = Math.Max(2 ^ 28, XCount)
             BlockYCount = Math.Min(Int(BlockLength / XCount), YCount)
             BlockLength = XCount * BlockYCount
             BlockCount = Math.Ceiling(YCount / BlockYCount) - 1
             FetchBlock = 0
             Processed = False
-            If Dataset Is Nothing Then Dataset = GDAL.Gdal.OpenShared(Path, Access)
-            AccessType = Access
         End Sub
 
-        Sub Close()
-            If Dataset IsNot Nothing Then Dataset.Dispose()
-        End Sub
-
-        Function Read(Band() As Integer) As Array
+        Function Read(ByVal Band() As Integer) As Array
             StartFetch(Band)
 
             Dim Values = GetValues(Band)
@@ -699,7 +656,7 @@ Module GIS
             EndFetch()
         End Function
 
-        Sub Write(Band() As Integer, Values As Object)
+        Sub Write(ByVal Band() As Integer, ByVal Values As Object)
             StartFetch(Band)
 
             Dataset.WriteRaster(0, FetchYOffset, XCount, FetchYSize, Values, XCount, FetchYSize, Band.Length, Band, 0, 0, 0)
@@ -707,12 +664,12 @@ Module GIS
             EndFetch()
         End Sub
 
-        Function GetValuesArray(Band() As Integer) As Array
+        Function GetValuesArray(ByVal Band() As Integer) As Array
             StartFetch(Band)
             Return GetValues(Band)
         End Function
 
-        Private Function GetValues(Band() As Integer) As Object
+        Private Function GetValues(ByVal Band() As Integer) As Object
             Dim Values
             Select Case BandType(Band(0) - 1)
                 Case GDAL.DataType.GDT_Byte : Values = Array.CreateInstance(GetType(Byte), FetchLength)
@@ -728,7 +685,7 @@ Module GIS
             Return Values
         End Function
 
-        Private Sub StartFetch(Band() As Integer)
+        Private Sub StartFetch(ByVal Band() As Integer)
             FetchYOffset = FetchBlock * BlockYCount
             FetchYSize = Math.Min(BlockYCount, YCount - FetchYOffset)
             FetchLength = Band.Length * XCount * FetchYSize
@@ -744,7 +701,7 @@ Module GIS
             If Processed = False Then FetchBlock += 1
         End Sub
 
-        Sub SetBlockLength(BlockLength As Integer)
+        Sub SetBlockLength(ByVal BlockLength As Integer)
             Me.BlockLength = BlockLength
         End Sub
 
@@ -775,7 +732,7 @@ Module GIS
         Sub New()
         End Sub
 
-        Sub New(X As Double, Y As Double)
+        Sub New(ByVal X As Double, ByVal Y As Double)
             Me.X = X
             Me.Y = Y
         End Sub
@@ -796,7 +753,7 @@ Module GIS
 
         End Sub
 
-        Sub New(Xmin As Double, Xmax As Double, Ymin As Double, Ymax As Double)
+        Sub New(ByVal Xmin As Double, ByVal Xmax As Double, ByVal Ymin As Double, ByVal Ymax As Double)
             Me.Xmin = Xmin
             Me.Xmax = Xmax
             Me.Ymin = Ymin
@@ -805,36 +762,578 @@ Module GIS
 
     End Class
 
-    Class PixelQuad
-        Public Band() As QuadValues
-        Public FractionX As Double
-        Public FractionY As Double
+    Structure PixelQuad
+        Private TL As Int32
+        Private TR As Int32
+        Private BL As Int32
+        Private BR As Int32
+        Private X As Single
+        Private Y As Single
 
-        Sub New(Count As Integer)
-            ReDim Band(Count - 1)
-            For I = 0 To Count - 1
-                Band(I) = New QuadValues
-            Next
+        Private Scenario As Byte
+        Private Sub ChooseScenario()
+            Scenario = If(TL >= 0, 8, 0) + If(TR >= 0, 4, 0) + If(BL >= 0, 2, 0) + If(BR >= 0, 1, 0)
         End Sub
 
-    End Class
+        Sub New(ByVal TopLeft As Int32, ByVal TopRight As Int32, ByVal BottomLeft As Int32, ByVal BottomRight As Int32, ByVal FractionX As Single, ByVal FractionY As Single)
+            Me.TL = TopLeft
+            Me.TR = TopRight
+            Me.BL = BottomLeft
+            Me.BR = BottomRight
+            Me.X = FractionX
+            Me.Y = FractionY
 
-    Class QuadValues
-        Public TopLeft As Single = Single.NaN
-        Public BottomLeft As Single = Single.NaN
-        Public TopRight As Single = Single.NaN
-        Public BottomRight As Single = Single.NaN
-
-        Sub New()
-
+            ChooseScenario()
         End Sub
 
-        Sub New(TopLeft As Single, TopRight As Single, BottomLeft As Single, BottomRight As Single)
+        Public Function GetValues(ByRef Array() As Single) As QuadValues
+            Return New QuadValues(Array(TL), Array(TR), Array(BL), Array(BR))
+        End Function
+
+        Public Function BilinearInterpolation(ByRef Array() As Single) As Single
+            Return BilinearInterpolation(Array(TL), Array(TR), Array(BL), Array(BR))
+        End Function
+
+        Public Function BilinearInterpolation(ByRef QuadValues As QuadValues) As Single
+            With QuadValues
+                BilinearInterpolation = BilinearInterpolation(.TopLeft, .TopRight, .BottomLeft, .BottomRight)
+            End With
+        End Function
+
+        Public Function BilinearInterpolation(ByVal TopLeft As Single, ByVal TopRight As Single, ByVal BottomLeft As Single, ByVal BottomRight As Single, ByVal FractionX As Single, ByVal FractionY As Single) As Single
+            X = FractionX
+            Y = FractionY
+
+            ChooseScenario()
+
+            Return BilinearInterpolation(TopLeft, TopRight, BottomLeft, BottomRight)
+        End Function
+
+        Public Function BilinearInterpolation(ByVal TopLeft As Single, ByVal TopRight As Single, ByVal BottomLeft As Single, ByVal BottomRight As Single) As Single
+            Dim Value As Single
+
+            'Exists (TL)(TR)(BL)(BR)
+            Select Case Scenario
+                Case 15 '1111
+                    Value = ((TopLeft - TopRight - BottomLeft + BottomRight) * Y - TopLeft + TopRight) * X + (BottomLeft - TopLeft) * Y + TopLeft
+                Case 14 '1110
+                    Value = (((-TopLeft + TopRight + BottomLeft) * Y + TopLeft - TopRight) * X + (TopLeft - BottomLeft) * Y - TopLeft) / (X * Y - 1)
+                Case 13 '1101
+                    Value = (((TopLeft - TopRight + BottomRight) * Y - TopLeft + TopRight) * X - TopLeft * (Y - 1)) / (X * Y + 1 - Y)
+                Case 11 '1011
+                    Value = (((TopLeft - BottomLeft + BottomRight) * Y - TopLeft) * X + (BottomLeft - TopLeft) * Y + TopLeft) / (1 + (Y - 1) * X)
+                Case 7 '0111
+                    Value = (((TopRight + BottomLeft - BottomRight) * Y - TopRight) * X - BottomLeft * Y) / ((Y - 1) * X - Y)
+                Case 12 '1100
+                    Value = TopLeft + (TopRight - TopLeft) * X
+                Case 10 '1010
+                    Value = TopLeft + (BottomLeft - TopLeft) * Y
+                Case 9 '1001
+                    Value = TopLeft + (BottomRight - TopLeft) * (X + Y) / 2
+                Case 6 '0110
+                    Value = TopRight + (BottomLeft - TopRight) * ((1 - X) + Y) / 2
+                Case 5 '0101
+                    Value = TopRight + (BottomRight - TopRight) * Y
+                Case 3 '0011
+                    Value = BottomLeft + (BottomRight - BottomLeft) * X
+                Case 8 '1000
+                    Value = TopLeft
+                Case 4 '0100
+                    Value = TopRight
+                Case 2 '0010
+                    Value = BottomLeft
+                Case 1 '0001
+                    Value = BottomRight
+                Case 0 '0000
+                    Value = Single.NaN
+            End Select
+
+            Return Value
+        End Function
+
+    End Structure
+
+    Structure QuadValues
+        Public TopLeft As Single
+        Public TopRight As Single
+        Public BottomRight As Single
+        Public BottomLeft As Single
+
+        Public Sub New(ByVal TopLeft As Single, ByVal TopRight As Single, ByVal BottomLeft As Single, ByVal BottomRight As Single)
             Me.TopLeft = TopLeft
             Me.TopRight = TopRight
             Me.BottomLeft = BottomLeft
             Me.BottomRight = BottomRight
         End Sub
+
+    End Structure
+
+    Class RasterArray : Implements IDisposable
+
+        Private Disposed As Boolean = False
+        Public Sub Dispose() Implements IDisposable.Dispose
+            Dispose(True)
+            GC.SuppressFinalize(Me)
+        End Sub
+
+        Protected Overridable Sub Dispose(ByVal Disposing As Boolean)
+            If Disposed Then Return
+
+            If Disposing Then
+                Connection.Dispose()
+                Command.Dispose()
+            End If
+
+            Disposed = True
+        End Sub
+
+        Private SQLitePath As String
+        Private ArrayPath As String
+        Private Connection As Data.SQLite.SQLiteConnection
+        Private Command As Data.SQLite.SQLiteCommand
+        Private Lock As New Object
+
+        Private Length As Int64
+        Private RasterCount As Int64
+        Private RasterLength As Int64
+        Private BufferSize As Int32
+
+        Public Sub New(ByVal Path As String)
+            Dim Directory = IO.Path.GetDirectoryName(Path)
+            Dim ExtensionlessPath = IO.Path.Combine(Directory, IO.Path.GetFileNameWithoutExtension(Path))
+            SQLitePath = ExtensionlessPath & ".db"
+            ArrayPath = ExtensionlessPath & ".ra"
+            If Not IO.Directory.Exists(Directory) Then IO.Directory.CreateDirectory(Directory)
+            If Not IO.File.Exists(SQLitePath) Then Data.SQLite.SQLiteConnection.CreateFile(SQLitePath)
+            If Not IO.File.Exists(ArrayPath) Then Using Stream = IO.File.Create(ArrayPath) : End Using
+
+            Dim ConnectionBuilder As New Data.SQLite.SQLiteConnectionStringBuilder
+            ConnectionBuilder.DataSource = SQLitePath
+            ConnectionBuilder.ReadOnly = False
+            ConnectionBuilder.DefaultTimeout = 1000
+            ConnectionBuilder.PageSize = UInt16.MaxValue
+            ConnectionBuilder.MaxPageCount = Int32.MaxValue
+            ConnectionBuilder.JournalMode = Data.SQLite.SQLiteJournalModeEnum.Delete
+            ConnectionBuilder.SyncMode = Data.SQLite.SynchronizationModes.Full
+            ConnectionBuilder.DateTimeKind = DateTimeKind.Utc
+            ConnectionBuilder.DateTimeFormatString = "yyyy-MM-dd HH:mm:ss.fffffffK"
+            Connection = New System.Data.SQLite.SQLiteConnection(ConnectionBuilder.ToString)
+            Connection.Open()
+
+            Command = Connection.CreateCommand
+            Using Transaction = Connection.BeginTransaction
+
+                Command.CommandText = "CREATE TABLE IF NOT EXISTS Properties (Key TEXT UNIQUE, Value INTEGER)"
+                Command.ExecuteNonQuery()
+
+                Command.CommandText = String.Format("INSERT OR IGNORE INTO Properties (Key, Value) VALUES ('PixelCount', {0}), ('RasterCount', 0)", PixelCount)
+                Command.ExecuteNonQuery()
+
+                For Each RasterType As RasterType In [Enum].GetValues(GetType(RasterType))
+                    Command.CommandText = String.Format("CREATE TABLE IF NOT EXISTS {0} ({1} UNIQUE, Complete BOOLEAN, Position INTEGER, Offset DOUBLE, Scale DOUBLE)", GetTableName(RasterType), If(RasterType = Calculations.RasterType.Attribute OrElse RasterType = RasterType.Date, "Name TEXT", "Date DATETIME"))
+                    Command.ExecuteNonQuery()
+                Next
+
+                Command.CommandText = "SELECT Key, Value FROM Properties"
+                Using Reader = Command.ExecuteReader
+                    While Reader.Read
+                        Select Case Reader.GetString(0)
+                            Case "PixelCount" : Length = Reader.GetInt64(1)
+                            Case "RasterCount" : RasterCount = Reader.GetInt64(1)
+                        End Select
+                    End While
+                End Using
+
+                Transaction.Commit()
+            End Using
+
+            RasterLength = 2 * PixelCount
+            BufferSize = 2 ^ 17
+        End Sub
+
+        Public Function ReadAttribute(ByVal Attribute As AttributeType) As Single()
+            Return Read(Attribute.ToString, Nothing, RasterType.Attribute)
+        End Function
+
+        Public Function ReadDate(ByVal Year As Int16, ByVal Calculation As CalculationDateType) As UInt16()
+            Return Read(Calculation.ToString & vbTab & Year, Nothing, RasterType.Date)
+        End Function
+
+        Public Function ReadRaster(ByVal Year As Int16, ByVal Month As Byte, ByVal Day As Byte) As Single()
+            Return Read("", New DateTime(Year, Month, Day, 13, 0, 0, 0, DateTimeKind.Utc), RasterType.Raster)
+        End Function
+
+        Public Function ReadStatistic(ByVal Year As Int16, ByVal Month As Byte, ByVal RasterType As RasterType) As Single()
+            Return Read("", New DateTime(Year, If(Month < 13, Month, 12), If(Month < 13, 1, 31), 0, 0, 0, 0, DateTimeKind.Utc), RasterType)
+        End Function
+
+        Private Function Read(ByVal Name As String, ByVal Time As DateTime, ByVal RasterType As RasterType) As Object
+            'Load Raster Postion, Offset, And Scale
+            Dim RasterAdded As Boolean = False
+            Dim Position As Int64 = -1
+            Dim Offset As Double = -1
+            Dim Scale As Double = -1
+
+            SyncLock Lock
+                Command.CommandText = String.Format("SELECT Position, Offset, Scale FROM {0} WHERE {1} = @{1} AND Complete", GetTableName(RasterType), If(RasterType = RasterType.Attribute OrElse RasterType = RasterType.Date, "Name", "Date"))
+                Command.Parameters.Add("@Name", DbType.String).Value = Name
+                Command.Parameters.Add("@Date", DbType.DateTime).Value = Time.ToUniversalTime
+                Using Reader = Command.ExecuteReader
+                    If Reader.HasRows Then
+                        Reader.Read()
+
+                        Position = Reader.GetInt64(0)
+                        Offset = Reader.GetDouble(1)
+                        Scale = Reader.GetDouble(2)
+
+                        RasterAdded = True
+                    End If
+                End Using
+            End SyncLock
+
+            'Load Raster 16 Bit Integers And Convert To 32 Bit Floats
+            If RasterAdded Then
+                Using Stream As New IO.FileStream(ArrayPath, IO.FileMode.Open, IO.FileAccess.Read, IO.FileShare.ReadWrite, BufferSize)
+                    Stream.Seek(Position, IO.SeekOrigin.Begin)
+
+                    If RasterType = RasterType.Date Then
+                        Dim Array(PixelCount - 1) As UInt16
+
+                        'Dim Bytes(PixelCount * 2 - 1) As Byte
+                        'Stream.Read(Bytes, 0, Bytes.Length)
+                        'Buffer.BlockCopy(Bytes, 0, Array, 0, Bytes.Length)
+
+                        Dim Bytes(1) As Byte
+                        For I = 0 To PixelCount - 1
+                            Stream.Read(Bytes, 0, 2)
+                            Array(I) = BitConverter.ToUInt16(Bytes, 0)
+                        Next
+
+                        Read = Array
+                    Else
+                        Dim Array(PixelCount - 1) As Single
+
+                        Dim Bytes(1) As Byte
+                        For I = 0 To PixelCount - 1
+                            Stream.Read(Bytes, 0, 2)
+                            Array(I) = BitConverter.ToUInt16(Bytes, 0) * Scale + Offset
+                        Next
+
+                        Read = Array
+                    End If
+                End Using
+            Else
+                Read = Nothing
+            End If
+        End Function
+
+        Public Sub WriteAttribute(ByRef Array() As Single, ByVal Attribute As AttributeType)
+            Write(Array, Nothing, Attribute.ToString, Nothing, RasterType.Attribute)
+        End Sub
+
+        Public Sub WriteDate(ByRef Array() As UInt16, ByVal Year As Int16, ByVal Calculation As CalculationDateType)
+            Write(Nothing, Array, Calculation.ToString & vbTab & Year, Nothing, RasterType.Date)
+        End Sub
+
+        Public Sub WriteRaster(ByRef Array() As Single, ByVal Year As Int16, ByVal Month As Byte, ByVal Day As Byte)
+            Write(Array, Nothing, "", New DateTime(Year, Month, Day, 13, 0, 0, 0, DateTimeKind.Utc), RasterType.Raster)
+        End Sub
+
+        Public Sub WriteStatistic(ByRef Array() As Single, ByVal Year As Int16, ByVal Month As Byte, ByVal RasterType As RasterType)
+            Write(Array, Nothing, "", New DateTime(Year, If(Month < 13, Month, 12), If(Month < 13, 1, 31), 0, 0, 0, 0, DateTimeKind.Utc), RasterType)
+        End Sub
+
+        Private Sub Write(ByRef SingleArray() As Single, ByRef UInt16Array() As UInt16, ByVal Name As String, ByVal Time As DateTime, ByVal RasterType As RasterType)
+            'Determine Offset And Scale
+            Dim Offset As Double = 0
+            Dim Scale As Double = 1
+
+            If RasterType <> RasterType.Date Then
+                Dim Min = Double.MaxValue
+                Dim Max = Double.MinValue
+                For Each Value In SingleArray
+                    If Value < Min Then Min = Value
+                    If Value > Max Then Max = Value
+                Next
+                If Max = Min Then Max += 1
+
+                Offset = Min
+                Scale = (Max - Min) / UInt16.MaxValue
+            End If
+
+            'Determine Raster Starting Position In File
+            Dim Position As Int64 = -1
+            Dim TableName = GetTableName(RasterType)
+            Dim ColumnName = If(RasterType = Calculations.RasterType.Attribute OrElse RasterType = RasterType.Date, "Name", "Date")
+            SyncLock Lock
+                Using Transaction = Connection.BeginTransaction
+
+                    Dim RasterAdded As Boolean = False
+                    Command.CommandText = String.Format("SELECT Position FROM {0} WHERE {1} = @{1}", TableName, ColumnName)
+                    Command.Parameters.Add("@" & ColumnName, DbType.String).Value = Name
+                    Command.Parameters.Add("@Date", DbType.DateTime).Value = Time.ToUniversalTime
+                    Using Reader = Command.ExecuteReader
+                        If Reader.HasRows Then
+                            Reader.Read()
+                            Position = Reader.GetInt64(0)
+                            RasterAdded = True
+                        End If
+                    End Using
+
+                    Command.Parameters.Add("@Offset", DbType.Double).Value = Offset
+                    Command.Parameters.Add("@Scale", DbType.Double).Value = Scale
+
+                    If RasterAdded Then
+                        Command.CommandText = String.Format("UPDATE {0} SET Complete = 0, Offset = @Offset, Scale = @Scale WHERE {1} = @{1}", TableName, ColumnName)
+                    Else
+                        Position = RasterCount * RasterLength
+                        RasterCount += 1
+
+                        Command.CommandText = "UPDATE Properties SET Value = Value + 1 WHERE Key = 'RasterCount'"
+                        Command.ExecuteNonQuery()
+
+                        Command.CommandText = String.Format("INSERT INTO {0} ({1}, Complete, Position, Offset, Scale) VALUES (@{1}, 0, @Position, @Offset, @Scale)", TableName, ColumnName)
+                        Command.Parameters.Add("@Position", DbType.Int64).Value = Position
+                    End If
+                    Command.ExecuteNonQuery()
+
+                    Transaction.Commit()
+                End Using
+            End SyncLock
+
+            'Convert 32 Bit Float Array To 16 Bit Integers And Output Bytes To File
+            Using Stream As New IO.FileStream(ArrayPath, IO.FileMode.Open, IO.FileAccess.Write, IO.FileShare.ReadWrite, BufferSize)
+                Stream.Seek(Position, IO.SeekOrigin.Begin)
+
+                If RasterType = RasterType.Date Then
+                    Dim Bytes(PixelCount * 2 - 1) As Byte
+                    Buffer.BlockCopy(UInt16Array, 0, Bytes, 0, Bytes.Length)
+                    Stream.Write(Bytes, 0, Bytes.Length)
+                Else
+                    For Each Value In SingleArray
+                        Dim ScaledBytes = BitConverter.GetBytes(Convert.ToUInt16((Value - Offset) / Scale))
+                        Stream.Write(ScaledBytes, 0, 2)
+                    Next
+                End If
+            End Using
+
+            SyncLock Lock
+                Command.CommandText = String.Format("UPDATE {0} SET Complete = 1 WHERE {1} = @{1}", TableName, ColumnName)
+                Command.ExecuteNonQuery()
+            End SyncLock
+        End Sub
+
+        Private Function GetTableName(ByVal RasterType As RasterType) As String
+            Return RasterType.ToString & "s"
+        End Function
+
+        Public Sub CalculatePeriodStatistics(ByVal RasterType As RasterType, ByVal MinDate As DateTime, ByVal MaxDate As DateTime)
+            If MaxDate >= MinDate Then
+                'Get Fully Processed Months
+                Dim Months As New List(Of YearMonth)
+                SyncLock Lock
+                    Command.CommandText = "SELECT SUBSTR(Date,1,7) YearMonth, COUNT(*) FROM Rasters WHERE Date BETWEEN @Date1 AND @Date2 AND Complete GROUP BY YearMonth ORDER BY YearMonth"
+                    Command.Parameters.Add("@Date1", DbType.DateTime).Value = New DateTime(MinDate.Year, MinDate.Month, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                    Command.Parameters.Add("@Date2", DbType.DateTime).Value = (New DateTime(MaxDate.Year, MaxDate.Month, 1, 0, 0, 0, 0, DateTimeKind.Utc)).AddMonths(1).AddTicks(-1)
+                    Using Reader = Command.ExecuteReader
+                        While Reader.Read
+                            Dim Time = Reader.GetString(0).Split("-")
+                            Dim YearMonth As New YearMonth(Time(0), Time(1), Reader.GetInt32(1))
+
+                            If YearMonth.Days = DateTime.DaysInMonth(Time(0), Time(1)) Then Months.Add(YearMonth)
+                        End While
+                    End Using
+                End SyncLock
+
+                'Get Fully Processed Years
+                Dim Years As New List(Of YearMonth)
+                Dim YearLookup As New Dictionary(Of Int16, Int32)
+                SyncLock Lock
+                    Command.CommandText = "SELECT SUBSTR(Date,1,4) Year, COUNT(*) FROM Rasters WHERE Date BETWEEN @Date1 AND @Date2 AND Complete GROUP BY Year ORDER BY Year"
+                    Command.Parameters.Add("@Date1", DbType.DateTime).Value = New DateTime(MinDate.Year, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                    Command.Parameters.Add("@Date2", DbType.DateTime).Value = (New DateTime(MaxDate.Year + 1, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)).AddTicks(-1)
+                    Using Reader = Command.ExecuteReader
+                        While Reader.Read
+                            Dim X = Reader.GetString(0)
+                            Dim YearMonth As New YearMonth(Reader.GetString(0), 13, Reader.GetInt32(1))
+
+                            If YearMonth.Days = (New DateTime(YearMonth.Year, 12, 31)).DayOfYear Then
+                                YearLookup.Add(YearMonth.Year, Years.Count)
+                                Years.Add(YearMonth)
+                            End If
+                        End While
+                    End Using
+                End SyncLock
+
+                Dim YearlyStatistics(PixelCount - 1) As Single
+                Dim MonthLookup As New HashSet(Of Int32)
+
+                For M = 0 To Months.Count - 1
+                    Dim MonthDate = Months(M)
+                    Dim MonthlyStatistics(PixelCount - 1) As Single
+
+                    'Load Daily Rasters And Sum In Monthly Array
+                    For Day = 1 To MonthDate.Days
+                        Dim DailyValues = ReadRaster(MonthDate.Year, MonthDate.Month, Day)
+                        For I = 0 To PixelCount - 1
+                            MonthlyStatistics(I) += DailyValues(I)
+                        Next
+                    Next
+
+                    'Annual Calculations
+                    If YearLookup.ContainsKey(MonthDate.Year) Then
+                        For I = 0 To PixelCount - 1
+                            YearlyStatistics(I) += MonthlyStatistics(I)
+                        Next
+                        MonthLookup.Add(MonthDate.Year * 12 + MonthDate.Month)
+
+                        If MonthDate.Month = 12 OrElse M = Months.Count - 1 Then
+                            For J = 1 To 12
+                                If Not MonthLookup.Contains(MonthDate.Year * 12 + J) Then
+                                    If RasterType = Calculations.RasterType.Sum Then
+                                        'Load Monthly Sums And Add To Annual Array
+                                        Dim MonthlyValues = ReadStatistic(MonthDate.Year, J, RasterType)
+                                        If MonthlyValues IsNot Nothing Then
+                                            For I = 0 To PixelCount - 1
+                                                YearlyStatistics(I) += MonthlyValues(I)
+                                            Next
+                                        Else
+                                            'Load Daily Rasters And Sum In Annual Array
+                                            For Day = 1 To MonthDate.Days
+                                                Dim DailyValues = ReadRaster(MonthDate.Year, MonthDate.Month, Day)
+                                                For I = 0 To PixelCount - 1
+                                                    YearlyStatistics(I) += DailyValues(I)
+                                                Next
+                                            Next
+                                        End If
+                                    ElseIf RasterType = Calculations.RasterType.Average Then
+                                        'Load Daily Rasters And Sum In Annual Array
+                                        For Day = 1 To MonthDate.Days
+                                            Dim DailyValues = ReadRaster(MonthDate.Year, MonthDate.Month, Day)
+                                            For I = 0 To PixelCount - 1
+                                                YearlyStatistics(I) += DailyValues(I)
+                                            Next
+                                        Next
+                                    End If
+                                End If
+                            Next
+
+                            'Daily Average If Specified
+                            If RasterType = RasterType.Average Then
+                                Dim TotalDays = Years(YearLookup(MonthDate.Year)).Days
+                                For I = 0 To PixelCount - 1
+                                    YearlyStatistics(I) /= TotalDays
+                                Next
+                            End If
+
+                            WriteStatistic(YearlyStatistics, MonthDate.Year, 13, RasterType)
+
+                            If M <> Months.Count - 1 Then
+                                ReDim YearlyStatistics(PixelCount - 1)
+                                MonthLookup.Clear()
+                            End If
+                        End If
+                    End If
+
+                    'Daily Average If Specified
+                    If RasterType = RasterType.Average Then
+                        For I = 0 To PixelCount - 1
+                            MonthlyStatistics(I) /= MonthDate.Days
+                        Next
+                    End If
+
+                    'Write Monthly Statistics
+                    WriteStatistic(MonthlyStatistics, MonthDate.Year, MonthDate.Month, RasterType)
+                Next
+            End If
+        End Sub
+
+        Public Sub GetMinAndMaxDates(ByVal RasterType As RasterType, ByRef MinDate As DateTime, ByRef MaxDate As DateTime)
+            If RasterType <> Calculations.RasterType.Attribute Then
+                SyncLock Lock
+                    Command.CommandText = String.Format("SELECT MIN(Date) FROM {0} WHERE Complete UNION ALL SELECT MAX(Date) FROM {0} WHERE Complete", GetTableName(RasterType))
+                    Using Reader = Command.ExecuteReader
+                        Reader.Read()
+                        If Not Reader.IsDBNull(0) Then MinDate = Reader.GetDateTime(0)
+
+                        Reader.Read()
+                        If Not Reader.IsDBNull(0) Then MaxDate = Reader.GetDateTime(0)
+                    End Using
+                End SyncLock
+            End If
+        End Sub
+
+        Public Sub ExportAttribute(ByVal Path As String, ByVal Attribute As AttributeType, Optional ByVal UseCompression As Boolean = False, Optional ByVal RasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff)
+            Export(Path, Attribute.ToString, Nothing, RasterType.Attribute, UseCompression, RasterFormat)
+        End Sub
+
+        Public Sub ExportDate(ByVal Path As String, ByVal Year As Int16, ByVal Calculation As CalculationDateType, Optional ByVal UseCompression As Boolean = False, Optional ByVal RasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff)
+            Export(Path, Calculation.ToString & vbTab & Year, Nothing, RasterType.Date, UseCompression, RasterFormat)
+        End Sub
+
+        Public Sub ExportRaster(ByVal Path As String, ByVal Year As Int16, ByVal Month As Byte, ByVal Day As Byte, Optional ByVal UseCompression As Boolean = False, Optional ByVal RasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff)
+            Export(Path, "", New DateTime(Year, Month, Day, 13, 0, 0, 0, DateTimeKind.Utc), RasterType.Raster, UseCompression, RasterFormat)
+        End Sub
+
+        Public Sub ExportStatistic(ByVal Path As String, ByVal Year As Int16, ByVal Month As Byte, ByVal RasterType As RasterType, Optional ByVal UseCompression As Boolean = False, Optional ByVal RasterFormat As GDALProcess.RasterFormat = GDALProcess.RasterFormat.GTiff)
+            Export(Path, "", New DateTime(Year, If(Month < 13, Month, 12), If(Month < 13, 1, 31), 0, 0, 0, 0, DateTimeKind.Utc), RasterType, UseCompression, RasterFormat)
+        End Sub
+
+        Private Sub Export(ByVal Path As String, ByVal Name As String, ByVal Time As DateTime, ByVal RasterType As RasterType, ByVal UseCompression As Boolean, ByVal RasterFormat As GDALProcess.RasterFormat)
+            Dim Values() As Single = Read(Name, Time, RasterType)
+            If Values IsNot Nothing Then
+                Dim Array(ProjectMask.Length - 1) As Single
+
+                Dim NoDataValue = Single.MinValue
+                Dim J As Int32 = 0
+                For I = 0 To ProjectMask.Length - 1
+                    If ProjectMask(I) > 0 Then
+                        Array(I) = Values(J)
+                        J += 1
+                    Else
+                        Array(I) = NoDataValue
+                    End If
+                Next
+
+                Using Driver = GDAL.Gdal.GetDriverByName(RasterFormat.ToString)
+                    Using Dataset = Driver.Create(Path, ProjectXCount, ProjectYCount, 1, GDAL.DataType.GDT_Float32, If(UseCompression, {"COMPRESS=DEFLATE"}, {}))
+                        Dataset.SetProjection(ProjectProjection)
+                        Dataset.SetGeoTransform(ProjectGeoTransform)
+
+                        Dataset.WriteRaster(0, 0, ProjectXCount, ProjectYCount, Array, ProjectXCount, ProjectYCount, 1, {1}, 0, 0, 0)
+
+                        Using Band = Dataset.GetRasterBand(1)
+                            Band.SetNoDataValue(NoDataValue)
+
+                            Dim Min As Double = 0, Max As Double = 0, Mean As Double = 0, StDev As Double = 0, Buckets As Integer = 256, Histogram(Buckets - 1) As Integer
+
+                            Band.ComputeStatistics(False, Min, Max, Mean, StDev, Nothing, Nothing)
+                            Band.SetStatistics(Min, Max, Mean, StDev)
+
+                            Band.GetHistogram(Min, Max, Buckets, Histogram, True, False, Nothing, Nothing)
+                            Band.SetDefaultHistogram(Min, Max, Buckets, Histogram)
+                        End Using
+                    End Using
+                End Using
+            End If
+        End Sub
+
+        Private Class YearMonth
+            Public Year As Int16
+            Public Month As Byte
+            Public Days As Int16
+
+            Public Sub New()
+
+            End Sub
+
+            Public Sub New(ByVal Year As Int16, ByVal Month As Byte, ByVal Days As Int16)
+                Me.Year = Year
+                Me.Month = Month
+                Me.Days = Days
+            End Sub
+
+        End Class
 
     End Class
 

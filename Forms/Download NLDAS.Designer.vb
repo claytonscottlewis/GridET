@@ -40,6 +40,7 @@ Partial Class Download_NLDAS
         Me.ProgressText = New System.Windows.Forms.Label()
         Me.ProgressBar = New System.Windows.Forms.ProgressBar()
         Me.Cancel_Button = New System.Windows.Forms.Button()
+        Me.Login = New GridET.EarthDataLogin()
         Me.DatesGroup.SuspendLayout()
         Me.TableLayoutPanel1.SuspendLayout()
         Me.SuspendLayout()
@@ -58,8 +59,8 @@ Partial Class Download_NLDAS
         'DatesGroup
         '
         Me.DatesGroup.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
-            Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Left) _
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.DatesGroup.Controls.Add(Me.TableLayoutPanel1)
         Me.DatesGroup.Location = New System.Drawing.Point(12, 12)
         Me.DatesGroup.Name = "DatesGroup"
@@ -247,7 +248,7 @@ Partial Class Download_NLDAS
         'ProgressText
         '
         Me.ProgressText.Anchor = CType(((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.ProgressText.Location = New System.Drawing.Point(30, 191)
         Me.ProgressText.Margin = New System.Windows.Forms.Padding(3, 21, 3, 0)
         Me.ProgressText.Name = "ProgressText"
@@ -259,7 +260,7 @@ Partial Class Download_NLDAS
         'ProgressBar
         '
         Me.ProgressBar.Anchor = CType(((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.ProgressBar.Location = New System.Drawing.Point(30, 207)
         Me.ProgressBar.Maximum = 5
         Me.ProgressBar.Name = "ProgressBar"
@@ -279,11 +280,20 @@ Partial Class Download_NLDAS
         Me.Cancel_Button.Text = "Cancel"
         Me.Cancel_Button.UseVisualStyleBackColor = True
         '
+        'Login
+        '
+        Me.Login.Dock = System.Windows.Forms.DockStyle.Fill
+        Me.Login.Location = New System.Drawing.Point(0, 0)
+        Me.Login.Name = "Login"
+        Me.Login.Size = New System.Drawing.Size(584, 248)
+        Me.Login.TabIndex = 35
+        '
         'Download_NLDAS
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(584, 248)
+        Me.Controls.Add(Me.Login)
         Me.Controls.Add(Me.Cancel_Button)
         Me.Controls.Add(Me.ProgressText)
         Me.Controls.Add(Me.ProgressBar)
@@ -319,4 +329,5 @@ Partial Class Download_NLDAS
     Friend WithEvents ProgressText As System.Windows.Forms.Label
     Friend WithEvents ProgressBar As System.Windows.Forms.ProgressBar
     Friend WithEvents Cancel_Button As System.Windows.Forms.Button
+    Friend WithEvents Login As GridET.EarthDataLogin
 End Class

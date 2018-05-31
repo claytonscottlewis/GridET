@@ -1,4 +1,4 @@
-﻿'            Copyright Clayton S. Lewis 2014-2015.
+﻿'            Copyright Clayton S. Lewis 2014-2018.
 '   Distributed under the Boost Software License, Version 1.0.
 '      (See accompanying file GridET License.rtf or copy at
 '            http://www.boost.org/LICENSE_1_0.txt)
@@ -9,7 +9,7 @@ Class GDALProcess
 
     Private ReadOnly Property GDALDirectory As String
         Get
-            Return IO.Path.Combine(Application.StartupPath, "Dependencies\GDAL")
+            Return IO.Path.Combine(Application.StartupPath, "GDAL\gdal\apps")
         End Get
     End Property
 
@@ -25,7 +25,7 @@ Class GDALProcess
 
     End Sub
 
-    Private Sub Start(Process As Process)
+    Private Sub Start(ByVal Process As Process)
         Process.StartInfo.UseShellExecute = False
         Process.StartInfo.CreateNoWindow = True
         Process.StartInfo.RedirectStandardInput = True
@@ -42,15 +42,15 @@ Class GDALProcess
         Process.WaitForExit()
     End Sub
 
-    Private Sub Process_OutputDataReceived(Process As Process, Output As System.Diagnostics.DataReceivedEventArgs)
+    Private Sub Process_OutputDataReceived(ByVal Process As Process, ByVal Output As System.Diagnostics.DataReceivedEventArgs)
         If Not Output.Data Is Nothing Then Log.Append(Output.Data.ToString & Environment.NewLine)
     End Sub
 
-    Private Sub Process_ErrorDataReceived(Process As Process, Err As System.Diagnostics.DataReceivedEventArgs)
+    Private Sub Process_ErrorDataReceived(ByVal Process As Process, ByVal Err As System.Diagnostics.DataReceivedEventArgs)
         If Not Err.Data Is Nothing Then Log.Append(Err.Data.ToString & Environment.NewLine)
     End Sub
 
-    Public Shared Sub SetEnvironmentVariable(VariableName As String, Value As String)
+    Public Shared Sub SetEnvironmentVariable(ByVal VariableName As String, ByVal Value As String)
         Environment.SetEnvironmentVariable(VariableName, Value)
         GDAL.Gdal.SetConfigOption(VariableName, Value)
     End Sub
@@ -59,7 +59,7 @@ Class GDALProcess
 
 #Region "Utilities"
 
-    Function RunCommand(Filename As FileName, Arguments As String) As String
+    Function RunCommand(ByVal Filename As FileName, ByVal Arguments As String) As String
         Process = New Process
         Process.StartInfo.FileName = IO.Path.Combine(GDALDirectory, Filename.ToString)
         Process.StartInfo.Arguments = Arguments
@@ -69,7 +69,7 @@ Class GDALProcess
         Return Log.ToString
     End Function
 
-    Function BuildVRT(InPath() As String, OutPath As String, Optional NoData() As String = Nothing, Optional VirtualNoData() As String = Nothing, Optional Band() As String = Nothing) As String
+    Function BuildVRT(ByVal InPath() As String, ByVal OutPath As String, Optional ByVal NoData() As String = Nothing, Optional ByVal VirtualNoData() As String = Nothing, Optional ByVal Band() As String = Nothing) As String
         Process = New Process
         Process.StartInfo.FileName = IO.Path.Combine(GDALDirectory, "gdalbuildvrt.exe")
 
@@ -105,13 +105,11 @@ Class GDALProcess
         Process.StartInfo.Arguments = Command.ToString
 
         Start(Process)
-
-        Start(Process)
         Process.Dispose()
         Return Log.ToString
     End Function
 
-    Function Translate(InPath() As String, OutPath As String, Optional RasterFormat As RasterFormat = RasterFormat.GTiff, Optional Compression As Compression = GDALProcess.Compression.NONE, Optional Extent As Extent = Nothing, Optional NoData As String = Nothing, Optional BigTiff As Boolean = False, Optional Unscale As Boolean = False, Optional DataType As GDAL.DataType = GDAL.DataType.GDT_Unknown, Optional Projection As String = Nothing, Optional DatabaseOptions As String = Nothing) As String
+    Function Translate(ByVal InPath() As String, ByVal OutPath As String, Optional ByVal RasterFormat As RasterFormat = RasterFormat.GTiff, Optional ByVal Compression As Compression = GDALProcess.Compression.NONE, Optional ByVal Extent As Extent = Nothing, Optional ByVal NoData As String = Nothing, Optional ByVal BigTiff As Boolean = False, Optional ByVal Unscale As Boolean = False, Optional ByVal DataType As GDAL.DataType = GDAL.DataType.GDT_Unknown, Optional ByVal Projection As String = Nothing, Optional ByVal DatabaseOptions As String = Nothing) As String
         Process = New Process
         Process.StartInfo.FileName = IO.Path.Combine(GDALDirectory, "gdal_translate.exe")
 
@@ -136,7 +134,7 @@ Class GDALProcess
         Return Log.ToString
     End Function
 
-    Function Warp(InPath As String, OutPath As String, TargetSpatialReference As String, Optional CutlinePath As String = Nothing, Optional TargetExtent As Extent = Nothing, Optional TargetXResolution As Double = Nothing, Optional TargetYResolution As Double = Nothing, Optional ResamplingMethod As ResamplingMethod = ResamplingMethod.Average, Optional RasterFormat As RasterFormat = RasterFormat.GTiff, Optional Compression As Compression = GDALProcess.Compression.NONE, Optional InNoData() As String = Nothing, Optional OutNoData() As String = Nothing, Optional OverWrite As Boolean = False, Optional DataType As GDAL.DataType = GDAL.DataType.GDT_Unknown) As String
+    Function Warp(ByVal InPath As String, ByVal OutPath As String, ByVal TargetSpatialReference As String, Optional ByVal CutlinePath As String = Nothing, Optional ByVal TargetExtent As Extent = Nothing, Optional ByVal TargetXResolution As Double = Nothing, Optional ByVal TargetYResolution As Double = Nothing, Optional ByVal ResamplingMethod As ResamplingMethod = ResamplingMethod.Average, Optional ByVal RasterFormat As RasterFormat = RasterFormat.GTiff, Optional ByVal Compression As Compression = GDALProcess.Compression.NONE, Optional ByVal InNoData() As String = Nothing, Optional ByVal OutNoData() As String = Nothing, Optional ByVal OverWrite As Boolean = False, Optional ByVal DataType As GDAL.DataType = GDAL.DataType.GDT_Unknown) As String
         Process = New Process
         Process.StartInfo.FileName = IO.Path.Combine(GDALDirectory, "gdalwarp.exe")
 
@@ -174,7 +172,7 @@ Class GDALProcess
         Return Log.ToString
     End Function
 
-    Function DeleteRaster(InPath As String) As String
+    Function DeleteRaster(ByVal InPath As String) As String
         Process = New Process
         Process.StartInfo.FileName = IO.Path.Combine(GDALDirectory, "gdalmanage.exe")
 
@@ -187,7 +185,7 @@ Class GDALProcess
         Return Log.ToString
     End Function
 
-    Function TileIndex(InPath() As String, OutPath As String, Optional VectorFormat As VectorFormat = VectorFormat.ESRI_Shapefile) As String
+    Function TileIndex(ByVal InPath() As String, ByVal OutPath As String, Optional ByVal VectorFormat As VectorFormat = VectorFormat.ESRI_Shapefile) As String
         Process = New Process
         Process.StartInfo.FileName = """" & IO.Path.Combine(GDALDirectory, "gdaltindex.exe")
 
@@ -218,7 +216,7 @@ Class GDALProcess
         Return Log.ToString
     End Function
 
-    Function DEM(InPath As String, OutPath As String, DEMOutput As DEMDerivative, Optional RasterFormat As RasterFormat = RasterFormat.GTiff, Optional Compression As Compression = GDALProcess.Compression.NONE) As String
+    Function DEM(ByVal InPath As String, ByVal OutPath As String, ByVal DEMOutput As DEMDerivative, Optional ByVal RasterFormat As RasterFormat = RasterFormat.GTiff, Optional ByVal Compression As Compression = GDALProcess.Compression.NONE) As String
         Process = New Process
         Process.StartInfo.FileName = IO.Path.Combine(GDALDirectory, "gdaldem.exe")
 
@@ -236,7 +234,7 @@ Class GDALProcess
         Return Log.ToString
     End Function
 
-    Function Rasterize(InPath As String, OutPath As String, Resolution As String, Optional RasterFormat As RasterFormat = RasterFormat.GTiff, Optional Compression As Compression = GDALProcess.Compression.DEFLATE, Optional BurnValue As String = Nothing, Optional NoData As String = Nothing, Optional DataType As GDAL.DataType = GDAL.DataType.GDT_Byte) As String
+    Function Rasterize(ByVal InPath As String, ByVal OutPath As String, ByVal Resolution As String, Optional ByVal RasterFormat As RasterFormat = RasterFormat.GTiff, Optional ByVal Compression As Compression = GDALProcess.Compression.DEFLATE, Optional ByVal BurnValue As String = Nothing, Optional ByVal NoData As String = Nothing, Optional ByVal DataType As GDAL.DataType = GDAL.DataType.GDT_Byte) As String
         Process = New Process
         Process.StartInfo.FileName = IO.Path.Combine(GDALDirectory, "gdal_rasterize.exe")
 
@@ -256,7 +254,7 @@ Class GDALProcess
         Return Log.ToString
     End Function
 
-    Function Rasterize(InPath As String, OutPath As String, TableName As String, AttributeField As String, Extent As Extent, XCount As Integer, YCount As Integer, Optional WhereExpression As String = Nothing, Optional RasterFormat As RasterFormat = RasterFormat.GTiff, Optional Compression As Compression = GDALProcess.Compression.NONE, Optional NoData As String = Nothing, Optional DataType As GDAL.DataType = GDAL.DataType.GDT_Int32) As String
+    Function Rasterize(ByVal InPath As String, ByVal OutPath As String, ByVal TableName As String, ByVal AttributeField As String, ByVal Extent As Extent, ByVal XCount As Integer, ByVal YCount As Integer, Optional ByVal WhereExpression As String = Nothing, Optional ByVal RasterFormat As RasterFormat = RasterFormat.GTiff, Optional ByVal Compression As Compression = GDALProcess.Compression.NONE, Optional ByVal NoData As String = Nothing, Optional ByVal DataType As GDAL.DataType = GDAL.DataType.GDT_Int32) As String
         Process = New Process
         Process.StartInfo.FileName = IO.Path.Combine(GDALDirectory, "gdal_rasterize.exe")
 
@@ -283,7 +281,7 @@ Class GDALProcess
         Return Log.ToString
     End Function
 
-    Function Info(InPath As String, Optional SubDatasetName As String = Nothing, Optional Brief As Boolean = False, Optional GetMinMax As Boolean = False, Optional GetStatistics As Boolean = False) As String
+    Function Info(ByVal InPath As String, Optional ByVal SubDatasetName As String = Nothing, Optional ByVal Brief As Boolean = False, Optional ByVal GetMinMax As Boolean = False, Optional ByVal GetStatistics As Boolean = False) As String
         Process = New Process
         Process.StartInfo.FileName = IO.Path.Combine(GDALDirectory, "gdalinfo.exe")
 
@@ -300,7 +298,7 @@ Class GDALProcess
         Return Log.ToString
     End Function
 
-    Function Ogr2Ogr(InPath As String, OutPath As String, Optional VectorFormat As VectorFormat = VectorFormat.SQLite, Optional AssignProjection As OSR.SpatialReference = Nothing, Optional Reprojection As OSR.SpatialReference = Nothing, Optional Overwrite As Boolean = True, Optional SQL As String = Nothing)
+    Function Ogr2Ogr(ByVal InPath As String, ByVal OutPath As String, Optional ByVal VectorFormat As VectorFormat = VectorFormat.SQLite, Optional ByVal AssignProjection As OSR.SpatialReference = Nothing, Optional ByVal Reprojection As OSR.SpatialReference = Nothing, Optional ByVal Overwrite As Boolean = True, Optional ByVal SQL As String = Nothing)
         Process = New Process
         Process.StartInfo.FileName = IO.Path.Combine(GDALDirectory, "ogr2ogr.exe")
 
@@ -320,7 +318,8 @@ Class GDALProcess
         If Overwrite Then Command.Append(" -overwrite")
         If SQL <> Nothing Then Command.Append(String.Format(" -sql ""{0}""", SQL))
         If VectorFormat = GDALProcess.VectorFormat.SQLite Then
-            Command.Append(" -gt ""65536""")
+            Command.Append(" -gt ""1048576""")
+            Command.Append(" --config OGR_SQLITE_PRAGMA ""SYNCHRONOUS = OFF, JOURNAL_MODE = OFF""")
             If IO.File.Exists(OutPath) Then IO.File.Delete(OutPath)
         End If
         Command.Append(String.Format(" ""{0}""", OutPath))
@@ -360,23 +359,23 @@ Class GDALProcess
 
 #Region "Helper Functions"
 
-    Private Function GetRasterFormatString(RasterFormat As RasterFormat) As String
+    Private Function GetRasterFormatString(ByVal RasterFormat As RasterFormat) As String
         Return " -of " & GetEnumName(RasterFormat)
     End Function
 
-    Private Function GetResamplingMethodString(ResamplingMethod As ResamplingMethod) As String
+    Private Function GetResamplingMethodString(ByVal ResamplingMethod As ResamplingMethod) As String
         Return " -r " & GetEnumName(ResamplingMethod).ToLower
     End Function
 
-    Private Function GetVectorFormatString(VectorFormat As VectorFormat) As String
+    Private Function GetVectorFormatString(ByVal VectorFormat As VectorFormat) As String
         Return String.Format(" -f ""{0}""", GetEnumName(VectorFormat))
     End Function
 
-    Private Function GetExtentString(Extent As Extent) As String
+    Private Function GetExtentString(ByVal Extent As Extent) As String
         Return " -projwin " & Extent.Xmin & " " & Extent.Ymax & " " & Extent.Xmax & " " & Extent.Ymin
     End Function
 
-    Private Function GetCompressionString(Compression As Compression, RasterFormat As RasterFormat) As String
+    Private Function GetCompressionString(ByVal Compression As Compression, ByVal RasterFormat As RasterFormat) As String
         Dim Format As String = ""
 
         Select Case RasterFormat
@@ -393,11 +392,11 @@ Class GDALProcess
         Return Format
     End Function
 
-    Private Function GetDataType(DataType As GDAL.DataType)
+    Private Function GetDataType(ByVal DataType As GDAL.DataType)
         Return GetEnumName(DataType).Replace("GDT ", "")
     End Function
 
-    Private Function GetProjectionFile(Projection As OSR.SpatialReference) As String
+    Private Function GetProjectionFile(ByVal Projection As OSR.SpatialReference) As String
         Dim ReprojectionPath As String = IO.Path.GetTempFileName
 
         If Projection IsNot Nothing Then

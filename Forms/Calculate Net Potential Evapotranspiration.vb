@@ -1,4 +1,4 @@
-﻿'            Copyright Clayton S. Lewis 2014-2015.
+﻿'            Copyright Clayton S. Lewis 2014-2018.
 '   Distributed under the Boost Software License, Version 1.0.
 '      (See accompanying file GridET License.rtf or copy at
 '            http://www.boost.org/LICENSE_1_0.txt)
@@ -7,7 +7,7 @@ Public Class Calculate_Net_Potential_Evapotranspiration
 
 #Region "Cover Selection"
 
-    Private Sub CheckAll_Click(sender As System.Object, e As System.EventArgs) Handles CheckAll.Click
+    Private Sub CheckAll_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles CheckAll.Click
         RemoveHandler CoverList.ItemChecked, AddressOf CoverList_ItemChecked
 
         For Item = 0 To CoverList.Items.Count - 1
@@ -19,7 +19,7 @@ Public Class Calculate_Net_Potential_Evapotranspiration
         CoverList_ItemChecked(Nothing, Nothing)
     End Sub
 
-    Private Sub UncheckAll_Click(sender As System.Object, e As System.EventArgs) Handles UncheckAll.Click
+    Private Sub UncheckAll_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles UncheckAll.Click
         RemoveHandler CoverList.ItemChecked, AddressOf CoverList_ItemChecked
 
         For Item = 0 To CoverList.Items.Count - 1
@@ -35,16 +35,16 @@ Public Class Calculate_Net_Potential_Evapotranspiration
 
 #Region "Dates"
 
-    Private DateFormat As String = "MMMM yyyy"
-    Private CoverStatisticsStartDate As New List(Of DateTime)
-    Private CoverStatisticsEndDate As New List(Of DateTime)
-    Private CoverNetStartDate As New List(Of DateTime)
-    Private CoverNetEndDate As New List(Of DateTime)
-    Private PrecipitationStartDate As New List(Of DateTime)
-    Private PrecipitationEndDate As New List(Of DateTime)
+    Private CoverStatisticsStartDate() As DateTime
+    Private CoverStatisticsEndDate() As DateTime
+    Private CoverNetStartDate() As DateTime
+    Private CoverNetEndDate() As DateTime
+    Private PrecipitationStartDate() As DateTime
+    Private PrecipitationEndDate() As DateTime
     Private EffectivePrecipitation As New List(Of EffectivePrecipitationType)
+    Private DateFormat As String = "MMMM yyyy"
 
-    Private Sub Calculate_Evapotranspiration_Load(sender As System.Object, e As System.EventArgs) Handles MyBase.Load
+    Private Sub Calculate_Evapotranspiration_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
         For Each Control In Me.Controls
             GetType(Control).InvokeMember("DoubleBuffered", Reflection.BindingFlags.NonPublic Or Reflection.BindingFlags.Instance Or Reflection.BindingFlags.SetProperty, Nothing, Control, New Object() {True})
         Next
@@ -54,49 +54,88 @@ Public Class Calculate_Net_Potential_Evapotranspiration
             PrecipitationGroup.Enabled = True
             DatesGroup.Enabled = True
 
-            Using Connection = CreateConnection(ProjectDetailsPath)
-                Connection.Open()
-                Using Command = Connection.CreateCommand
+            Dim Tasks As New List(Of Task)
 
-                    RemoveHandler CoverList.ItemChecked, AddressOf CoverList_ItemChecked
-                    For Each Path In IO.Directory.GetFiles(PotentialEvapotranspirationDirectory, "*.db")
-                        Dim CoverName = IO.Path.GetFileNameWithoutExtension(Path).Replace(" Potential Evapotranspiration", "")
+            Dim CoverNames As New List(Of String)
+            Dim Paths = IO.Directory.GetFiles(PotentialEvapotranspirationDirectory, "*.db")
+            ReDim CoverStatisticsStartDate(Paths.Length - 1)
+            ReDim CoverStatisticsEndDate(Paths.Length - 1)
+            ReDim CoverNetStartDate(Paths.Length - 1)
+            ReDim CoverNetEndDate(Paths.Length - 1)
+            For P = 0 To Paths.Length - 1 : Dim Path = Paths(P), I = P
+                Tasks.Add(Task.Factory.StartNew(
+                Sub()
+                    Using RasterArray As New RasterArray(Path)
 
                         Dim MinDate = DateTime.MinValue
                         Dim MaxDate = DateTime.MaxValue
-                        GetMaxAndMinDates({Path}, MaxDate, MinDate, DatabaseTableName.Statistics)
-                        CoverStatisticsStartDate.Add(MinDate)
-                        CoverStatisticsEndDate.Add(MaxDate)
+                        RasterArray.GetMinAndMaxDates(RasterType.Sum, MinDate, MaxDate)
+                        CoverStatisticsStartDate(I) = MinDate
+                        CoverStatisticsEndDate(I) = MaxDate
 
                         MinDate = DateTime.MinValue
                         MaxDate = DateTime.MaxValue
-                        GetMaxAndMinDates({Path}, MaxDate, MinDate, DatabaseTableName.Net)
-                        CoverNetStartDate.Add(MinDate)
-                        CoverNetEndDate.Add(MaxDate)
+                        RasterArray.GetMinAndMaxDates(RasterType.Net, MinDate, MaxDate)
+                        CoverNetStartDate(I) = MinDate
+                        CoverNetEndDate(I) = MaxDate
 
-                        Command.CommandText = "SELECT Properties FROM Cover WHERE Name = @Name"
-                        Command.Parameters.Add("@Name", DbType.String).Value = CoverName
-                        EffectivePrecipitation.Add([Enum].Parse(GetType(EffectivePrecipitationType), Command.ExecuteScalar.ToString.Split(";")(0)))
+                    End Using
+                End Sub))
 
-                        CoverList.Items.Add(CoverName)
-                    Next
-                    AddHandler CoverList.ItemChecked, AddressOf CoverList_ItemChecked
+                CoverNames.Add(IO.Path.GetFileNameWithoutExtension(Path).Replace(" Potential Evapotranspiration", ""))
+            Next
 
-                End Using
-            End Using
+            Paths = IO.Directory.GetFiles(InputVariablesDirectory, "Precipitation *.db")
+            ReDim PrecipitationStartDate(Paths.Length - 1)
+            ReDim PrecipitationEndDate(Paths.Length - 1)
+            For P = 0 To Paths.Length - 1 : Dim Path = Paths(P), I = P
+                Tasks.Add(Task.Factory.StartNew(
+                Sub()
+                    Using RasterArray As New RasterArray(Path)
 
-            For Each Path In IO.Directory.GetFiles(InputVariablesDirectory, "Precipitation *.db")
+                        Dim MinDate = DateTime.MinValue
+                        Dim MaxDate = DateTime.MaxValue
+                        RasterArray.GetMinAndMaxDates(RasterType.Sum, MinDate, MaxDate)
+                        PrecipitationStartDate(I) = MinDate
+                        PrecipitationEndDate(I) = MaxDate
+
+                    End Using
+                End Sub))
+
                 Dim ClimateModelName = IO.Path.GetFileNameWithoutExtension(Path)
                 ClimateModelName = ClimateModelName.Substring(14, ClimateModelName.Length - 14)
-
-                Dim MinDate = DateTime.MinValue
-                Dim MaxDate = DateTime.MaxValue
-                GetMaxAndMinDates({Path}, MaxDate, MinDate, DatabaseTableName.Statistics)
-                PrecipitationStartDate.Add(MinDate)
-                PrecipitationEndDate.Add(MaxDate)
-
                 PrecipitationDataset.Items.Add(ClimateModelName)
             Next
+
+            If CoverNames.Count > 0 Then
+                Using Connection = CreateConnection(ProjectDetailsPath), Command = Connection.CreateCommand : Connection.Open()
+
+                    Command.CommandText = "CREATE TEMP TABLE T (CoverName TEXT)"
+                    Command.ExecuteNonQuery()
+
+                    Command.CommandText = "INSERT INTO T (CoverName) VALUES (@CoverName)"
+                    For Each CoverName In CoverNames
+                        Command.Parameters.Add("@CoverName", DbType.String).Value = CoverName
+                        Command.ExecuteNonQuery()
+                    Next
+
+                    Command.CommandText = String.Format("SELECT Properties FROM Cover WHERE Name IN (SELECT CoverName FROM T)", String.Join("@", Enumerable.Range(0, CoverNames.Count - 1)))
+                    Using Reader = Command.ExecuteReader
+                        While Reader.Read
+                            EffectivePrecipitation.Add([Enum].Parse(GetType(EffectivePrecipitationType), Reader.GetString(0).Split(";")(0)))
+                        End While
+                    End Using
+
+                End Using
+
+                RemoveHandler CoverList.ItemChecked, AddressOf CoverList_ItemChecked
+                For Each Cover In CoverNames
+                    CoverList.Items.Add(Cover)
+                Next
+                AddHandler CoverList.ItemChecked, AddressOf CoverList_ItemChecked
+            End If
+
+            Task.WaitAll(Tasks.ToArray)
 
             If PrecipitationDataset.Items.Count > 0 Then PrecipitationDataset.Text = PrecipitationDataset.Items(0)
             CheckAll_Click(Nothing, Nothing)
@@ -109,30 +148,30 @@ Public Class Calculate_Net_Potential_Evapotranspiration
         End If
     End Sub
 
-    Private Sub Calculate_Evapotranspiration_FormClosing(sender As Object, e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
+    Private Sub Calculate_Evapotranspiration_FormClosing(ByVal sender As Object, ByVal e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
         e.Cancel = BackgroundWorker.IsBusy
         Cancel_Button_Click(Nothing, Nothing)
     End Sub
 
-    Private Sub Calculate_Evapotranspiration_Resize(sender As Object, e As System.EventArgs) Handles Me.Resize
+    Private Sub Calculate_Evapotranspiration_Resize(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Resize
         CoverList.Columns(0).Width = CoverList.Width - SystemInformation.VerticalScrollBarWidth - 5
     End Sub
 
-    Private Sub DateTimePicker_PreviewKeyDown(sender As DateTimePicker, e As System.Windows.Forms.PreviewKeyDownEventArgs) Handles CalculationStartDate.PreviewKeyDown, CalculationEndDate.PreviewKeyDown
+    Private Sub DateTimePicker_PreviewKeyDown(ByVal sender As DateTimePicker, ByVal e As System.Windows.Forms.PreviewKeyDownEventArgs) Handles CalculationStartDate.PreviewKeyDown, CalculationEndDate.PreviewKeyDown
         sender.Value = New DateTime(sender.Value.Year, sender.Value.Month, 1)
     End Sub
 
-    Private Sub DateTimePicker_ValueChanged(sender As Object, e As System.EventArgs) Handles CalculationStartDate.ValueChanged, CalculationEndDate.ValueChanged
+    Private Sub DateTimePicker_ValueChanged(ByVal sender As Object, ByVal e As System.EventArgs) Handles CalculationStartDate.ValueChanged, CalculationEndDate.ValueChanged
         sender.Value = New DateTime(sender.Value.Year, sender.Value.Month, 1)
 
         If CalculationStartDate.Value > CalculationEndDate.Value Then CalculationStartDate.Value = CalculationEndDate.Value
     End Sub
 
-    Private Sub PrecipitationDataset_TextChanged(sender As Object, e As System.EventArgs) Handles PrecipitationDataset.TextChanged
+    Private Sub PrecipitationDataset_TextChanged(ByVal sender As Object, ByVal e As System.EventArgs) Handles PrecipitationDataset.TextChanged
         CoverList_ItemChecked(Nothing, Nothing)
     End Sub
 
-    Private Sub CoverList_ItemChecked(sender As Object, e As System.Windows.Forms.ItemCheckedEventArgs) Handles CoverList.ItemChecked
+    Private Sub CoverList_ItemChecked(ByVal sender As Object, ByVal e As System.Windows.Forms.ItemCheckedEventArgs) Handles CoverList.ItemChecked
         Dim CalculationExists = CoverList.CheckedItems.Count > 0 And PrecipitationDataset.Text <> ""
         DatesGroup.Enabled = CalculationExists
         CalculateButton.Enabled = CalculationExists
@@ -199,7 +238,7 @@ Public Class Calculate_Net_Potential_Evapotranspiration
         End If
     End Sub
 
-    Private Sub CalculateButton_Click(sender As System.Object, e As System.EventArgs) Handles CalculateButton.Click
+    Private Sub CalculateButton_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles CalculateButton.Click
         If Cancel_Button.Enabled = False Then
             Me.DialogResult = System.Windows.Forms.DialogResult.OK
             Me.Close()
@@ -236,7 +275,7 @@ Public Class Calculate_Net_Potential_Evapotranspiration
 
             ProgressText.Text = "Initializing calculation datasets..."
             ProgressBar.Minimum = 0
-            ProgressBar.Maximum = Math.Ceiling(CalculationEndDate.Value.Subtract(CalculationStartDate.Value).TotalDays / 365.25 * 15)
+            ProgressBar.Maximum = Math.Ceiling(CalculationEndDate.Value.Subtract(CalculationStartDate.Value).TotalDays / 365.25 * 14)
             ProgressBar.Value = 0
             ProgressText.Visible = True
             ProgressBar.Visible = True
@@ -278,11 +317,11 @@ Public Class Calculate_Net_Potential_Evapotranspiration
     Private PrecipitationPath As String
     Private CoverEffectivePrecipitation As New List(Of EffectivePrecipitationType)
 
-    Private Sub BackgroundWorker_DoWork(sender As System.Object, e As System.ComponentModel.DoWorkEventArgs) Handles BackgroundWorker.DoWork
+    Private Sub BackgroundWorker_DoWork(ByVal sender As System.Object, ByVal e As System.ComponentModel.DoWorkEventArgs) Handles BackgroundWorker.DoWork
         CalculateNetPotentialEvapotranspiration(CoverPaths.ToArray, CoverEffectivePrecipitation.ToArray, PrecipitationPath, CalculationStartDate.Value, New DateTime(CalculationEndDate.Value.Year, CalculationEndDate.Value.Month, DateTime.DaysInMonth(CalculationEndDate.Value.Year, CalculationEndDate.Value.Month)), BackgroundWorker, e)
     End Sub
 
-    Private Sub BackgroundWorker_ProgressChanged(sender As Object, e As System.ComponentModel.ProgressChangedEventArgs) Handles BackgroundWorker.ProgressChanged
+    Private Sub BackgroundWorker_ProgressChanged(ByVal sender As Object, ByVal e As System.ComponentModel.ProgressChangedEventArgs) Handles BackgroundWorker.ProgressChanged
         If ProgressBar.Value < ProgressBar.Maximum Then
             ProgressBar.Value += 1
             Dim Timespan As TimeSpan = New TimeSpan(Timer.Elapsed.Ticks * (ProgressBar.Maximum / ProgressBar.Value - 1))
@@ -290,7 +329,7 @@ Public Class Calculate_Net_Potential_Evapotranspiration
         End If
     End Sub
 
-    Private Sub BackgroundWorker_RunWorkerCompleted(sender As Object, e As System.ComponentModel.RunWorkerCompletedEventArgs) Handles BackgroundWorker.RunWorkerCompleted
+    Private Sub BackgroundWorker_RunWorkerCompleted(ByVal sender As Object, ByVal e As System.ComponentModel.RunWorkerCompletedEventArgs) Handles BackgroundWorker.RunWorkerCompleted
         If e.Cancelled Then
             ProgressText.Text = "Net potential evapotranspiration calculations cancelled"
         ElseIf e.Error IsNot Nothing Then
@@ -334,7 +373,7 @@ Public Class Calculate_Net_Potential_Evapotranspiration
         Cancel_Button_Click(Nothing, Nothing)
     End Sub
 
-    Private Sub ProcessTimer_Tick(sender As Object, e As System.EventArgs) Handles ProcessTimer.Tick
+    Private Sub ProcessTimer_Tick(ByVal sender As Object, ByVal e As System.EventArgs) Handles ProcessTimer.Tick
         ProcessTimerContinue()
     End Sub
 

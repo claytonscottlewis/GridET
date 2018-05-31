@@ -1,4 +1,4 @@
-﻿'            Copyright Clayton S. Lewis 2014-2015.
+﻿'            Copyright Clayton S. Lewis 2014-2018.
 '   Distributed under the Boost Software License, Version 1.0.
 '      (See accompanying file GridET License.rtf or copy at
 '            http://www.boost.org/LICENSE_1_0.txt)
@@ -9,17 +9,17 @@ Public Class Main
 
     Private ProcessSchedulerForm As Process_Scheduler = Nothing
 
-    Private Sub Form1_Load(sender As System.Object, e As System.EventArgs) Handles MyBase.Load
+    Private Sub Form1_Load(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles MyBase.Load
         'Remove Internet Download Connection Limit
         Net.ServicePointManager.DefaultConnectionLimit = Integer.MaxValue
 
         'Register GDAL
-        Dim GDALPath As String = IO.Path.Combine(Application.StartupPath, "Dependencies\GDAL")
+        Dim GDALPath As String = IO.Path.Combine(Application.StartupPath, "GDAL")
         Environment.SetEnvironmentVariable("PATH", GDALPath & ";" & Environment.GetEnvironmentVariable("PATH"))
         GDAL.Gdal.SetConfigOption("PATH", GDALPath)
-        GDALProcess.SetEnvironmentVariable("GDAL_DATA", IO.Path.Combine(GDALPath, "Data"))
-        GDALProcess.SetEnvironmentVariable("GDAL_DRIVER_PATH", IO.Path.Combine(GDALPath, "Plugins"))
-        GDALProcess.SetEnvironmentVariable("PROJ_LIB", IO.Path.Combine(GDALPath, "Projections"))
+        GDALProcess.SetEnvironmentVariable("GDAL_DATA", IO.Path.Combine(GDALPath, "gdal-data"))
+        GDALProcess.SetEnvironmentVariable("GDAL_DRIVER_PATH", IO.Path.Combine(GDALPath, "gdal", "plugins"))
+        GDALProcess.SetEnvironmentVariable("PROJ_LIB", IO.Path.Combine(GDALPath, "proj"))
         'GDALProcess.SetEnvironmentVariable("GDAL_CACHEMAX", 128)
         'GDALProcess.SetEnvironmentVariable("OGR_SQLITE_CACHE", 128)
         GDAL.Gdal.AllRegister()
@@ -38,26 +38,22 @@ Public Class Main
 
 #Region "Project"
 
-    Private Sub NewProjectToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles NewProjectToolStripMenuItem.Click
+    Private Sub NewProjectToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles NewProjectToolStripMenuItem.Click
         Dim Form As New New_Project
         Form.ShowDialog()
 
         SetFormLabel()
     End Sub
 
-    Private Sub OpenProjectToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles OpenProjectToolStripMenuItem.Click
-        Dim FolderBrowserDialog As New FolderBrowserDialog
-        FolderBrowserDialog.Description = "Open project location..."
-
+    Private Sub OpenProjectToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles OpenProjectToolStripMenuItem.Click
         If sender IsNot Nothing Then
+            Dim FolderBrowserDialog As New FolderBrowserDialog
+            FolderBrowserDialog.Description = "Open project location..."
+
             If Not FolderBrowserDialog.ShowDialog = Windows.Forms.DialogResult.OK Then Exit Sub
 
-            ProjectDirectory = FolderBrowserDialog.SelectedPath
-            My.Settings.LastProjectDirectory = ProjectDirectory
-        Else
-            ProjectDirectory = My.Settings.LastProjectDirectory
+            My.Settings.LastProjectDirectory = FolderBrowserDialog.SelectedPath
         End If
-
 
         If Not IO.File.Exists(ProjectDetailsPath) Then
             MsgBox("Not a valid project directory.")
@@ -65,13 +61,31 @@ Public Class Main
         Else
             Try
                 'Open Database
-                Using Connection = CreateConnection(ProjectDetailsPath, False)
-                    Connection.Open()
+                Using Connection = CreateConnection(ProjectDetailsPath), Command = Connection.CreateCommand : Connection.Open()
 
-                    Using Command = Connection.CreateCommand
-                        Command.CommandText = "Select Directory FROM ClimateModel WHERE ROWID = 1"
-                        ClimateModelDirectory = Command.ExecuteScalar
+                    Command.CommandText = "SELECT * FROM Settings WHERE Name IN ('Climate Model Directory', 'Pixel Count')"
+                    Using Reader = Command.ExecuteReader
+                        While Reader.Read
+                            Select Case Reader.GetString(0)
+                                Case "Climate Model Directory" : ClimateModelDirectory = Reader.GetString(1)
+                                Case "Pixel Count" : PixelCount = Reader.GetInt64(1)
+                            End Select
+                        End While
                     End Using
+
+                End Using
+
+                Using Raster As New Raster(MaskRasterPath, GDAL.Access.GA_ReadOnly)
+
+                    ReDim ProjectMask(Raster.XCount * Raster.YCount - 1)
+                    Raster.Dataset.ReadRaster(0, 0, Raster.XCount, Raster.YCount, ProjectMask, Raster.XCount, Raster.YCount, 1, {1}, 0, 0, 0)
+
+                    ProjectProjection = Raster.Projection
+                    ProjectGeoTransform = Raster.GeoTransform
+                    ProjectExtent = Raster.Extent
+                    ProjectXCount = Raster.XCount
+                    ProjectYCount = Raster.YCount
+
                 End Using
             Catch
                 MsgBox("Not a valid project directory.")
@@ -79,22 +93,38 @@ Public Class Main
             End Try
         End If
 
+        If Not IO.File.Exists(ClimateModelDirectory) Then
+            Dim Climate = IO.Path.GetFileName(ClimateModelDirectory)
+
+            Dim LastDirectory = IO.Path.GetDirectoryName(ProjectDirectory)
+            While Not String.IsNullOrWhiteSpace(LastDirectory)
+                Dim Directory = IO.Path.Combine(LastDirectory, Climate)
+
+                If IO.Directory.Exists(Directory) Then
+                    ClimateModelDirectory = Directory
+                    Exit While
+                End If
+
+                LastDirectory = IO.Path.GetDirectoryName(LastDirectory)
+            End While
+        End If
+
         SetFormLabel()
     End Sub
 
-    Private Sub CloseProjectToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles CloseProjectToolStripMenuItem.Click
-        ProjectDirectory = ""
+    Private Sub CloseProjectToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles CloseProjectToolStripMenuItem.Click
+        My.Settings.LastProjectDirectory = ""
         ClimateModelDirectory = ""
 
         SetFormLabel()
     End Sub
 
-    Private Sub SettingsToolStripMenuItem1_Click(sender As System.Object, e As System.EventArgs) Handles SettingsToolStripMenuItem1.Click
+    Private Sub SettingsToolStripMenuItem1_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles SettingsToolStripMenuItem1.Click
         Dim Form As New Settings
         Form.ShowDialog()
     End Sub
 
-    Private Sub ExitToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles ExitToolStripMenuItem.Click
+    Private Sub ExitToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ExitToolStripMenuItem.Click
         Application.Exit()
     End Sub
 
@@ -105,47 +135,21 @@ Public Class Main
         Me.Text = Text
     End Sub
 
-    Public Sub UpdateSettings()
-        'Open Database
-        Using Connection = CreateConnection(ProjectDetailsPath, False)
-            Connection.Open()
-
-            Using Command = Connection.CreateCommand
-                Command.CommandText = "CREATE TABLE IF NOT EXISTS ClimateModel (Directory TEXT UNIQUE)"
-                Command.ExecuteNonQuery()
-
-                Command.CommandText = "SELECT COUNT(Directory) FROM ClimateModel"
-                Dim Count As Integer = Command.ExecuteScalar
-
-                If Count = 0 Then
-                    Command.CommandText = "INSERT INTO ClimateModel VALUES (@Directory)"
-                    Command.Parameters.Add("@Directory", DbType.String).Value = ClimateModelDirectory
-                    Command.ExecuteNonQuery()
-                Else
-                    Command.CommandText = "UPDATE ClimateModel SET Directory = @Directory WHERE ROWID = 1"
-                    Command.Parameters.Add("@Directory", DbType.String).Value = ClimateModelDirectory
-                    Command.ExecuteNonQuery()
-                End If
-            End Using
-
-        End Using
-    End Sub
-
 #End Region
 
 #Region "Properties"
 
-    Private Sub CoverToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles CoverToolStripMenuItem.Click
+    Private Sub CoverToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles CoverToolStripMenuItem.Click
         Dim Form As New Cover_Properties
         Form.ShowDialog()
     End Sub
 
-    Private Sub CurveToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles CurveToolStripMenuItem.Click
+    Private Sub CurveToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles CurveToolStripMenuItem.Click
         Dim Form As New Cover_Curves
         Form.ShowDialog()
     End Sub
 
-    Private Sub ImportToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles ImportToolStripMenuItem.Click
+    Private Sub ImportToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ImportToolStripMenuItem.Click
         If IO.File.Exists(ProjectDetailsPath) Then
             Dim FolderBrowserDialog As New FolderBrowserDialog
             FolderBrowserDialog.Description = "Import cover and curve project location..."
@@ -187,42 +191,72 @@ Public Class Main
 
 #Region "Process"
 
-    Private Sub DAYMETToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles DAYMETToolStripMenuItem.Click
-        Dim Form As New Download_DAYMET
-        Form.ShowDialog()
+    Private Sub DAYMETToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles DAYMETToolStripMenuItem.Click
+        If Not IO.Directory.Exists(ClimateModelDirectory) Then
+            MsgBox("Cannot find climate model directory.")
+        Else
+            Dim Form As New Download_DAYMET
+            Form.ShowDialog()
+        End If
     End Sub
 
-    Private Sub NLDASToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles NLDASToolStripMenuItem.Click
-        Dim Form As New Download_NLDAS
-        Form.ShowDialog()
+    Private Sub NLDASToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles NLDASToolStripMenuItem.Click
+        If Not IO.Directory.Exists(ClimateModelDirectory) Then
+            MsgBox("Cannot find climate model directory.")
+        Else
+            Dim Form As New Download_NLDAS
+            Form.ShowDialog()
+        End If
     End Sub
 
-    Private Sub ReferenceToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles ReferenceToolStripMenuItem.Click
-        Dim Form As New Calculate_Reference_Evapotranspiration
-        Form.ShowDialog()
+    Private Sub ReferenceToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ReferenceToolStripMenuItem.Click
+        If Not IO.Directory.Exists(ClimateModelDirectory) Then
+            MsgBox("Cannot find climate model directory.")
+        ElseIf Not String.IsNullOrWhiteSpace(ProjectDetailsPath) AndAlso Not IO.File.Exists(ProjectDetailsPath) Then
+            MsgBox("Cannot find project details path.")
+        Else
+            Dim Form As New Calculate_Reference_Evapotranspiration
+            Form.ShowDialog()
+        End If
     End Sub
 
-    Private Sub PotentialToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles PotentialToolStripMenuItem.Click
-        Dim Form As New Calculate_Potential_Evapotranspiration
-        Form.ShowDialog()
+    Private Sub PotentialToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles PotentialToolStripMenuItem.Click
+        If Not IO.File.Exists(ProjectDetailsPath) Then
+            MsgBox("Cannot find project details path.")
+        Else
+            Dim Form As New Calculate_Potential_Evapotranspiration
+            Form.ShowDialog()
+        End If
     End Sub
 
-    Private Sub NetPotentialToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles NetPotentialToolStripMenuItem.Click
-        Dim Form As New Calculate_Net_Potential_Evapotranspiration
-        Form.ShowDialog()
+    Private Sub NetPotentialToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles NetPotentialToolStripMenuItem.Click
+        If Not IO.File.Exists(ProjectDetailsPath) Then
+            MsgBox("Cannot find project details path.")
+        Else
+            Dim Form As New Calculate_Net_Potential_Evapotranspiration
+            Form.ShowDialog()
+        End If
     End Sub
 
-    Private Sub RasterPeriodAverageToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles RasterPeriodAverageToolStripMenuItem.Click
-        Dim Form As New Calculate_Raster_Period_Average
-        Form.ShowDialog()
+    Private Sub RasterPeriodAverageToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles RasterPeriodAverageToolStripMenuItem.Click
+        If Not IO.Directory.Exists(IntermediateCalculationsDirectory) Then
+            MsgBox("Cannot find project directory.")
+        Else
+            Dim Form As New Calculate_Raster_Period_Average
+            Form.ShowDialog()
+        End If
     End Sub
 
-    Private Sub ExtractByPolygonToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles ExtractByPolygonToolStripMenuItem.Click
-        Dim Form As New Extract_by_Polygon
-        Form.ShowDialog()
+    Private Sub ExtractByPolygonToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ExtractByPolygonToolStripMenuItem.Click
+        If Not IO.File.Exists(ProjectDetailsPath) Then
+            MsgBox("Cannot find project details path.")
+        Else
+            Dim Form As New Extract_by_Polygon
+            Form.ShowDialog()
+        End If
     End Sub
 
-    Private Sub SchedulerToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles SchedulerToolStripMenuItem.Click
+    Private Sub SchedulerToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles SchedulerToolStripMenuItem.Click
         If ProcessSchedulerForm IsNot Nothing Then
             If ProcessSchedulerForm.DialogResult = Windows.Forms.DialogResult.Cancel Then
                 ProcessSchedulerForm = New Process_Scheduler
@@ -238,11 +272,11 @@ Public Class Main
 
 #Region "Help"
 
-    Private Sub ContentsToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles ContentsToolStripMenuItem.Click
+    Private Sub ContentsToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ContentsToolStripMenuItem.Click
         Help.ShowHelp(Me, IO.Path.Combine(Application.StartupPath, "Help File\GridET.chm"), HelpNavigator.TableOfContents)
     End Sub
 
-    Private Sub AboutToolStripMenuItem_Click(sender As System.Object, e As System.EventArgs) Handles AboutToolStripMenuItem.Click
+    Private Sub AboutToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles AboutToolStripMenuItem.Click
         Dim Form As New About
         Form.ShowDialog()
     End Sub

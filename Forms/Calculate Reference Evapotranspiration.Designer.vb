@@ -53,8 +53,8 @@ Partial Class Calculate_Reference_Evapotranspiration
         'ClimateDatasetGroup
         '
         Me.ClimateDatasetGroup.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
-            Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Left) _
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.ClimateDatasetGroup.Controls.Add(Me.DatasetList)
         Me.ClimateDatasetGroup.Controls.Add(Me.UncheckAll)
         Me.ClimateDatasetGroup.Controls.Add(Me.CheckAll)
@@ -69,8 +69,8 @@ Partial Class Calculate_Reference_Evapotranspiration
         '
         Me.DatasetList.Alignment = System.Windows.Forms.ListViewAlignment.Left
         Me.DatasetList.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
-            Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Left) _
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.DatasetList.CheckBoxes = True
         Me.DatasetList.Columns.AddRange(New System.Windows.Forms.ColumnHeader() {Me.ColumnHeader1})
         Me.DatasetList.Font = New System.Drawing.Font("Microsoft Sans Serif", 9.75!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
@@ -122,7 +122,7 @@ Partial Class Calculate_Reference_Evapotranspiration
         'DatesGroup
         '
         Me.DatesGroup.Anchor = CType(((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.DatesGroup.Controls.Add(Me.TableLayoutPanel1)
         Me.DatesGroup.Location = New System.Drawing.Point(12, 292)
         Me.DatesGroup.Name = "DatesGroup"
@@ -135,7 +135,7 @@ Partial Class Calculate_Reference_Evapotranspiration
         'TableLayoutPanel1
         '
         Me.TableLayoutPanel1.Anchor = CType(((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.TableLayoutPanel1.AutoScroll = True
         Me.TableLayoutPanel1.BackColor = System.Drawing.SystemColors.Window
         Me.TableLayoutPanel1.CellBorderStyle = System.Windows.Forms.TableLayoutPanelCellBorderStyle.OutsetDouble
@@ -311,7 +311,7 @@ Partial Class Calculate_Reference_Evapotranspiration
         'ProgressText
         '
         Me.ProgressText.Anchor = CType(((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.ProgressText.Location = New System.Drawing.Point(30, 466)
         Me.ProgressText.Margin = New System.Windows.Forms.Padding(3, 21, 3, 0)
         Me.ProgressText.Name = "ProgressText"
@@ -323,7 +323,7 @@ Partial Class Calculate_Reference_Evapotranspiration
         'ProgressBar
         '
         Me.ProgressBar.Anchor = CType(((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.ProgressBar.Location = New System.Drawing.Point(30, 482)
         Me.ProgressBar.Maximum = 5
         Me.ProgressBar.Name = "ProgressBar"

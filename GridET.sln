@@ -1,24 +1,24 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual Studio 2010
+# Visual Basic Express 2010
 Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "GridET", "GridET.vbproj", "{34526641-8D74-4677-8BE7-CE2BAD7024D9}"
-EndProject
-Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "Setup", "Setup and Deployment\Setup\Setup.vdproj", "{D01876D6-41D3-45AB-A0B0-66974F2563F0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
 		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{34526641-8D74-4677-8BE7-CE2BAD7024D9}.Debug|x64.ActiveCfg = Debug|x64
+		{34526641-8D74-4677-8BE7-CE2BAD7024D9}.Debug|x64.Build.0 = Debug|x64
 		{34526641-8D74-4677-8BE7-CE2BAD7024D9}.Debug|x86.ActiveCfg = Debug|x86
 		{34526641-8D74-4677-8BE7-CE2BAD7024D9}.Debug|x86.Build.0 = Debug|x86
+		{34526641-8D74-4677-8BE7-CE2BAD7024D9}.Release|x64.ActiveCfg = Release|x64
+		{34526641-8D74-4677-8BE7-CE2BAD7024D9}.Release|x64.Build.0 = Release|x64
 		{34526641-8D74-4677-8BE7-CE2BAD7024D9}.Release|x86.ActiveCfg = Release|x86
 		{34526641-8D74-4677-8BE7-CE2BAD7024D9}.Release|x86.Build.0 = Release|x86
-		{D01876D6-41D3-45AB-A0B0-66974F2563F0}.Debug|x86.ActiveCfg = Debug
-		{D01876D6-41D3-45AB-A0B0-66974F2563F0}.Debug|x86.Build.0 = Debug
-		{D01876D6-41D3-45AB-A0B0-66974F2563F0}.Release|x86.ActiveCfg = Release
-		{D01876D6-41D3-45AB-A0B0-66974F2563F0}.Release|x86.Build.0 = Release
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

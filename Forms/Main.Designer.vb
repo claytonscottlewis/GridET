@@ -58,10 +58,10 @@ Partial Class Main
         Me.ToolStripSeparator6 = New System.Windows.Forms.ToolStripSeparator()
         Me.SchedulerToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.HelpToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
+        Me.ContentsToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.ToolStripSeparator3 = New System.Windows.Forms.ToolStripSeparator()
         Me.AboutToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.MapViewer = New GridET.MapViewer()
-        Me.ContentsToolStripMenuItem = New System.Windows.Forms.ToolStripMenuItem()
         Me.MenuStrip1.SuspendLayout()
         Me.SuspendLayout()
         '
@@ -71,7 +71,7 @@ Partial Class Main
         Me.MenuStrip1.Items.AddRange(New System.Windows.Forms.ToolStripItem() {Me.FileToolStripMenuItem, Me.SettingsToolStripMenuItem, Me.ProcessToolStripMenuItem, Me.HelpToolStripMenuItem})
         Me.MenuStrip1.Location = New System.Drawing.Point(0, 0)
         Me.MenuStrip1.Name = "MenuStrip1"
-        Me.MenuStrip1.Size = New System.Drawing.Size(584, 24)
+        Me.MenuStrip1.Size = New System.Drawing.Size(784, 24)
         Me.MenuStrip1.TabIndex = 0
         Me.MenuStrip1.Text = "MenuStrip1"
         '
@@ -174,39 +174,39 @@ Partial Class Main
         'DAYMETToolStripMenuItem
         '
         Me.DAYMETToolStripMenuItem.Name = "DAYMETToolStripMenuItem"
-        Me.DAYMETToolStripMenuItem.Size = New System.Drawing.Size(126, 22)
+        Me.DAYMETToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
         Me.DAYMETToolStripMenuItem.Text = "DAYMET"
         '
         'NLDASToolStripMenuItem
         '
         Me.NLDASToolStripMenuItem.Name = "NLDASToolStripMenuItem"
-        Me.NLDASToolStripMenuItem.Size = New System.Drawing.Size(126, 22)
+        Me.NLDASToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
         Me.NLDASToolStripMenuItem.Text = "NLDAS"
         '
         'PRISMToolStripMenuItem
         '
         Me.PRISMToolStripMenuItem.Enabled = False
         Me.PRISMToolStripMenuItem.Name = "PRISMToolStripMenuItem"
-        Me.PRISMToolStripMenuItem.Size = New System.Drawing.Size(126, 22)
+        Me.PRISMToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
         Me.PRISMToolStripMenuItem.Text = "PRISM"
         '
         'ToolStripSeparator5
         '
         Me.ToolStripSeparator5.Name = "ToolStripSeparator5"
-        Me.ToolStripSeparator5.Size = New System.Drawing.Size(123, 6)
+        Me.ToolStripSeparator5.Size = New System.Drawing.Size(149, 6)
         '
         'LANDSATToolStripMenuItem
         '
         Me.LANDSATToolStripMenuItem.Enabled = False
         Me.LANDSATToolStripMenuItem.Name = "LANDSATToolStripMenuItem"
-        Me.LANDSATToolStripMenuItem.Size = New System.Drawing.Size(126, 22)
+        Me.LANDSATToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
         Me.LANDSATToolStripMenuItem.Text = "LANDSAT"
         '
         'MODISToolStripMenuItem
         '
         Me.MODISToolStripMenuItem.Enabled = False
         Me.MODISToolStripMenuItem.Name = "MODISToolStripMenuItem"
-        Me.MODISToolStripMenuItem.Size = New System.Drawing.Size(126, 22)
+        Me.MODISToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
         Me.MODISToolStripMenuItem.Text = "MODIS"
         '
         'ToolStripSeparator7
@@ -224,26 +224,26 @@ Partial Class Main
         'ReferenceToolStripMenuItem
         '
         Me.ReferenceToolStripMenuItem.Name = "ReferenceToolStripMenuItem"
-        Me.ReferenceToolStripMenuItem.Size = New System.Drawing.Size(143, 22)
+        Me.ReferenceToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
         Me.ReferenceToolStripMenuItem.Text = "Reference"
         '
         'PotentialToolStripMenuItem
         '
         Me.PotentialToolStripMenuItem.Name = "PotentialToolStripMenuItem"
-        Me.PotentialToolStripMenuItem.Size = New System.Drawing.Size(143, 22)
+        Me.PotentialToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
         Me.PotentialToolStripMenuItem.Text = "Potential"
         '
         'NetPotentialToolStripMenuItem
         '
         Me.NetPotentialToolStripMenuItem.Name = "NetPotentialToolStripMenuItem"
-        Me.NetPotentialToolStripMenuItem.Size = New System.Drawing.Size(143, 22)
+        Me.NetPotentialToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
         Me.NetPotentialToolStripMenuItem.Text = "Net Potential"
         '
         'ActualToolStripMenuItem
         '
         Me.ActualToolStripMenuItem.Enabled = False
         Me.ActualToolStripMenuItem.Name = "ActualToolStripMenuItem"
-        Me.ActualToolStripMenuItem.Size = New System.Drawing.Size(143, 22)
+        Me.ActualToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
         Me.ActualToolStripMenuItem.Text = "Actual"
         '
         'CalculateStatisticsToolStripMenuItem
@@ -283,15 +283,21 @@ Partial Class Main
         Me.HelpToolStripMenuItem.Size = New System.Drawing.Size(44, 20)
         Me.HelpToolStripMenuItem.Text = "Help"
         '
+        'ContentsToolStripMenuItem
+        '
+        Me.ContentsToolStripMenuItem.Name = "ContentsToolStripMenuItem"
+        Me.ContentsToolStripMenuItem.Size = New System.Drawing.Size(122, 22)
+        Me.ContentsToolStripMenuItem.Text = "Contents"
+        '
         'ToolStripSeparator3
         '
         Me.ToolStripSeparator3.Name = "ToolStripSeparator3"
-        Me.ToolStripSeparator3.Size = New System.Drawing.Size(149, 6)
+        Me.ToolStripSeparator3.Size = New System.Drawing.Size(119, 6)
         '
         'AboutToolStripMenuItem
         '
         Me.AboutToolStripMenuItem.Name = "AboutToolStripMenuItem"
-        Me.AboutToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
+        Me.AboutToolStripMenuItem.Size = New System.Drawing.Size(122, 22)
         Me.AboutToolStripMenuItem.Text = "About"
         '
         'MapViewer
@@ -300,21 +306,15 @@ Partial Class Main
         Me.MapViewer.Dock = System.Windows.Forms.DockStyle.Fill
         Me.MapViewer.Location = New System.Drawing.Point(0, 24)
         Me.MapViewer.Name = "MapViewer"
-        Me.MapViewer.Size = New System.Drawing.Size(584, 439)
+        Me.MapViewer.Size = New System.Drawing.Size(784, 538)
         Me.MapViewer.TabIndex = 1
-        '
-        'ContentsToolStripMenuItem
-        '
-        Me.ContentsToolStripMenuItem.Name = "ContentsToolStripMenuItem"
-        Me.ContentsToolStripMenuItem.Size = New System.Drawing.Size(152, 22)
-        Me.ContentsToolStripMenuItem.Text = "Contents"
         '
         'Main
         '
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.BackColor = System.Drawing.SystemColors.Window
-        Me.ClientSize = New System.Drawing.Size(584, 463)
+        Me.ClientSize = New System.Drawing.Size(784, 562)
         Me.Controls.Add(Me.MapViewer)
         Me.Controls.Add(Me.MenuStrip1)
         Me.DoubleBuffered = True

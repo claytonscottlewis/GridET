@@ -1,11 +1,11 @@
-﻿'            Copyright Clayton S. Lewis 2014-2015.
+﻿'            Copyright Clayton S. Lewis 2014-2018.
 '   Distributed under the Boost Software License, Version 1.0.
 '      (See accompanying file GridET License.rtf or copy at
 '            http://www.boost.org/LICENSE_1_0.txt)
 
 Module SQLite
 
-    Function CreateConnection(Path As String, Optional ReadOnlyMode As Boolean = True) As System.Data.SQLite.SQLiteConnection
+    Function CreateConnection(ByVal Path As String, Optional ByVal ReadOnlyMode As Boolean = True, Optional ByVal JournalMode As Data.SQLite.SQLiteJournalModeEnum = Data.SQLite.SQLiteJournalModeEnum.Wal, Optional ByVal SyncMode As Data.SQLite.SynchronizationModes = Data.SQLite.SynchronizationModes.Full) As System.Data.SQLite.SQLiteConnection
         Dim Directory = IO.Path.GetDirectoryName(Path)
         If Not IO.Directory.Exists(Directory) Then IO.Directory.CreateDirectory(Directory)
         If Not IO.File.Exists(Path) Then System.Data.SQLite.SQLiteConnection.CreateFile(Path)

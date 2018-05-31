@@ -26,7 +26,7 @@ Partial Class Settings
         Me.Cancel_Button = New System.Windows.Forms.Button()
         Me.FileLocationsGroup = New System.Windows.Forms.GroupBox()
         Me.ClimateModelSet = New System.Windows.Forms.Button()
-        Me.ClimateModelDirectory = New System.Windows.Forms.TextBox()
+        Me.ClimateModelBox = New System.Windows.Forms.TextBox()
         Me.Label5 = New System.Windows.Forms.Label()
         Me.FileLocationsGroup.SuspendLayout()
         Me.SuspendLayout()
@@ -54,7 +54,7 @@ Partial Class Settings
         Me.FileLocationsGroup.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
             Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.FileLocationsGroup.Controls.Add(Me.ClimateModelSet)
-        Me.FileLocationsGroup.Controls.Add(Me.ClimateModelDirectory)
+        Me.FileLocationsGroup.Controls.Add(Me.ClimateModelBox)
         Me.FileLocationsGroup.Controls.Add(Me.Label5)
         Me.FileLocationsGroup.Location = New System.Drawing.Point(12, 12)
         Me.FileLocationsGroup.Name = "FileLocationsGroup"
@@ -75,14 +75,14 @@ Partial Class Settings
         '
         'ClimateModelDirectory
         '
-        Me.ClimateModelDirectory.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
+        Me.ClimateModelBox.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
             Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.ClimateModelDirectory.BackColor = System.Drawing.SystemColors.Window
-        Me.ClimateModelDirectory.Location = New System.Drawing.Point(18, 62)
-        Me.ClimateModelDirectory.Name = "ClimateModelDirectory"
-        Me.ClimateModelDirectory.ReadOnly = True
-        Me.ClimateModelDirectory.Size = New System.Drawing.Size(453, 20)
-        Me.ClimateModelDirectory.TabIndex = 25
+        Me.ClimateModelBox.BackColor = System.Drawing.SystemColors.Window
+        Me.ClimateModelBox.Location = New System.Drawing.Point(18, 62)
+        Me.ClimateModelBox.Name = "ClimateModelDirectory"
+        Me.ClimateModelBox.ReadOnly = True
+        Me.ClimateModelBox.Size = New System.Drawing.Size(453, 20)
+        Me.ClimateModelBox.TabIndex = 25
         '
         'Label5
         '
@@ -110,13 +110,13 @@ Partial Class Settings
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent
         Me.Text = "Project Settings"
         Me.FileLocationsGroup.ResumeLayout(False)
-        Me.FileLocationsGroup.PerformLayout
-        Me.ResumeLayout(false)
+        Me.FileLocationsGroup.PerformLayout()
+        Me.ResumeLayout(False)
 
-End Sub
+    End Sub
     Friend WithEvents FileLocationsGroup As System.Windows.Forms.GroupBox
     Friend WithEvents ClimateModelSet As System.Windows.Forms.Button
-    Friend WithEvents ClimateModelDirectory As System.Windows.Forms.TextBox
+    Friend WithEvents ClimateModelBox As System.Windows.Forms.TextBox
     Friend WithEvents Label5 As System.Windows.Forms.Label
     Friend WithEvents OK_Button As System.Windows.Forms.Button
     Friend WithEvents Cancel_Button As System.Windows.Forms.Button

@@ -1,4 +1,4 @@
-﻿'            Copyright Clayton S. Lewis 2014-2015.
+﻿'            Copyright Clayton S. Lewis 2014-2018.
 '   Distributed under the Boost Software License, Version 1.0.
 '      (See accompanying file GridET License.rtf or copy at
 '            http://www.boost.org/LICENSE_1_0.txt)
@@ -7,24 +7,30 @@ Module Download
 
 #Region "DAYMET"
 
-    Sub DownloadDAYMET(DatabasePath As String, DownloadStartDate As DateTime, DownloadEndDate As DateTime, Variable As String, BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
-        Using Connection = CreateConnection(DatabasePath, False)
-            Connection.Open()
-            Using Command = Connection.CreateCommand
+    Sub DownloadDAYMET(ByRef Client As EarthDataClient, ByVal DatabasePath As String, ByVal DownloadStartDate As DateTime, ByVal DownloadEndDate As DateTime, ByVal Variable As String, ByVal BackgroundWorker As System.ComponentModel.BackgroundWorker, ByVal DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
+        Using Connection = CreateConnection(DatabasePath, False), Command = Connection.CreateCommand : Connection.Open()
 
-                'Download DAYMET Files
-                Dim Year As Integer = 0
-                For Year = DownloadStartDate.Year To DownloadEndDate.Year
-                    'Start DAYMET Ftp File Download
-                    Dim VariablePath As String = IO.Path.GetTempFileName
-                    DownloadFileToDrive(BuildFtpStringDAYMET(Year, Variable), VariablePath)
+            'Download DAYMET Files
+            Dim Year As Integer = 0
+            For Year = DownloadStartDate.Year To DownloadEndDate.Year
+                'Start DAYMET Ftp File Download
+                Dim VariablePath As String = IO.Path.GetTempFileName
+                Client.DownloadFile(BuildStringDAYMET(Year, Variable), VariablePath)
 
-                    Dim Raster As New Raster(String.Format("NETCDF:""{0}"":{1}", VariablePath, Variable))
-                    Raster.Open(GDAL.Access.GA_ReadOnly)
-                    Dim XCount = Raster.XCount
-                    Dim YCount = Raster.YCount
+                Dim Projection As String, GeoTransform() As Double, BandNoDataValue() As Double
+                Using Raster As New Raster(String.Format("NETCDF:""{0}"":{1}", VariablePath, Variable), GDAL.Access.GA_ReadOnly)
 
-                    'Determine Start and End Dates
+                    Projection = Raster.Projection
+                    GeoTransform = Raster.GeoTransform
+                    BandNoDataValue = Raster.BandNoDataValue
+
+                End Using
+
+                Using HRaster As New Raster(String.Format("HDF5:""{0}""://{1}", VariablePath, Variable), GDAL.Access.GA_ReadOnly)
+                    Dim XCount = HRaster.XCount
+                    Dim YCount = HRaster.YCount
+
+                    'Determine Start And End Dates
                     Dim StartDoY As Integer = 1
                     If Year = DownloadStartDate.Year Then StartDoY = DownloadStartDate.DayOfYear
                     If StartDoY = 366 Then StartDoY = 365
@@ -33,24 +39,24 @@ Module Download
                     If Year = DownloadEndDate.Year Then EndDoY = DownloadEndDate.DayOfYear
                     If EndDoY = 366 Then EndDoY = 365
 
+                    Dim Data(XCount * YCount - 1) As Single
                     For DoY = StartDoY To EndDoY
                         Dim Path = IO.Path.Combine(IO.Path.GetTempPath, String.Format("Daymet_{0}_{1}.tif", Year, DoY))
 
                         Using Driver = GDAL.Gdal.GetDriverByName(GDALProcess.RasterFormat.GTiff.ToString)
                             Using Dataset = Driver.Create(Path, XCount, YCount, 1, GDAL.DataType.GDT_Float32, {"COMPRESS=DEFLATE", "TILED=YES"})
-                                Dataset.SetProjection(Raster.Projection)
-                                Dataset.SetGeoTransform(Raster.GeoTransform)
+                                Dataset.SetProjection(Projection)
+                                Dataset.SetGeoTransform(GeoTransform)
 
                                 Using Band = Dataset.GetRasterBand(1)
                                     Band.SetDescription(Variable)
                                     Band.SetNoDataValue(Single.MinValue)
                                 End Using
 
-                                Dim Data(XCount * YCount - 1) As Single
-                                Raster.Dataset.ReadRaster(0, 0, XCount, YCount, Data, XCount, YCount, 1, {DoY}, 0, 0, 0)
+                                HRaster.Dataset.ReadRaster(0, 0, XCount, YCount, Data, XCount, YCount, 1, {DoY}, 0, 0, 0)
 
                                 For I = 0 To Data.Length - 1
-                                    If Data(I) = Raster.BandNoDataValue(DoY - 1) Then Data(I) = Single.MinValue
+                                    If Data(I) = BandNoDataValue(DoY - 1) Then Data(I) = Single.MinValue
                                 Next
 
                                 Dataset.WriteRaster(0, 0, XCount, YCount, Data, XCount, YCount, 1, {1}, 0, 0, 0)
@@ -86,21 +92,24 @@ Module Download
                         End If
                     Next
 
-                    Raster.Close()
-                    IO.File.Delete(VariablePath)
-                Next
+                End Using
 
-            End Using
+                'HDF5 Driver Bug Holds Onto File
+                'IO.File.Delete(VariablePath)
+            Next
+
         End Using
+
+        Client.Dispose()
     End Sub
 
-    Function BuildFtpStringDAYMET(Optional Year As Integer = Nothing, Optional Variable As String = Nothing)
-        Dim FtpDirectory As String = "ftp://daac.ornl.gov/data/daymet/Daymet_mosaics/data/"
+    Function BuildStringDAYMET(Optional ByVal Year As Integer = Nothing, Optional ByVal Variable As String = Nothing)
+        Dim Directory = "https://daac.ornl.gov/daacdata/daymet/Daymet_V3_CFMosaics/data/CFMosaic_NA"
 
-        If Year = Nothing Or Variable = Nothing Then
-            Return FtpDirectory
+        If Year = Nothing OrElse Variable = Nothing Then
+            Return Directory
         Else
-            Return FtpDirectory & Variable & "_" & Year & ".nc4"
+            Return String.Format(Directory & "/daymet_v3_{0}_{1}_na.nc4", Variable, Year)
         End If
     End Function
 
@@ -111,49 +120,46 @@ Module Download
     ''' <summary>
     ''' Downloads and updates a database storing hourly NLDAS-2 Forcing File A GRIB rasters.
     ''' </summary>
-    Sub DownloadNDLAS_2A(DatabasePath As String, DownloadStartDate As DateTime, DownloadEndDate As DateTime, Increment As Integer, BackgroundWorker As System.ComponentModel.BackgroundWorker, DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
-        Using Connection = CreateConnection(DatabasePath, False)
-            Connection.Open()
-            Using Command = Connection.CreateCommand
+    Sub DownloadNDLAS_2A(ByRef Client As EarthDataClient, ByVal DatabasePath As String, ByVal DownloadStartDate As DateTime, ByVal DownloadEndDate As DateTime, ByVal Increment As Integer, ByVal BackgroundWorker As System.ComponentModel.BackgroundWorker, ByVal DoWorkEvent As System.ComponentModel.DoWorkEventArgs)
+        Using Connection = CreateConnection(DatabasePath, False), Command = Connection.CreateCommand : Connection.Open()
 
-                'Download NDLAS Files
-                Dim First As Integer = DownloadStartDate.Subtract(NLDAS_2AStartDate).TotalHours
-                Dim Last As Integer = DownloadEndDate.Subtract(NLDAS_2AStartDate).TotalHours
-                Dim Hour As Integer = First
+            'Download NDLAS Files
+            Dim First As Integer = DownloadStartDate.Subtract(NLDAS_2AStartDate).TotalHours
+            Dim Last As Integer = DownloadEndDate.Subtract(NLDAS_2AStartDate).TotalHours
+            Dim Hour As Integer = First
 
-                For Hour = First To Last Step Increment
-                    Dim Count As Integer = Math.Min(Last - Hour + 1, Increment) - 1
+            For Hour = First To Last Step Increment
+                Dim Count As Integer = Math.Min(Last - Hour + 1, Increment) - 1
 
-                    'Start Asynchronous NLDAS Ftp File Downloads
-                    Dim FileDownloads(Count) As Threading.Tasks.Task(Of Byte())  '() As Byte
-                    Dim I As Integer = 0
-                    For I = 0 To Count
-                        Dim RecordDate As DateTime = NLDAS_2AStartDate.AddHours(Hour + I)
-                        FileDownloads(I) = Threading.Tasks.Task.Factory.StartNew(Function() DownloadFtpFileToBytes(BuildFtpStringNLDAS_2A(RecordDate)))
-                        'FileDownloads(I) = IO.File.ReadAllBytes("F:\NLDAS-2\" & RecordDate.Year & "\" & IO.Path.GetFileName(BuildFtpStringNLDAS_2A(RecordDate)))
-                    Next
-                    Threading.Tasks.Task.WaitAll(FileDownloads)
-
-                    'Add Raster File and Associated Time Stamp into Database
-                    Using Transaction = Connection.BeginTransaction
-                        For I = 0 To Count
-                            Command.CommandText = "INSERT OR REPLACE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
-                            Command.Parameters.Add("@Date", DbType.DateTime).Value = NLDAS_2AStartDate.AddHours(Hour + I)
-                            Command.Parameters.Add("@Image", DbType.Object).Value = FileDownloads(I).Result
-                            Command.ExecuteNonQuery()
-                        Next
-
-                        Transaction.Commit()
-                    End Using
-
-                    BackgroundWorker.ReportProgress(0, "Downloading...")
-                    If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
+                'Start Asynchronous NLDAS Ftp File Downloads
+                Dim FileDownloads(Count)() As Byte
+                Dim I As Integer = 0
+                For I = 0 To Count
+                    Dim RecordDate As DateTime = NLDAS_2AStartDate.AddHours(Hour + I)
+                    FileDownloads(I) = Client.DownloadData(BuildStringNLDAS_2A(RecordDate))
                 Next
 
-            End Using
+                'Add Raster File and Associated Time Stamp into Database
+                Using Transaction = Connection.BeginTransaction
+                    For I = 0 To Count
+                        Command.CommandText = "INSERT OR REPLACE INTO Rasters (Date, Image) VALUES (@Date, @Image)"
+                        Command.Parameters.Add("@Date", DbType.DateTime).Value = NLDAS_2AStartDate.AddHours(Hour + I)
+                        Command.Parameters.Add("@Image", DbType.Object).Value = FileDownloads(I)
+                        Command.ExecuteNonQuery()
+                    Next
+
+                    Transaction.Commit()
+                End Using
+
+                BackgroundWorker.ReportProgress(0, "Downloading...")
+                If BackgroundWorker.CancellationPending Then : DoWorkEvent.Cancel = True : Exit Sub : End If
+            Next
+
         End Using
 
-        DownloadNLDAS_2ATopography()
+        DownloadNLDAS_2ATopography(Client)
+
+        Client.Dispose()
     End Sub
 
     ''' <summary>
@@ -162,8 +168,8 @@ Module Download
     ''' <param name="RecordDate">Date of Directory or File of Interest</param>
     ''' <param name="Level">Path to Base Directory [Level=1], Year Directory [Level=2], Day of Year Directory [Level=3], or Hourly File [Level=4]</param>
     ''' <returns>Path to NLDAS_2A Directory or File</returns>
-    Function BuildFtpStringNLDAS_2A(RecordDate As DateTime, Optional Level As Integer = 4) As String
-        Dim Builder As New System.Text.StringBuilder("ftp://hydro1.sci.gsfc.nasa.gov/data/s4pa//NLDAS/NLDAS_FORA0125_H.002")
+    Function BuildStringNLDAS_2A(ByVal RecordDate As DateTime, Optional ByVal Level As Integer = 4) As String
+        Dim Builder As New System.Text.StringBuilder("https://hydro1.gesdisc.eosdis.nasa.gov/data/NLDAS/NLDAS_FORA0125_H.002")
         If Level > 1 Then Builder.Append("/" & RecordDate.Year)
         If Level > 2 Then Builder.Append("/" & RecordDate.DayOfYear.ToString("000"))
         If Level > 3 Then Builder.Append("/NLDAS_FORA0125_H.A" & RecordDate.ToString("yyyyMMdd") & "." & RecordDate.ToString("HH") & "00.002.grb")
@@ -174,10 +180,10 @@ Module Download
     ''' Downloads NLDAS-2 elevation raster.
     ''' </summary>
     ''' <remarks>Converts units from meters to feet.</remarks>
-    Sub DownloadNLDAS_2ATopography()
+    Sub DownloadNLDAS_2ATopography(ByRef Client As EarthDataClient)
         'Download NLDAS-2A File for Geographic Referencing
         Dim NLDAS_2ARasterPath As String = "/vsimem/gtopomean15k.bin"
-        GDAL.Gdal.FileFromMemBuffer(NLDAS_2ARasterPath, DownloadFileToBytes(BuildFtpStringNLDAS_2A(NLDAS_2AStartDate)))
+        GDAL.Gdal.FileFromMemBuffer(NLDAS_2ARasterPath, Client.DownloadData(BuildStringNLDAS_2A(NLDAS_2AStartDate)))
 
         Dim NLDAS_2AFileNames = {"gtopomean15k.asc", "slope15k.asc", "aspect15k.asc"}
         Dim ProjectFileNames = {NLDAS_2AElevationRasterPath, NLDAS_2ASlopeRasterPath, NLDAS_2AAspectRasterPath}
@@ -190,7 +196,7 @@ Module Download
                     If Not IO.File.Exists(ProjectFileNames(FileName)) Then
 
                         'Download NLDAS-2A File
-                        Dim File = DownloadFileToString("http://ldas.gsfc.nasa.gov/nldas/asc/" & NLDAS_2AFileNames(FileName))
+                        Dim File = Client.DownloadString("https://ldas.gsfc.nasa.gov/nldas/asc/" & NLDAS_2AFileNames(FileName))
 
                         'Get Driver and Create Output Elevation Raster
                         Using Driver = GDAL.Gdal.GetDriverByName("GTiff")
@@ -198,7 +204,7 @@ Module Download
 
                                 'Convert NLDAS-2A Elevation to Feet and Position in Array 
                                 Dim Values(NLDASRaster.RasterXSize * NLDASRaster.RasterYSize - 1) As Single
-                                For Each Line In File
+                                For Each Line In File.Split(vbLf)
                                     Dim Data = Line.Split(New Char() {" "}, StringSplitOptions.RemoveEmptyEntries)
                                     If Data.Length = 5 Then
                                         Dim I = (NLDASRaster.RasterYSize - Data(1)) * NLDASRaster.RasterXSize + Data(0) - 1
@@ -241,319 +247,142 @@ Module Download
         GDAL.Gdal.Unlink(NLDAS_2ARasterPath)
     End Sub
 
-    ''' <summary>
-    ''' Downloads and updates a database storing hourly NLDAS-2 Forcing File A GRIB rasters.
-    ''' </summary>
-    ''' <param name="Path">Path to NLDAS_2A SQLite Raster Storage Database</param>
-    ''' <remarks>Rasterlite ended up being too slow due excessive/exponential indexing per raster, and so this subroutine is not recommended for the sheer number NLDAS-2 datasets.</remarks>
-    Sub UpdateNDLAS_2AtoRasterlite(Path As String)
-        'Determine NLDAS-2A Ftp Directory Date Span
-        Dim FtpStartDate = New DateTime(1979, 1, 1).AddHours(13)
-        Dim Years = DownloadFtpDirectory(BuildFtpStringNLDAS_2A(FtpStartDate, 1))
-        Dim MaxYear As Integer = FtpStartDate.Year
-        For Each Yr In Years
-            If IsNumeric(Yr) Then If Yr > MaxYear Then MaxYear = Yr
-        Next
-
-        Dim DaysOfYear = DownloadFtpDirectory(BuildFtpStringNLDAS_2A(New DateTime(MaxYear, 1, 1), 2))
-        Dim MaxDayOfYear As Integer = 0
-        For Each DoY In DaysOfYear
-            If IsNumeric(DoY) Then If DoY > MaxDayOfYear Then MaxDayOfYear = DoY
-        Next
-
-        Dim Hours = DownloadFtpDirectory(BuildFtpStringNLDAS_2A(New DateTime(MaxYear - 1, 12, 31).AddDays(MaxDayOfYear), 3))
-        Dim MaxHour As Integer = 0
-        For Each Hr In Hours
-            Dim FileName = Hr.Split(".")
-            If FileName.Length > 1 Then If FileName(2) > MaxHour Then MaxHour = FileName(2)
-        Next
-        MaxHour /= 100
-        Dim FtpEndDate = New DateTime(MaxYear - 1, 12, 31).AddDays(MaxDayOfYear).AddHours(MaxHour)
-
-        'Determine Number of Rasters Already in File
-        Dim FileEndDate As DateTime = FtpStartDate
-        If IO.File.Exists(Path) Then
-            Using Connection = CreateConnection(Path, False)
-                Connection.Open()
-                Using Command = Connection.CreateCommand
-                    Command.CommandText = "SELECT Count(name) FROM sqlite_master WHERE TYPE='table' AND name LIKE 'R%_rasters'"
-                    FileEndDate = FileEndDate.AddHours(Command.ExecuteScalar)
-                End Using
-            End Using
-        End If
-
-        'Ftp Download Details
-        Dim First As Integer = FileEndDate.Subtract(FtpStartDate).TotalHours
-        Dim Last As Integer = FtpEndDate.Subtract(FtpStartDate).TotalHours
-        Dim Hour As Integer = First
-        Dim Increment As Integer = 8
-
-        'Download NDLAS Files
-        For Hour = First To Last Step Increment
-            Dim Count As Integer = Math.Min(Last - Hour + 1, Increment)
-            Dim FileName(Count - 1) As String
-
-            'Start Asynchronous NLDAS Ftp File Downloads
-            Threading.Tasks.Parallel.For(0, Count, _
-            Sub(I)
-                Dim RecordDate As DateTime = FtpStartDate.AddHours(Hour + I)
-                'FileName(I) = "F:\NLDAS-2\" & RecordDate.Year & "\" & IO.Path.GetFileName(BuildFtpStringNLDAS_2A(RecordDate))
-                FileName(I) = IO.Path.Combine(IO.Path.GetTempPath, "R" & RecordDate.ToString("yyyyMMddHH"))
-                DownloadFileToDrive(BuildFtpStringNLDAS_2A(RecordDate), FileName(I))
-            End Sub)
-
-            'Add Raster File to Database
-            Dim Process As New GDALProcess
-            For I = 0 To Count - 1
-                Process.Translate({FileName(I)}, "RASTERLITE:" & Path & ",table=" & FileName(I), GDALProcess.RasterFormat.Rasterlite, , , , , , GDAL.DataType.GDT_Float32, """+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs""", "-co DRIVER=GTiff -co COMPRESS=DEFLATE --config OGR_SQLITE_PRAGMA ""JOURNAL_MODE=OFF,SYNCHRONOUS=OFF,PAGE_SIZE=4096""")
-                IO.File.Delete(FileName(I))
-            Next
-        Next
-    End Sub
-
 #End Region
 
 #Region "Helper Functions"
 
-    ''' <summary>
-    ''' Downloads names of child directories and files of a specified ftp directory.
-    ''' </summary>
-    ''' <param name="URI">Ftp Directory Location</param>
-    ''' <returns>Alphabetically Sorted Names of Child Directories and Files</returns>
-    Function DownloadFtpDirectory(URI As String) As String()
-        Dim DirectoryList() As String = {}
+    Class EarthDataClient : Implements IDisposable
 
-        'Create Ftp Request
-        Dim Request As Net.FtpWebRequest = Net.FtpWebRequest.Create(URI)
-        Request.Method = Net.WebRequestMethods.Ftp.ListDirectory
+        Private WithEvents Client As ExtendedWebClient
 
-        Do
-            Try
-                Using Response = Request.GetResponse
-                    Using Reader = New IO.StreamReader(Response.GetResponseStream())
-                        DirectoryList = Reader.ReadToEnd.Replace(IO.Path.GetFileName(URI) & "/", "").Replace(vbLf, "").Split(vbNewLine)
-                    End Using
-                End Using
-            Catch Exception As Net.WebException
-                If CType(Exception.Response, Net.FtpWebResponse).StatusCode = Net.FtpStatusCode.ActionNotTakenFileUnavailable Then
-                    Return Nothing
-                End If
-            End Try
-        Loop Until DirectoryList.Length > 0
+        Sub New(ByVal UserName As String, ByVal Password As String)
+            Client = New ExtendedWebClient(UserName, Password)
+        End Sub
 
-        Array.Sort(DirectoryList)
-        Return DirectoryList
-    End Function
+        Private Class ExtendedWebClient : Inherits Net.WebClient
 
-    ''' <summary>
-    ''' Downloads an ftp file to memory.
-    ''' </summary>
-    ''' <param name="URI">Ftp File Location</param>
-    ''' <returns>Ftp File Byte Array</returns>
-    Function DownloadFtpFileToBytes(URI As String) As Byte()
-        Using MemoryStream As New IO.MemoryStream
+            Private CookieContainer As New Net.CookieContainer()
+            Private CredentialCache As New Net.CredentialCache()
 
-            'Create Ftp Request
-            Dim Request As Net.FtpWebRequest = Net.FtpWebRequest.Create(URI)
-            Request.UseBinary = True
+            Sub New(ByVal UserName As String, ByVal Password As String)
+                CredentialCache.Add(New Uri("https://urs.earthdata.nasa.gov"), "Basic", New Net.NetworkCredential(UserName, Password))
 
-            'Request File until Download Succeeds
-            Do
-                Try
-                    Using Response = Request.GetResponse
-                        Using Reader = New IO.StreamReader(Response.GetResponseStream())
-                            Reader.BaseStream.CopyTo(MemoryStream)
-                        End Using
-                    End Using
-                Catch Exception As Net.WebException
-                    If CType(Exception.Response, Net.FtpWebResponse).StatusCode = Net.FtpStatusCode.ActionNotTakenFileUnavailable Then
-                        Return Nothing
-                    End If
-                End Try
-            Loop Until MemoryStream.Length > 0
+                Me.DownloadData("https://hydro1.gesdisc.eosdis.nasa.gov/data/NLDAS/NLDAS_FORA0125_H.002/doc/gribtab_NLDAS_FORA_hourly.002.txt")
+            End Sub
 
-            DownloadFtpFileToBytes = MemoryStream.ToArray()
-        End Using
-    End Function
+            Protected Overrides Function GetWebRequest(ByVal address As Uri) As Net.WebRequest
+                Dim Request = DirectCast(MyBase.GetWebRequest(address), Net.HttpWebRequest)
 
-    ''' <summary>
-    ''' Downloads a file to disk.
-    ''' </summary>
-    ''' <param name="URI">File Location</param>
-    ''' <param name="Path">Disk File Location to Copy File</param>
-    Sub DownloadFileToDrive(URI As String, Path As String)
-        'Create Web Client
-        Using WebClient As New Net.WebClient
-            WebClient.Headers.Add(Net.HttpRequestHeader.UserAgent, "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.2; .NET CLR 1.0.3705;)")
-            WebClient.Headers("Accept") = "application/"
+                With Request
+                    .Method = "GET"
+                    .Credentials = CredentialCache
+                    .CookieContainer = CookieContainer
+                    .PreAuthenticate = False
+                    .AllowAutoRedirect = True
+                End With
+
+                Return Request
+            End Function
+
+        End Class
+
+
+        Dim Disposed As Boolean = False
+        Sub Dispose() Implements IDisposable.Dispose
+            Dispose(True)
+            GC.SuppressFinalize(Me)
+        End Sub
+
+        Protected Overridable Sub Dispose(ByVal Disposing As Boolean)
+            If Disposed Then Return
+
+            If Disposing Then
+                Client.Dispose()
+            End If
+
+            Disposed = True
+        End Sub
+
+        ''' <summary>
+        ''' Downloads and stores a text file by splitting each line into a string array.
+        ''' </summary>
+        ''' <param name="URL">File Location</param>
+        ''' <returns>File Line String Array</returns>
+        Function DownloadString(ByVal URL As String) As String
+            DownloadString = ""
 
             Dim Downloaded As Boolean = False
             Do
                 Try
-                    WebClient.DownloadFile(URI, Path)
+                    DownloadString = Client.DownloadString(URL)
                     Downloaded = True
-                Catch Exception As Net.WebException
-                    Downloaded = False
-                End Try
+                Catch : End Try
             Loop Until Downloaded = True
-        End Using
-    End Sub
+        End Function
 
-    ''' <summary>
-    ''' Downloads a file to memory.
-    ''' </summary>
-    ''' <param name="URI">File Location</param>
-    ''' <returns>File Byte Array</returns>
-    Function DownloadFileToBytes(URI As String) As Byte()
-        DownloadFileToBytes = {}
+        ''' <summary>
+        ''' Downloads and stores a file in a byte array.
+        ''' </summary>
+        ''' <param name="URL">File Location</param>
+        ''' <returns>File Byte Array</returns>
+        Function DownloadData(ByVal URL As String) As Byte()
+            DownloadData = {}
 
-        'Create Web Client
-        Using WebClient As New Net.WebClient
             Dim Downloaded As Boolean = False
             Do
                 Try
-                    Using MemoryStream = New IO.MemoryStream(WebClient.DownloadData(URI))
-                        DownloadFileToBytes = MemoryStream.ToArray
-                    End Using
+                    DownloadData = Client.DownloadData(URL)
                     Downloaded = True
-                Catch
-                    Downloaded = False
-                End Try
+                Catch : End Try
             Loop Until Downloaded = True
-        End Using
-    End Function
+        End Function
 
-    ''' <summary>
-    ''' Downloads a file to memory.
-    ''' </summary>
-    ''' <param name="URI">File Location</param>
-    ''' <returns>File Line String Array</returns>
-    Function DownloadFileToString(URI As String) As String()
-        DownloadFileToString = {}
-
-        'Create Web Client
-        Using WebClient As New Net.WebClient
+        ''' <summary>
+        ''' Downloads a file to disk.
+        ''' </summary>
+        ''' <param name="URL">File Location</param>
+        ''' <param name="Path">Disk File Location to Copy File</param>
+        Sub DownloadFile(ByVal URL As String, ByVal Path As String)
             Dim Downloaded As Boolean = False
             Do
                 Try
-                    Using Reader = New IO.StreamReader(WebClient.OpenRead(URI))
-                        DownloadFileToString = Reader.ReadToEnd.Split(vbLf)
-                    End Using
+                    Client.DownloadFile(URL, Path)
                     Downloaded = True
-                Catch
-                    Downloaded = False
-                End Try
+                Catch : End Try
             Loop Until Downloaded = True
-        End Using
-    End Function
+        End Sub
 
-    Function DownloadWebpage(ByVal URI As String) As String
-        Dim Response As String = ""
+        ''' <summary>
+        ''' Downloads http directory structure.
+        ''' </summary>
+        ''' <param name="URL">File Location</param>
+        ''' <returns>Alphabetically Sorted Names of Child Files</returns>
+        Function DownloadFileNames(ByVal URL As String)
+            Static IllegalCharacters As New HashSet(Of Char)(IO.Path.GetInvalidFileNameChars)
 
-        Dim Completed = False
-        Do
-            Try
-                'Create Http Request
-                Dim Request As Net.HttpWebRequest = Net.WebRequest.Create(URI)
-                Request.UserAgent = "Mozilla"
+            Return DownloadString(URL).Split({"><a href="""}, StringSplitOptions.RemoveEmptyEntries) _
+                                      .Select(Function(T) T.Split("""")(0)).Distinct _
+                                      .Where(Function(T) Not T.Intersect(IllegalCharacters).Any) _
+                                      .OrderBy(Function(T) T).ToArray()
+        End Function
 
-                Using HttpResponse As Net.HttpWebResponse = Request.GetResponse()
-                    Using Buffered = New IO.BufferedStream(HttpResponse.GetResponseStream())
-                        Using Reader As New IO.StreamReader(Buffered)
-                            Response = Reader.ReadToEnd()
-                        End Using
-                    End Using
-                End Using
+        ''' <summary>
+        ''' Downloads http directory structure.
+        ''' </summary>
+        ''' <param name="URL">File Location</param>
+        ''' <returns>Alphabetically Sorted Names of Child Directories</returns>
+        Function DownloadDirectoryNames(ByVal URL As String)
+            Static IllegalCharacters As New HashSet(Of Char)(IO.Path.GetInvalidFileNameChars.Where(Function(C) C <> "/"))
 
-                Completed = True
-            Catch Exception As Net.WebException
-                If Exception.Message.Contains("The remote server returned an error: (404) Not Found.") Then Exit Do
-            End Try
-        Loop Until Completed
+            Return DownloadString(URL).Split({"><a href="""}, StringSplitOptions.RemoveEmptyEntries) _
+                                      .Select(Function(T) T.Split("""")(0)).Distinct _
+                                      .Where(Function(T) Not T.Intersect(IllegalCharacters).Any AndAlso T.EndsWith("/")) _
+                                      .Select(Function(T) T.Replace("/", "")) _
+                                      .OrderBy(Function(T) T).ToArray()
+        End Function
 
-        Return Response
-    End Function
+    End Class
 
 #End Region
 
 End Module
-
-'Sub UpdateNDLAS2A(Directory As String)
-'    'Create Directory and Raster Files If They Do Not Already Exist
-'    Dim Level = "NLDAS_2_A\"
-'    If Not IO.Directory.Exists(Directory & Level) Then IO.Directory.CreateDirectory(Directory & Level)
-
-'    For Each Parameter In [Enum].GetNames(GetType(Hourly))
-'        Dim ParameterPath = Directory & Level & Parameter
-
-'        If Not IO.File.Exists(ParameterPath & ".bsq") Then
-'            IO.File.WriteAllText(ParameterPath & ".bsq", "")
-'            IO.File.WriteAllText(ParameterPath & ".prj", RasterNLDAS2A.Projection)
-'            IO.File.WriteAllText(ParameterPath & ".hdr", RasterNLDAS2A.GetHeader(0, -9999, RasterDataType.Float32))
-'        End If
-'    Next
-
-'    'Determine NLDAS Date Span for Download
-'    Dim NLDASStartDate = New DateTime(1979, 1, 1).AddHours(13)
-'    Dim Years = DownloadFtpDirectory(BuildFtpStringNLDAS_2_A(NLDASStartDate, 1))
-'    Dim MaxYear As Integer = NLDASStartDate.Year
-'    For Each Yr In Years
-'        If IsNumeric(Yr) Then If Yr > MaxYear Then MaxYear = Yr
-'    Next
-
-'    Dim DaysOfYear = DownloadFtpDirectory(BuildFtpStringNLDAS_2_A(New DateTime(MaxYear, 1, 1), 2))
-'    Dim MaxDayOfYear As Integer = 0
-'    For Each DoY In DaysOfYear
-'        If IsNumeric(DoY) Then If DoY > MaxDayOfYear Then MaxDayOfYear = DoY
-'    Next
-
-'    Dim Hours = DownloadFtpDirectory(BuildFtpStringNLDAS_2_A(New DateTime(MaxYear - 1, 12, 31).AddDays(MaxDayOfYear), 3))
-'    Dim MaxHour As Integer = 0
-'    For Each Hr In Hours
-'        Dim FileName = Hr.Split(".")
-'        If FileName.Length > 1 Then If FileName(2) > MaxHour Then MaxHour = FileName(2)
-'    Next
-'    MaxHour /= 100
-'    Dim NLDASEndDate = New DateTime(MaxYear - 1, 12, 31).AddDays(MaxDayOfYear).AddHours(MaxHour)
-
-'    Dim FileInfo As New IO.FileInfo(Directory & Level & [Enum].GetNames(GetType(Hourly))(0) & ".bsq")
-'    Dim ParameterEndDate = NLDASStartDate.AddHours(FileInfo.Length / (RasterNLDAS2A.XCount * RasterNLDAS2A.YCount) / 4)
-
-'    'Download NDLAS Files and Update Parameter Raster Files
-'    Dim First As Integer = ParameterEndDate.Subtract(NLDASStartDate).TotalHours
-'    Dim Last As Integer = NLDASEndDate.Subtract(NLDASStartDate).TotalHours
-'    Dim Hour As Integer = First
-'    Dim Increment As Integer = 8
-
-'    For Hour = First To Last Step Increment
-'        Dim Count As Integer = Math.Min(Last - Hour, Increment)
-
-'        'Start Asynchronous NLDAS Ftp File Downloads and Conversions
-'        Dim Tasks(Count - 1) As Threading.Tasks.Task(Of Single()())
-'        Dim I As Integer = 0
-'        For I = 0 To Count - 1
-'            Tasks(I) = Threading.Tasks.Task.Factory.StartNew(Function() DownloadNLDAS2A(NLDASStartDate.AddHours(Hour + I)), Threading.CancellationToken.None, Threading.Tasks.TaskCreationOptions.None, Threading.Tasks.TaskScheduler.Default)
-'        Next
-'        Threading.Tasks.Task.WaitAll(Tasks)
-
-'        'Write Reduced Datasets to Raster File
-'        For P = 0 To [Enum].GetNames(GetType(Hourly)).Length - 1
-'            Dim ParameterPath = Directory & Level & [Enum].GetName(GetType(Hourly), P)
-
-'            Using FileStream As New IO.FileStream(ParameterPath & ".bsq", IO.FileMode.Append)
-'                For I = 0 To Count - 1
-'                    Dim Bytes(Tasks(I).Result(P).Length * 4 - 1) As Byte
-'                    Buffer.BlockCopy(Tasks(I).Result(P), 0, Bytes, 0, Bytes.Length)
-'                    FileStream.Write(Bytes, 0, Bytes.Length)
-'                Next
-'            End Using
-
-'            IO.File.WriteAllText(ParameterPath & ".hdr", RasterNLDAS2A.GetHeader(Hour + Count, -9999, RasterDataType.Float32))
-'        Next
-'    Next
-'End Sub
-
-'Function CopyNLDAS2AFileToRAM(RecordDate As DateTime) As Byte()
-'    Dim Path = "F:\NLDAS-2\" & RecordDate.Year & "\NLDAS_FORA0125_H.A" & RecordDate.ToString("yyyyMMdd") & "." & RecordDate.ToString("HH") & "00.002.grb"
-'    CopyNLDAS2AFileToRAM = IO.File.ReadAllBytes(Path)
-'End Function

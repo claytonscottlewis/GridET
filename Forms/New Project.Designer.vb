@@ -71,7 +71,7 @@ Partial Class New_Project
         'AreaOfInterestGroup
         '
         Me.AreaOfInterestGroup.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.AreaOfInterestGroup.Controls.Add(Me.Label4)
         Me.AreaOfInterestGroup.Controls.Add(Me.Scaling)
         Me.AreaOfInterestGroup.Controls.Add(Me.ResolutionLabel)
@@ -92,7 +92,7 @@ Partial Class New_Project
         'Label4
         '
         Me.Label4.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.Label4.Location = New System.Drawing.Point(21, 185)
         Me.Label4.Margin = New System.Windows.Forms.Padding(3, 9, 3, 0)
         Me.Label4.Name = "Label4"
@@ -111,12 +111,12 @@ Partial Class New_Project
         Me.Scaling.Name = "Scaling"
         Me.Scaling.Size = New System.Drawing.Size(100, 20)
         Me.Scaling.TabIndex = 29
-        Me.Scaling.Value = New Decimal(New Integer() {1, 0, 0, 0})
+        Me.Scaling.Value = New Decimal(New Integer() {-1014127401, 0, 0, 589824})
         '
         'ResolutionLabel
         '
         Me.ResolutionLabel.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.ResolutionLabel.Location = New System.Drawing.Point(20, 76)
         Me.ResolutionLabel.Margin = New System.Windows.Forms.Padding(3, 9, 3, 0)
         Me.ResolutionLabel.Name = "ResolutionLabel"
@@ -150,7 +150,7 @@ Partial Class New_Project
         'ElevationDatasetPaths
         '
         Me.ElevationDatasetPaths.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.ElevationDatasetPaths.BackColor = System.Drawing.SystemColors.Window
         Me.ElevationDatasetPaths.Location = New System.Drawing.Point(18, 153)
         Me.ElevationDatasetPaths.Name = "ElevationDatasetPaths"
@@ -181,7 +181,7 @@ Partial Class New_Project
         'MaskDatasetPath
         '
         Me.MaskDatasetPath.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.MaskDatasetPath.BackColor = System.Drawing.SystemColors.Window
         Me.MaskDatasetPath.Location = New System.Drawing.Point(18, 44)
         Me.MaskDatasetPath.Name = "MaskDatasetPath"
@@ -202,7 +202,7 @@ Partial Class New_Project
         'FileLocationsGroup
         '
         Me.FileLocationsGroup.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.FileLocationsGroup.Controls.Add(Me.ClimateModelSet)
         Me.FileLocationsGroup.Controls.Add(Me.ClimateModelDirectory)
         Me.FileLocationsGroup.Controls.Add(Me.Label5)
@@ -229,7 +229,7 @@ Partial Class New_Project
         'ClimateModelDirectory
         '
         Me.ClimateModelDirectory.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.ClimateModelDirectory.BackColor = System.Drawing.SystemColors.Window
         Me.ClimateModelDirectory.Location = New System.Drawing.Point(18, 95)
         Me.ClimateModelDirectory.Name = "ClimateModelDirectory"
@@ -260,7 +260,7 @@ Partial Class New_Project
         'ProjectDirectory
         '
         Me.ProjectDirectory.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.ProjectDirectory.BackColor = System.Drawing.SystemColors.Window
         Me.ProjectDirectory.Location = New System.Drawing.Point(18, 44)
         Me.ProjectDirectory.Name = "ProjectDirectory"
@@ -281,7 +281,7 @@ Partial Class New_Project
         'ProgressBar
         '
         Me.ProgressBar.Anchor = CType(((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left) _
-            Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.ProgressBar.Location = New System.Drawing.Point(30, 419)
         Me.ProgressBar.Maximum = 5
         Me.ProgressBar.Name = "ProgressBar"
