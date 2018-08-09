@@ -273,7 +273,15 @@ Public Class Main
 #Region "Help"
 
     Private Sub ContentsToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ContentsToolStripMenuItem.Click
-        Help.ShowHelp(Me, IO.Path.Combine(Application.StartupPath, "Help File\GridET.chm"), HelpNavigator.TableOfContents)
+        Static Form As Help = Nothing
+
+        If Form Is Nothing OrElse Form.IsDisposed Then
+            Form = New Help
+            Form.LoadFile(IO.Path.Combine(Application.StartupPath, "Help File\GridET Help.html"))
+        End If
+
+        Form.Show()
+        Form.Focus()
     End Sub
 
     Private Sub AboutToolStripMenuItem_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles AboutToolStripMenuItem.Click
